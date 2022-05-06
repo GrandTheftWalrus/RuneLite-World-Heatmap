@@ -1,13 +1,13 @@
-package com.example;
+package com.worldheatmap;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class WorldHeatmapTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(WorldHeatmapPlugin.class);
 		RuneLite.main(args);
 	}
 }
