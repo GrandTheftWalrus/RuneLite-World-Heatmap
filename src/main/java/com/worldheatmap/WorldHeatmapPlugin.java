@@ -72,13 +72,13 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
 		executor.execute(START);
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
 		executor.execute(MAKE_IMAGE);
 		executor.execute(SHUTDOWN);
@@ -197,7 +197,7 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	/**
-	 * Returns the number t-percent of the way between start and end
+	 * Returns the number t-percent of the way between start and end.
 	 * @param start
 	 * @param end
 	 * @param t
