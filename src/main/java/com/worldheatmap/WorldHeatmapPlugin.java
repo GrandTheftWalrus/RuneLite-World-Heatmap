@@ -14,10 +14,14 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
+import net.runelite.client.ui.ClientToolbar;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.zip.DeflaterOutputStream;
@@ -32,13 +36,15 @@ public class WorldHeatmapPlugin extends Plugin
 	private static final int OVERWORLD_MAX_X = 3904, OVERWORLD_MAX_Y = Constants.OVERWORLD_MAX_Y, DEFAULT_IMAGE_SAVE_FREQUENCY = 100, DEFAULT_HEATMAP_BACKUP_FREQUENCY = 1000, HEATMAP_OFFSET_X = -1152, HEATMAP_OFFSET_Y = -2496;
 	private int lastX = 0, lastY = 0;
 	private long stepCount = 0;
-	private final String HEATMAP_PATH = "Heatmap Results", HEATMAP_IMAGE_PATH = "Heatmap Results";
+	protected final String HEATMAP_PATH = "heatmap files", HEATMAP_IMAGE_PATH = "Heatmap Images";
 	private int[][] heatmap = new int[2752][1664];
+	private NavigationButton toolbarButton;
+	private WorldHeatmapPanel panel;
 
 	@Inject
 	private Client client;
 
-	private final Runnable READ_HEATMAP_FILE = () -> {
+	protected final Runnable READ_HEATMAP_FILE = () -> {
 		String filepath = Paths.get(HEATMAP_PATH, client.getLocalPlayer().getName()).toString() + ".heatmap";
 		readHeatmapFile(filepath);
 		log.debug("World Heatmap started!");
@@ -48,7 +54,7 @@ public class WorldHeatmapPlugin extends Plugin
 		String filepath = Paths.get(HEATMAP_PATH, client.getLocalPlayer().getName()).toString() + ".heatmap";
 		writeHeatmapFile(filepath);
 	};
-	private final Runnable MAKE_IMAGE = () -> {
+	protected final Runnable MAKE_IMAGE = () -> {
 		log.debug("Saving heatmap image to disk...");
 		long startTime = System.nanoTime();
 		String filepath = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName()).toString();
@@ -62,10 +68,13 @@ public class WorldHeatmapPlugin extends Plugin
 	};
 
 	@Inject
-	private ScheduledExecutorService executor;
+	protected ScheduledExecutorService executor;
 
 	@Inject
 	private WorldHeatmapConfig config;
+
+	@Inject
+	private ClientToolbar clientToolbar;
 
 	@Provides
 	WorldHeatmapConfig provideConfig(ConfigManager configManager)
@@ -76,6 +85,17 @@ public class WorldHeatmapPlugin extends Plugin
 	@Override
 	protected void startUp() {
 		executor.execute(READ_HEATMAP_FILE);
+
+		panel = new WorldHeatmapPanel(this);
+		panel.rebuild();
+		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
+		toolbarButton = NavigationButton.builder()
+				.tooltip("World Heatmap")
+				.icon(icon)
+				.priority(5)
+				.panel(panel)
+				.build();
+		clientToolbar.addNavigation(toolbarButton);
 	}
 
 	@Override
@@ -207,12 +227,12 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	//Loads heatmap from local storage. If file does not exist, it will create a new one.
-	private void readHeatmapFile(String filename) {
-		log.debug("Loading heatmap file '" + filename + "'");
-		File heatmapFile = new File(filename);
+	private void readHeatmapFile(String filepath) {
+		log.debug("Loading heatmap file '" + filepath + "'");
+		File heatmapFile = new File(filepath);
 		if (heatmapFile.exists()){
 			try{
-				FileInputStream fis = new FileInputStream(filename);
+				FileInputStream fis = new FileInputStream(filepath);
 				InflaterInputStream inflaterIn = new InflaterInputStream(fis);
 				DataInputStream dis = new DataInputStream(inflaterIn);
 				//Load heatmap into memory
@@ -229,15 +249,23 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 		else{ //If heatmap file does not exist, sanity-reinitialize heatmap matrix to zeros, then save file
 			heatmap = new int[2752][1664];
-			writeHeatmapFile(HEATMAP_PATH);
+			writeHeatmapFile(filepath);
 		}
 	}
 
 	/**
 	 * Saves heatmap matrix to 'Heatmap Results' folder.
 	 */
-	private void writeHeatmapFile(String filename) {
+	protected void writeHeatmapFile(String filename) {
 		log.debug("writing heatmap file '" + filename + "'");
+		File file = new File(filename);
+
+		//Make the directory path if it doesn't exist
+		if (!Files.exists(Paths.get(file.getParent()))){
+			new File(file.getParent()).mkdirs();
+		}
+
+		//Write the heatmap file
 		try{
 			FileOutputStream fos = new FileOutputStream(filename);
 			DeflaterOutputStream deflaterOut = new DeflaterOutputStream(fos);
@@ -297,6 +325,9 @@ public class WorldHeatmapPlugin extends Plugin
 				}
 			}
 			File heatmapImageFile = new File(fileName);
+			if (!Files.exists(Paths.get(heatmapImageFile.getParent()))){
+				new File(heatmapImageFile.getParent()).mkdirs();
+			}
 			ImageIO.write(worldMapImage, "png", heatmapImageFile);
 		}
 		catch (IOException e){
