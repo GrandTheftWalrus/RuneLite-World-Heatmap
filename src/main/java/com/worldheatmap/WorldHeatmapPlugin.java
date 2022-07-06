@@ -37,7 +37,8 @@ public class WorldHeatmapPlugin extends Plugin
 	private int lastX = 0, lastY = 0;
 	private long stepCount = 0;
 	protected final String HEATMAP_PATH = "heatmap files", HEATMAP_IMAGE_PATH = "Heatmap Images";
-	private int[][] heatmap = new int[2752][1664];
+	private final int HEATMAP_WIDTH = 2752, HEATMAP_HEIGHT = 1664;
+	private int[][] heatmap = new int[HEATMAP_WIDTH][HEATMAP_HEIGHT];
 	private NavigationButton toolbarButton;
 	private WorldHeatmapPanel panel;
 
@@ -54,13 +55,26 @@ public class WorldHeatmapPlugin extends Plugin
 		String filepath = Paths.get(HEATMAP_PATH, client.getLocalPlayer().getName()).toString() + ".heatmap";
 		writeHeatmapFile(filepath);
 	};
-	protected final Runnable MAKE_IMAGE = () -> {
+
+	protected final Runnable WRITE_IMAGE_FILE = () -> {
 		log.debug("Saving heatmap image to disk...");
 		long startTime = System.nanoTime();
 		String filepath = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName()).toString();
 		writeImageFile(filepath);
 		log.debug("Finished heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	};
+
+	protected final Runnable CLEAR_HEATMAP = () -> {
+		heatmap = new int[HEATMAP_WIDTH][HEATMAP_HEIGHT];
+		log.debug("Saving heatmap image to disk...");
+		long startTime = System.nanoTime();
+		String image_filepath = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName()).toString();
+		writeImageFile(image_filepath);
+		log.debug("Finished heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		String filepath = Paths.get(HEATMAP_PATH, client.getLocalPlayer().getName()).toString() + ".heatmap";
+		writeHeatmapFile(filepath);
+	};
+
 	private final Runnable WRITE_NEW_BACKUP = () -> {
 		String filePath = Paths.get(HEATMAP_PATH, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + ".heatmap").toString();
 		writeHeatmapFile(filePath);
@@ -140,7 +154,7 @@ public class WorldHeatmapPlugin extends Plugin
 							executor.execute(SAVE_HEATMAP);
 						if (stepCount % imageSaveFrequency == 0 && config.autosaveOnOff()) {
 							executor.execute(SAVE_HEATMAP);
-							executor.execute(MAKE_IMAGE);
+							executor.execute(WRITE_IMAGE_FILE);
 						}
 						if (stepCount % heatmapBackupFrequency == 0)
 							executor.execute(WRITE_NEW_BACKUP);
@@ -248,7 +262,7 @@ public class WorldHeatmapPlugin extends Plugin
 			}
 		}
 		else{ //If heatmap file does not exist, sanity-reinitialize heatmap matrix to zeros, then save file
-			heatmap = new int[2752][1664];
+			heatmap = new int[HEATMAP_WIDTH][HEATMAP_HEIGHT];
 			writeHeatmapFile(filepath);
 		}
 	}
@@ -284,7 +298,7 @@ public class WorldHeatmapPlugin extends Plugin
 	/**
 	 * Writes a visualization of the heatmap matrix over top of the OSRS world map as a PNG image to the "Heatmap Results" folder.
 	 */
-	private void writeImageFile(String fileName) {
+	private void writeImageFile(String fileName){
 		//First, to normalize the image, we find the maximum value in the heatmap
 		int max = 0, maxX = 0, maxY = 0;
 		for (int y = 0; y < heatmap[0].length; y++)

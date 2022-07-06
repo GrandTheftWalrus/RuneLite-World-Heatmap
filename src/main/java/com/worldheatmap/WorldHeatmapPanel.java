@@ -24,7 +24,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         removeAll();
         JPanel mainPanel = new JPanel();
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        mainPanel.setBorder(new EmptyBorder(8, 0, 40, 0));
+        mainPanel.setBorder(new EmptyBorder(8, 0, 72, 0));
 
         JButton writeHeatmapImageButton = new JButton("Write Heatmap Image");
         writeHeatmapImageButton.setFont(new Font(writeHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
@@ -53,14 +53,29 @@ public class WorldHeatmapPanel extends PluginPanel{
         });
         mainPanel.add(openHeatmapFolderButton);
 
+        JButton clearHeatmapButton = new JButton("Restart Heatmap");
+        clearHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
+        clearHeatmapButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                clearHeatmap();
+            }
+        });
+        mainPanel.add(clearHeatmapButton);
+
         add(mainPanel);
     }
 
     private void writeHeatmapImage(){
-        plugin.executor.execute(plugin.MAKE_IMAGE);
+        plugin.executor.execute(plugin.WRITE_IMAGE_FILE);
     }
 
     private void openHeatmapsFolder() throws IOException {
         Desktop.getDesktop().open(new File(plugin.HEATMAP_IMAGE_PATH));
+    }
+
+    private void clearHeatmap() {
+        plugin.executor.execute(plugin.CLEAR_HEATMAP);
     }
 }
