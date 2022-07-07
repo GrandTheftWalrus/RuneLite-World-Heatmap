@@ -47,7 +47,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         //Panel for Type A heatmap
         typeAPanel = new JPanel();
         typeAPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        typeAPanel.setBorder(new EmptyBorder(8, 0, 72, 0));
+        typeAPanel.setBorder(new EmptyBorder(8, 0, 76, 0));
         typeAPanel.add(new JLabel("Heatmap Type A"));
 
         //'Write Heatmap Image' button for Type A
@@ -80,7 +80,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         //Panel for Type B heatmaps
         typeBPanel = new JPanel();
         typeBPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        typeBPanel.setBorder(new EmptyBorder(8, 0, 72, 0));
+        typeBPanel.setBorder(new EmptyBorder(8, 0, 76, 0));
         typeBPanel.add(new JLabel("Heatmap Type B"));
 
         //'Write Heatmap Image' button for Type B
@@ -118,6 +118,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         typeBPanel.remove(typeBCountLabel);
         typeBCountLabel = new JLabel("Step count: " + plugin.heatmapTypeB.getStepCount());
         typeBPanel.add(typeBCountLabel);
+        updateUI();
     }
 
     private void writeTypeAHeatmapImage(){

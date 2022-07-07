@@ -50,11 +50,7 @@ public class WorldHeatmapPlugin extends Plugin
 	private int lastX = 0,
 			lastY = 0,
 			lastStepCountA = 0,
-			lastStepCountB = 0,
-			typeBImageAutosaveFrequency,
-			typeBHeatmapBackupFrequency,
-			typeAImageAutosaveFrequency,
-			typeAHeatmapBackupFrequency;
+			lastStepCountB = 0;
 	protected final String HEATMAPS_PATH = "heatmap files", HEATMAP_IMAGE_PATH = "Heatmap Images";
 	private final int HEATMAP_WIDTH = 2752, HEATMAP_HEIGHT = 1664;
 	protected Heatmap heatmapTypeA = new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
@@ -171,25 +167,6 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onConfigChanges(ConfigChanged event){
-		if (event.getGroup().equals(WorldHeatmapConfig.GROUP)){
-			typeAImageAutosaveFrequency = config.typeAImageAutosaveFrequency();
-			typeAHeatmapBackupFrequency = config.typeAHeatmapBackupFrequency();
-			if (typeAImageAutosaveFrequency < MINIMUM_TYPE_A_IMAGE_AUTOSAVE_FREQUENCY)			//If the user specified the save frequency to be less than minimum, we set it to minimum because the user is dumb, and that's too often.
-				typeAImageAutosaveFrequency = MINIMUM_TYPE_A_IMAGE_AUTOSAVE_FREQUENCY;
-			if (typeAHeatmapBackupFrequency < MINIMUM_TYPE_A_HEATMAP_BACKUP_FREQUENCY)			//If the user specified the save frequency to be less than minimum, we set it to minimum because the user is dumb, and that's too often.
-				typeAHeatmapBackupFrequency = MINIMUM_TYPE_A_HEATMAP_BACKUP_FREQUENCY;
-
-			typeBImageAutosaveFrequency = config.typeBImageAutosaveFrequency();
-			typeBHeatmapBackupFrequency = config.typeBHeatmapBackupFrequency();
-			if (typeBImageAutosaveFrequency < MINIMUM_TYPE_B_IMAGE_AUTOSAVE_FREQUENCY)			//If the user specified the save frequency to be less than minimum, we set it to minimum because the user is dumb, and that's too often.
-				typeBImageAutosaveFrequency = MINIMUM_TYPE_B_IMAGE_AUTOSAVE_FREQUENCY;
-			if (typeBHeatmapBackupFrequency < MINIMUM_TYPE_B_HEATMAP_BACKUP_FREQUENCY)			//If the user specified the save frequency to be less than minimum, we set it to minimum because the user is dumb, and that's too often.
-				typeBHeatmapBackupFrequency = MINIMUM_TYPE_B_HEATMAP_BACKUP_FREQUENCY;
-		}
-	}
-
-	@Subscribe
 	public void onGameTick(GameTick gameTick){
 		WorldPoint currentCoords = client.getLocalPlayer().getWorldLocation();
 		int currentX = currentCoords.getX();
@@ -210,14 +187,14 @@ public class WorldHeatmapPlugin extends Plugin
 				for (int[]  tile : getPointsBetween(new int[]{ lastX, lastY}, new int[]{ currentX, currentY})){
 					if (heatmapTypeA.isInBounds(tile[0], tile[1])) {
 						heatmapTypeA.increment(tile[0], tile[1]);
-						if (heatmapTypeA.getStepCount() % typeAImageAutosaveFrequency == 0 && config.typeAImageAutosaveOnOff()) {	//If it's tiem to write the image, then save heatmap and write image
+						if (config.typeAImageAutosaveOnOff() && heatmapTypeA.getStepCount() % config.typeAImageAutosaveFrequency() == 0) {	//If it's time to write the image, then save heatmap and write image
 							executor.execute(SAVE_TYPE_A_HEATMAP);
 							executor.execute(WRITE_TYPE_A_IMAGE);
 						}
 						else if (heatmapTypeA.getStepCount() % TYPE_A_HEATMAP_AUTOSAVE_FREQUENCY == 0){						//only if it wasn't the time to do the above, then check if it's time to autosave
 							executor.execute(SAVE_TYPE_A_HEATMAP);
 						}
-						if (heatmapTypeA.getStepCount() % typeAHeatmapBackupFrequency == 0)
+						if (heatmapTypeA.getStepCount() % config.typeAHeatmapBackupFrequency() == 0)
 							executor.execute(WRITE_NEW_BACKUPS);
 					}
 					else
@@ -227,10 +204,6 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 
 		//The following code is for the 'Type B' heatmap
-		if (typeBImageAutosaveFrequency < MINIMUM_TYPE_B_IMAGE_AUTOSAVE_FREQUENCY)			//If the user specified the save frequency to be less than minimum, we set it to minimum because the user is dumb, and that's too often.
-			typeBImageAutosaveFrequency = MINIMUM_TYPE_B_IMAGE_AUTOSAVE_FREQUENCY;
-		if (typeBHeatmapBackupFrequency < MINIMUM_TYPE_B_HEATMAP_BACKUP_FREQUENCY)		//If the user specified the save frequency to be less than minimum, we set it to minimum because the user is dumb, and that's too often.
-			typeBHeatmapBackupFrequency = MINIMUM_TYPE_B_HEATMAP_BACKUP_FREQUENCY;
 		if (currentX < OVERWORLD_MAX_X && currentY < OVERWORLD_MAX_Y) { //If the player is in the overworld
 			/* When running, players cover more than one tile per tick, which creates spotty paths.
 			 * We fix this by drawing a line between the current coordinates and the previous coordinates,
@@ -245,14 +218,14 @@ public class WorldHeatmapPlugin extends Plugin
 				for (int[]  tile : getPointsBetween(new int[]{ lastX, lastY}, new int[]{ currentX, currentY})){
 					if (heatmapTypeB.isInBounds(tile[0], tile[1])) {
 						heatmapTypeB.increment(tile[0], tile[1]);
-						if (heatmapTypeB.getStepCount() % typeBImageAutosaveFrequency == 0 && config.typeBImageAutosaveOnOff()) {	//If it's tiem to write the image, then save heatmap and write image
+						if (config.typeBImageAutosaveOnOff() && heatmapTypeB.getStepCount() % config.typeBImageAutosaveFrequency() == 0) {	//If it's tiem to write the image, then save heatmap and write image
 							executor.execute(SAVE_TYPE_B_HEATMAP);
 							executor.execute(WRITE_TYPE_B_IMAGE);
 						}
 						else if (heatmapTypeB.getStepCount() % TYPE_B_HEATMAP_AUTOSAVE_FREQUENCY == 0){ 							//only if it wasn't the time to do the above, then check if it's time to autosave
 							executor.execute(SAVE_TYPE_B_HEATMAP);
 						}
-						if (heatmapTypeB.getStepCount() % typeBHeatmapBackupFrequency == 0)
+						if (heatmapTypeB.getStepCount() % config.typeBHeatmapBackupFrequency() == 0)
 							executor.execute(WRITE_NEW_BACKUPS);
 					}
 					else
@@ -262,7 +235,7 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 		if (heatmapTypeA.getStepCount() != lastStepCountA || heatmapTypeB.getStepCount() != lastStepCountB) {
 			SwingUtilities.invokeLater(panel::updateCounts);
-			log.debug(String.format("Type A step count: %3d Type B step count: %3d", heatmapTypeA.getStepCount(), heatmapTypeB.getStepCount()));
+			//log.debug(String.format("Type A step count: %3d Type B step count: %3d", heatmapTypeA.getStepCount(), heatmapTypeB.getStepCount()));
 		}
 		//Update last coords
 		lastX = currentX;
@@ -280,16 +253,15 @@ public class WorldHeatmapPlugin extends Plugin
 	 * @return
 	 */
 	private int[][] getPointsBetween(int[] p0, int[] p1){
+		if (Arrays.equals(p0, p1))
+			return new int[][]{ p1 };
 		int N = diagonalDistance(p0, p1);
 		int[][] points = new int[N][2];
 		for (int step = 1; step <= N; step++) {
 			float t = step / (float)N;
 			points[step - 1] = roundPoint(lerp_point(p0, p1, t));
 		}
-		if (Arrays.equals(p0, p1))
-			return new int[][]{ p1 };
-		else
-			return points;
+		return points;
 	}
 
 	/**
@@ -393,6 +365,7 @@ public class WorldHeatmapPlugin extends Plugin
 		int minX = minValAndCoords[1];
 		int minY = minValAndCoords[2];
 		log.debug("Minimum steps on a tile is: " + minVal + " at (" + minX + ", " + minY + "), for " + fileName);
+		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); //If maxVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero.
 
 		try{
 			File worldMapImageFile = new File("osrs_world_map.png");
@@ -406,10 +379,10 @@ public class WorldHeatmapPlugin extends Plugin
 			for (int y = 0; y < HEATMAP_HEIGHT; y++) {
 				for (int x = 0; x < HEATMAP_WIDTH; x++) {
 					int invertedY = HEATMAP_HEIGHT - y - 1;
-					if (heatmap.heatmapCoordsGet(x, invertedY) != 0) {											//If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
+					if (heatmap.heatmapCoordsGet(x, invertedY) != 0) {													//If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
 						currStepValue = ((float) heatmap.heatmapCoordsGet(x, invertedY) - minVal) / (maxVal - minVal);	//Calculate normalized step value
-						currHue = (float)(0.333 - (currStepValue * 0.333));											//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
-						currRGB = Color.HSBtoRGB(currHue, 1, 1);									//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
+						currHue = (float)(0.333 - (currStepValue * 0.333));												//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
+						currRGB = Color.HSBtoRGB(currHue, 1, 1);										//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
 						//Now we reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
 						worldMapImage.setRGB(x*3 + 0, y*3 + 0, currRGB);
 						worldMapImage.setRGB(x*3 + 0, y*3 + 1, currRGB);

@@ -1,9 +1,6 @@
 package com.worldheatmap;
 
-import net.runelite.client.config.Config;
-import net.runelite.client.config.ConfigGroup;
-import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.*;
 
 @ConfigGroup(WorldHeatmapConfig.GROUP)
 public interface WorldHeatmapConfig extends Config
@@ -18,6 +15,9 @@ public interface WorldHeatmapConfig extends Config
 	)
 	String typeA = "type_a";
 
+	@Range(
+			min = 100
+	)
 	@ConfigItem(
 			keyName = "typeAImageAutosaveFrequency",
 			name = "Image Autosave Frequency",
@@ -37,6 +37,9 @@ public interface WorldHeatmapConfig extends Config
 	)
 	default boolean typeAImageAutosaveOnOff() { return true; }
 
+	@Range(
+			min = 100
+	)
 	@ConfigItem(
 			keyName = "typeAHeatmapBackupFrequency",
 			name = "Heatmap Backup Frequency",
@@ -56,6 +59,9 @@ public interface WorldHeatmapConfig extends Config
 	)
 	String typeB = "type_b";
 
+	@Range(
+			min = 500
+	)
 	@ConfigItem(
 			keyName = "typeBImageAutosaveFrequency",
 			name = "Image Autosave Frequency",
@@ -75,6 +81,9 @@ public interface WorldHeatmapConfig extends Config
 	)
 	default boolean typeBImageAutosaveOnOff() { return true; }
 
+	@Range(
+			min = 100
+	)
 	@ConfigItem(
 			keyName = "typeBHeatmapBackupFrequency",
 			name = "Heatmap Backup Frequency",
