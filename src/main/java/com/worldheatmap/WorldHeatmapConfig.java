@@ -1,37 +1,88 @@
 package com.worldheatmap;
 
-import lombok.experimental.FieldNameConstants;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
-@ConfigGroup("example")
+@ConfigGroup(WorldHeatmapConfig.GROUP)
 public interface WorldHeatmapConfig extends Config
 {
-	@ConfigItem(
-			keyName = "imageAutosaveFrequency",
-			name = "Image Autosave Frequency",
-			description = "This determines how often (in number of steps) to automatically save the world heatmap PNG image. Minimum value of 100."
+	String GROUP = "worldheatmap";
+
+	@ConfigSection(
+			name = "'Type A' Heatmap",
+			description = "The 'Type A' heatmap's tiles are incremented each time they are stepped on",
+			position = 0,
+			closedByDefault = false
 	)
-	default int imageAutosaveFrequency()
+	String typeA = "type_a";
+
+	@ConfigItem(
+			keyName = "typeAImageAutosaveFrequency",
+			name = "Image Autosave Frequency",
+			description = "This determines how often (in number of steps) to automatically save the 'Type A' world heatmap PNG image. Default value of 1000 tiles (which equates to 5 mins of running, or 10 mins of walking). Minimum value of 100.",
+			section = typeA
+	)
+	default int typeAImageAutosaveFrequency()
 	{
-		return 100;
+		return 1000;
 	}
 
 	@ConfigItem(
-			keyName = "autosaveOnOff",
+			keyName = "typeAAutosaveOnOff",
 			name = "Autosave Image to Disk",
-			description = "Should the heatmap be automatically saved at the frequency specified above?"
+			description = "Should the 'Type A' internal heatmap matrix be automatically saved at the frequency specified above?",
+			section = typeA
 	)
-	default boolean autosaveOnOff() { return true; }
+	default boolean typeAImageAutosaveOnOff() { return true; }
 
 	@ConfigItem(
-			keyName = "heatmapBackupFrequency",
+			keyName = "typeAHeatmapBackupFrequency",
 			name = "Heatmap Backup Frequency",
-			description = "This determines how often (in number of steps) to make backups the heatmap matrix, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of 10-100kb. Only accepts values of at least 1000."
+			description = "This determines how often (in number of steps) to make a new backup of the 'Type A' heatmap matrix, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of 10-100kb. Default value 12,000 tiles (which is 1 hour of sprinting, or 2 hours of walking). Minimum value 100.",
+			section = typeA
 	)
-	default int heatmapBackupFrequency()
+	default int typeAHeatmapBackupFrequency()
+	{
+		return 6000;
+	}
+
+	@ConfigSection(
+			name = "'Type B' Heatmap",
+			description = "The 'Type B' heatmap's tiles are incremented each time they are stepped on, as well as once for every game tick that you are standing on them.",
+			position = 1,
+			closedByDefault = false
+	)
+	String typeB = "type_b";
+
+	@ConfigItem(
+			keyName = "typeBImageAutosaveFrequency",
+			name = "Image Autosave Frequency",
+			description = "This determines how often (in number of steps + game ticks) to automatically save the 'Type B' world heatmap PNG image to disk. Default value of 1000. Minimum value of 500.",
+			section = typeB
+	)
+	default int typeBImageAutosaveFrequency()
 	{
 		return 1000;
+	}
+
+	@ConfigItem(
+			keyName = "typeBAutosaveOnOff",
+			name = "Autosave Image to Disk",
+			description = "Should the 'Type B' internal heatmap matrix be automatically saved at the frequency specified above?",
+			section = typeB
+	)
+	default boolean typeBImageAutosaveOnOff() { return true; }
+
+	@ConfigItem(
+			keyName = "typeBHeatmapBackupFrequency",
+			name = "Heatmap Backup Frequency",
+			description = "This determines how often (in number of steps + game ticks) to make a new backup of the 'Type B' heatmap matrix, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of 10-100kb. Default value of 6000. Minimum value of 100.",
+			section = typeB
+	)
+	default int typeBHeatmapBackupFrequency()
+	{
+		return 6000;
 	}
 }

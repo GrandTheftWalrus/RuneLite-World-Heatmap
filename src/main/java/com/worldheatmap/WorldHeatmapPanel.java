@@ -14,6 +14,8 @@ import java.io.IOException;
 public class WorldHeatmapPanel extends PluginPanel{
 
     private final WorldHeatmapPlugin plugin;
+    private JPanel mainPanel, typeAPanel, typeBPanel;
+    private JLabel typeACountLabel, typeBCountLabel;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -22,22 +24,10 @@ public class WorldHeatmapPanel extends PluginPanel{
 
     protected void rebuild(){
         removeAll();
-        JPanel mainPanel = new JPanel();
+        mainPanel = new JPanel();
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        mainPanel.setBorder(new EmptyBorder(8, 0, 72, 0));
-
-        JButton writeHeatmapImageButton = new JButton("Write Heatmap Image");
-        writeHeatmapImageButton.setFont(new Font(writeHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
-        writeHeatmapImageButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
-                writeHeatmapImage();
-            }
-        });
-        mainPanel.add(writeHeatmapImageButton);
-
-        JButton openHeatmapFolderButton = new JButton("Open Heatmap Folder");
+        mainPanel.setBorder(new EmptyBorder(8, 0, 10, 0));
+        JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
         openHeatmapFolderButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
         openHeatmapFolderButton.addMouseListener(new MouseAdapter() {
             @Override
@@ -52,30 +42,101 @@ public class WorldHeatmapPanel extends PluginPanel{
             }
         });
         mainPanel.add(openHeatmapFolderButton);
+        add(mainPanel);
 
+        //Panel for Type A heatmap
+        typeAPanel = new JPanel();
+        typeAPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        typeAPanel.setBorder(new EmptyBorder(8, 0, 72, 0));
+        typeAPanel.add(new JLabel("Heatmap Type A"));
+
+        //'Write Heatmap Image' button for Type A
+        JButton writeTypeAHeatmapImageButton = new JButton("Write Heatmap Image");
+        writeTypeAHeatmapImageButton.setFont(new Font(writeTypeAHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
+        writeTypeAHeatmapImageButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                writeTypeAHeatmapImage();
+            }
+        });
+        typeAPanel.add(writeTypeAHeatmapImageButton);
+
+        //'Restart Heatmap' button for Type A
         JButton clearHeatmapButton = new JButton("Restart Heatmap");
         clearHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
         clearHeatmapButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
-                clearHeatmap();
+                clearTypeAHeatmap();
             }
         });
-        mainPanel.add(clearHeatmapButton);
+        typeAPanel.add(clearHeatmapButton);
+        typeACountLabel = new JLabel("Step count: " + plugin.heatmapTypeA.getStepCount());
+        typeAPanel.add(typeACountLabel);
+        add(typeAPanel);
 
-        add(mainPanel);
+        //Panel for Type B heatmaps
+        typeBPanel = new JPanel();
+        typeBPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        typeBPanel.setBorder(new EmptyBorder(8, 0, 72, 0));
+        typeBPanel.add(new JLabel("Heatmap Type B"));
+
+        //'Write Heatmap Image' button for Type B
+        JButton writeTypeBHeatmapImageButton = new JButton("Write Heatmap Image");
+        writeTypeBHeatmapImageButton.setFont(new Font(writeTypeBHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
+        writeTypeBHeatmapImageButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                writeTypeBHeatmapImage();
+            }
+        });
+        typeBPanel.add(writeTypeBHeatmapImageButton);
+
+        //'Restart Heatmap' button for Type B
+        JButton clearTypeBHeatmapButton = new JButton("Restart Heatmap");
+        clearTypeBHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
+        clearTypeBHeatmapButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                clearTypeBHeatmap();
+            }
+        });
+        typeBPanel.add(clearTypeBHeatmapButton);
+        typeBCountLabel = new JLabel("Step count: " + plugin.heatmapTypeB.getStepCount());
+        typeBPanel.add(typeBCountLabel);
+        add(typeBPanel);
     }
 
-    private void writeHeatmapImage(){
-        plugin.executor.execute(plugin.WRITE_IMAGE_FILE);
+    protected void updateCounts(){
+        typeAPanel.remove(typeACountLabel);
+        typeACountLabel = new JLabel("Step count: " + plugin.heatmapTypeA.getStepCount());
+        typeAPanel.add(typeACountLabel);
+        typeBPanel.remove(typeBCountLabel);
+        typeBCountLabel = new JLabel("Step count: " + plugin.heatmapTypeB.getStepCount());
+        typeBPanel.add(typeBCountLabel);
+    }
+
+    private void writeTypeAHeatmapImage(){
+        plugin.executor.execute(plugin.WRITE_TYPE_A_IMAGE);
+    }
+
+    private void clearTypeAHeatmap() {
+        plugin.executor.execute(plugin.CLEAR_TYPE_A_HEATMAP);
+    }
+
+    private void writeTypeBHeatmapImage(){
+        plugin.executor.execute(plugin.WRITE_TYPE_B_IMAGE);
+    }
+
+    private void clearTypeBHeatmap() {
+        plugin.executor.execute(plugin.CLEAR_TYPE_B_HEATMAP);
     }
 
     private void openHeatmapsFolder() throws IOException {
         Desktop.getDesktop().open(new File(plugin.HEATMAP_IMAGE_PATH));
-    }
-
-    private void clearHeatmap() {
-        plugin.executor.execute(plugin.CLEAR_HEATMAP);
     }
 }
