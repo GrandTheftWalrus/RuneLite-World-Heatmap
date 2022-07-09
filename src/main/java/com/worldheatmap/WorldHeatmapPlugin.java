@@ -14,7 +14,6 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.PlayerChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
@@ -41,10 +40,6 @@ public class WorldHeatmapPlugin extends Plugin
 			OVERWORLD_MAX_Y = Constants.OVERWORLD_MAX_Y,
 			TYPE_A_HEATMAP_AUTOSAVE_FREQUENCY = 100,
 			TYPE_B_HEATMAP_AUTOSAVE_FREQUENCY = 500,
-			MINIMUM_TYPE_A_IMAGE_AUTOSAVE_FREQUENCY = 100,
-			MINIMUM_TYPE_A_HEATMAP_BACKUP_FREQUENCY = 100,
-			MINIMUM_TYPE_B_IMAGE_AUTOSAVE_FREQUENCY = 500,
-			MINIMUM_TYPE_B_HEATMAP_BACKUP_FREQUENCY = 100,
 			HEATMAP_OFFSET_X = -1152,
 			HEATMAP_OFFSET_Y = -2496;
 	private int lastX = 0,
@@ -116,12 +111,15 @@ public class WorldHeatmapPlugin extends Plugin
 		writeHeatmapFile(heatmapTypeB, heatmapFilepathTypeB);
 	};
 
-	private final Runnable WRITE_NEW_BACKUPS = () -> {
+	private final Runnable WRITE_NEW_TYPE_A_BACKUP = () -> {
 		String heatmapFilePathTypeA = Paths.get(HEATMAPS_PATH, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeA.heatmap").toString();
-		String heatmapFilePathTypeB = Paths.get(HEATMAPS_PATH, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeB.heatmap").toString();
 		writeHeatmapFile(heatmapTypeA, heatmapFilePathTypeA);
-		writeHeatmapFile(heatmapTypeB, heatmapFilePathTypeB);
 		log.debug("World Heatmap backup saved to " + heatmapFilePathTypeA);
+	};
+
+	private final Runnable WRITE_NEW_TYPE_B_BACKUP = () -> {
+		String heatmapFilePathTypeB = Paths.get(HEATMAPS_PATH, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeB.heatmap").toString();
+		writeHeatmapFile(heatmapTypeB, heatmapFilePathTypeB);
 		log.debug("World Heatmap backup saved to " + heatmapFilePathTypeB);
 	};
 
@@ -195,7 +193,7 @@ public class WorldHeatmapPlugin extends Plugin
 							executor.execute(SAVE_TYPE_A_HEATMAP);
 						}
 						if (heatmapTypeA.getStepCount() % config.typeAHeatmapBackupFrequency() == 0)
-							executor.execute(WRITE_NEW_BACKUPS);
+							executor.execute(WRITE_NEW_TYPE_A_BACKUP);
 					}
 					else
 						log.error("World Heatmap: Coordinates out of bounds for heatmap matrix: (" + tile[0] + ", " + tile[1] + ")");
@@ -226,7 +224,7 @@ public class WorldHeatmapPlugin extends Plugin
 							executor.execute(SAVE_TYPE_B_HEATMAP);
 						}
 						if (heatmapTypeB.getStepCount() % config.typeBHeatmapBackupFrequency() == 0)
-							executor.execute(WRITE_NEW_BACKUPS);
+							executor.execute(WRITE_NEW_TYPE_B_BACKUP);
 					}
 					else
 						log.error("World Heatmap: Coordinates out of bounds for heatmap matrix: (" + tile[0] + ", " + tile[1] + ")");
