@@ -6,12 +6,14 @@ import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.swing.*;
 
+import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Constants;
+import net.runelite.api.GameState;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.events.PlayerChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -19,6 +21,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
+import static net.runelite.client.RuneLite.RUNELITE_DIR;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -26,7 +29,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.*;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -46,81 +49,95 @@ public class WorldHeatmapPlugin extends Plugin
 			lastY = 0,
 			lastStepCountA = 0,
 			lastStepCountB = 0;
-	protected final String HEATMAPS_PATH = "heatmap files", HEATMAP_IMAGE_PATH = "Heatmap Images";
+	protected final File WORLDHEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
+	protected final String HEATMAP_FILES_DIR = Paths.get(WORLDHEATMAP_DIR.toString(),"Heatmap Files").toString(), HEATMAP_IMAGE_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Images").toString();
 	private final int HEATMAP_WIDTH = 2752, HEATMAP_HEIGHT = 1664;
-	protected Heatmap heatmapTypeA = new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
-	protected Heatmap heatmapTypeB = new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
+	protected Heatmap heatmapTypeA;
+	protected Heatmap heatmapTypeB;
 	private NavigationButton toolbarButton;
 	private WorldHeatmapPanel panel;
+	private boolean shouldLoadHeatmaps;
+	private String mostRecentLocalUserName;
 
 	@Inject
 	private Client client;
 
-	protected final Runnable READ_HEATMAP_FILES = () -> {
-		String filepathTypeA = Paths.get(HEATMAPS_PATH, client.getLocalPlayer().getName()).toString() + "_TypeA.heatmap";
-		String filepathTypeB = Paths.get(HEATMAPS_PATH, client.getLocalPlayer().getName()).toString() + "_TypeB.heatmap";
+	protected final Runnable LOAD_HEATMAP_FILES = () -> {
+		String filepathTypeA = Paths.get(HEATMAP_FILES_DIR, client.getLocalPlayer().getName()).toString() + "_TypeA.heatmap";
+		String filepathTypeB = Paths.get(HEATMAP_FILES_DIR, client.getLocalPlayer().getName()).toString() + "_TypeB.heatmap";
 		heatmapTypeA = readHeatmapFile(filepathTypeA);
 		heatmapTypeB = readHeatmapFile(filepathTypeB);
 	};
+	private Future loadHeatmapsFuture;
 
 	private final Runnable SAVE_TYPE_A_HEATMAP = () -> {
-		String filepathTypeA = Paths.get(HEATMAPS_PATH, client.getLocalPlayer().getName()).toString() + "_TypeA.heatmap";
+		if (Strings.isNullOrEmpty(mostRecentLocalUserName))
+			return;
+		log.info("Saving 'Type A' .heatmap to disk...");
+		long startTime = System.nanoTime();
+		String filepathTypeA = Paths.get(HEATMAP_FILES_DIR, mostRecentLocalUserName).toString() + "_TypeA.heatmap";
 		writeHeatmapFile(heatmapTypeA, filepathTypeA);
+		log.info("Finished writing 'Type A' .heatmap to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	};
 
 	private final Runnable SAVE_TYPE_B_HEATMAP = () -> {
-		String filepathTypeB = Paths.get(HEATMAPS_PATH, client.getLocalPlayer().getName()).toString() + "_TypeB.heatmap";
+		if (Strings.isNullOrEmpty(mostRecentLocalUserName))
+			return;
+		log.info("Saving 'Type B' .heatmap to disk...");
+		long startTime = System.nanoTime();
+		String filepathTypeB = Paths.get(HEATMAP_FILES_DIR, mostRecentLocalUserName).toString() + "_TypeB.heatmap";
 		writeHeatmapFile(heatmapTypeB, filepathTypeB);
+		log.info("Finished writing 'Type B' .heatmap to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	};
 
 	protected final Runnable WRITE_TYPE_A_IMAGE = () -> {
-		log.debug("Saving 'Type A' heatmap image to disk...");
+		log.info("Saving 'Type A' heatmap image to disk...");
 		long startTime = System.nanoTime();
-		String filepathTypeA = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName() + "_TypeA").toString();
-		writeImageFile(heatmapTypeA, filepathTypeA);
-		log.debug("Finished writing 'Type A' heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		String filepathTypeA = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeA").toString();
+		writeTypeAImageFile(heatmapTypeA, filepathTypeA);
+		log.info("Finished writing 'Type A' heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	};
 
 	protected final Runnable WRITE_TYPE_B_IMAGE = () -> {
-		log.debug("Saving 'Type B' heatmap images to disk...");
+		log.info("Saving 'Type B' heatmap images to disk...");
 		long startTime = System.nanoTime();
-		String filepathTypeB = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName() + "_TypeB").toString();
-		writeImageFile(heatmapTypeB, filepathTypeB);
-		log.debug("Finished writing 'Type B' heatmap images to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		String filepathTypeB = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeB").toString();
+		writeTypeBImageFile(heatmapTypeB, filepathTypeB);
+		log.info("Finished writing 'Type B' heatmap images to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	};
 
 	protected final Runnable CLEAR_TYPE_A_HEATMAP = () -> {
 		heatmapTypeA = new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
-		log.debug("Writing blank 'Type A' heatmap images to disk...");
+		log.info("Writing blank 'Type A' heatmap images to disk...");
 		long startTime = System.nanoTime();
-		String imageFilepathTypeA = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName() + "_TypeA").toString();
-		writeImageFile(heatmapTypeA, imageFilepathTypeA);
-		log.debug("Finished writing blank 'Type B' heatmap images to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
-		String heatmapFilepathTypeA = Paths.get(HEATMAPS_PATH, client.getLocalPlayer().getName()).toString() + "_TypeA.heatmap";
+		String imageFilepathTypeA = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeA").toString();
+		writeTypeAImageFile(heatmapTypeA, imageFilepathTypeA);
+		log.info("Finished writing blank 'Type B' heatmap images to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		String heatmapFilepathTypeA = Paths.get(HEATMAP_FILES_DIR, client.getLocalPlayer().getName()).toString() + "_TypeA.heatmap";
 		writeHeatmapFile(heatmapTypeA, heatmapFilepathTypeA);
 	};
 
 	protected final Runnable CLEAR_TYPE_B_HEATMAP = () -> {
 		heatmapTypeB = new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
-		log.debug("Writing blank 'Type B' heatmap image to disk...");
+		log.info("Writing blank 'Type B' heatmap image to disk...");
 		long startTime = System.nanoTime();
-		String imageFilepathTypeB = Paths.get(HEATMAP_IMAGE_PATH, client.getLocalPlayer().getName() + "_TypeB").toString();
-		writeImageFile(heatmapTypeB, imageFilepathTypeB);
-		log.debug("Finished writing blank 'Type B' heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
-		String heatmapFilepathTypeB = Paths.get(HEATMAPS_PATH, client.getLocalPlayer().getName()).toString() + "_TypeB.heatmap";
+		String imageFilepathTypeB = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeB").toString();
+		writeTypeBImageFile(heatmapTypeB, imageFilepathTypeB);
+		log.info("Finished writing blank 'Type B' heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		String heatmapFilepathTypeB = Paths.get(HEATMAP_FILES_DIR, client.getLocalPlayer().getName()).toString() + "_TypeB.heatmap";
 		writeHeatmapFile(heatmapTypeB, heatmapFilepathTypeB);
 	};
 
 	private final Runnable WRITE_NEW_TYPE_A_BACKUP = () -> {
-		String heatmapFilePathTypeA = Paths.get(HEATMAPS_PATH, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeA.heatmap").toString();
+		String heatmapFilePathTypeA = Paths.get(HEATMAP_FILES_DIR, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeA.heatmap").toString();
 		writeHeatmapFile(heatmapTypeA, heatmapFilePathTypeA);
-		log.debug("World Heatmap backup saved to " + heatmapFilePathTypeA);
+		log.info("World Heatmap backup saved to " + heatmapFilePathTypeA);
 	};
 
 	private final Runnable WRITE_NEW_TYPE_B_BACKUP = () -> {
-		String heatmapFilePathTypeB = Paths.get(HEATMAPS_PATH, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeB.heatmap").toString();
+		String heatmapFilePathTypeB = Paths.get(HEATMAP_FILES_DIR, "Backups", client.getLocalPlayer().getName() + "-" + java.time.LocalDateTime.now().toString() + "_TypeB.heatmap").toString();
 		writeHeatmapFile(heatmapTypeB, heatmapFilePathTypeB);
-		log.debug("World Heatmap backup saved to " + heatmapFilePathTypeB);
+		log.info("World Heatmap backup saved to " + heatmapFilePathTypeB);
 	};
 
 	@Inject
@@ -140,7 +157,8 @@ public class WorldHeatmapPlugin extends Plugin
 
 	@Override
 	protected void startUp() {
-		executor.execute(READ_HEATMAP_FILES);
+		shouldLoadHeatmaps = true;
+		loadHeatmapsFuture = null;
 		panel = new WorldHeatmapPanel(this);
 		panel.rebuild();
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
@@ -151,21 +169,42 @@ public class WorldHeatmapPlugin extends Plugin
 				.panel(panel)
 				.build();
 		clientToolbar.addNavigation(toolbarButton);
-		log.debug("World Heatmap started!");
 	}
 
 	@Override
 	protected void shutDown() {
-		log.debug("World Heatmap stopped!");
+		if (loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()){
+			executor.execute(SAVE_TYPE_A_HEATMAP);
+			executor.execute(SAVE_TYPE_B_HEATMAP);
+		}
+		clientToolbar.removeNavigation(toolbarButton);
 	}
 
 	@Subscribe
-	public void onPlayerChanged(PlayerChanged playerChanged){
-		//This occurs when the player teleports, but also when they change their armour and probably a lot of other stuff. Might use this to prevent movement tracking during local teleportation.
+	public void onGameStateChanged(GameStateChanged gameStateChanged){
+		if (gameStateChanged.getGameState() == GameState.LOGGING_IN){
+			shouldLoadHeatmaps = true;
+			loadHeatmapsFuture = null;
+			//TODO: enable/disabled panel buttons
+		}
+
+		if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN && loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()){
+			executor.execute(SAVE_TYPE_A_HEATMAP);
+			executor.execute(SAVE_TYPE_B_HEATMAP);
+			loadHeatmapsFuture = null;
+		}
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick){
+		if (shouldLoadHeatmaps && client.getGameState().equals(GameState.LOGGED_IN) && !Strings.isNullOrEmpty(client.getLocalPlayer().getName())) {
+			shouldLoadHeatmaps = false;
+			loadHeatmapsFuture = executor.submit(LOAD_HEATMAP_FILES);
+		}
+		//The following code requires the heatmap files to have been loaded
+		if (loadHeatmapsFuture != null && !loadHeatmapsFuture.isDone())
+			return;
+
 		WorldPoint currentCoords = client.getLocalPlayer().getWorldLocation();
 		int currentX = currentCoords.getX();
 		int currentY = currentCoords.getY();
@@ -240,6 +279,7 @@ public class WorldHeatmapPlugin extends Plugin
 		lastY = currentY;
 		lastStepCountA = heatmapTypeA.getStepCount();
 		lastStepCountB = heatmapTypeB.getStepCount();
+		mostRecentLocalUserName = client.getLocalPlayer().getName(); //This is for saving the heatmap files to the correct filename even after the user has just logged out
 	}
 
 	//Credit to https://www.redblobgames.com/grids/line-drawing.html for where I figured out how to make the following linear interpolation functions
@@ -307,7 +347,7 @@ public class WorldHeatmapPlugin extends Plugin
 
 	//Loads heatmap from local storage. If file does not exist, it will create a new one.
 	private Heatmap readHeatmapFile(String filepath) {
-		log.debug("Loading heatmap file '" + filepath + "'");
+		log.info("Loading heatmap file '" + filepath + "'");
 		File heatmapFile = new File(filepath);
 		if (heatmapFile.exists()) {
 			try (FileInputStream fis = new FileInputStream(filepath)) {
@@ -316,11 +356,12 @@ public class WorldHeatmapPlugin extends Plugin
 				return (Heatmap) ois.readObject();
 			} catch (Exception e) {
 				e.printStackTrace();
-				log.debug("World Heatmap was not able to load existing heatmap file, for some reason, so a new blank one was loaded");
+				log.info("World Heatmap was not able to load existing heatmap file, for some reason, so a new blank one was loaded");
 				return new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
 			}
 		}
 		else{ //Return new blank heatmap if specified file doesn't exist
+			log.info("Worldheatmap file " + filepath + " did not exist when read. A new heatmap will be made.");
 			return new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
 		}
 	}
@@ -329,11 +370,11 @@ public class WorldHeatmapPlugin extends Plugin
 	 * Saves heatmap matrix to 'Heatmap Results' folder.
 	 */
 	protected void writeHeatmapFile(Heatmap heatmap, String filename) {
-		File file = new File(filename);
 		//Make the directory path if it doesn't exist
-		if (!Files.exists(Paths.get(file.getParent()))){
+		File file = new File(filename);
+		if (!Files.exists(Paths.get(file.getParent())))
 			new File(file.getParent()).mkdirs();
-		}
+
 		//Write the heatmap file
 		try{
 			FileOutputStream fos = new FileOutputStream(filename);
@@ -351,7 +392,7 @@ public class WorldHeatmapPlugin extends Plugin
 	/**
 	 * Writes a visualization of the heatmap matrix over top of the OSRS world map as a PNG image to the "Heatmap Results" folder.
 	 */
-	private void writeImageFile(Heatmap heatmap, String fileName){
+	private void writeTypeAImageFile(Heatmap heatmap, String fileName){
 		//First, to normalize the range of step values, we find the maximum and minimum values in the heatmap
 		int[] maxValAndCoords = heatmap.getMaxVal();
 		int maxVal = maxValAndCoords[0];
@@ -377,10 +418,73 @@ public class WorldHeatmapPlugin extends Plugin
 			for (int y = 0; y < HEATMAP_HEIGHT; y++) {
 				for (int x = 0; x < HEATMAP_WIDTH; x++) {
 					int invertedY = HEATMAP_HEIGHT - y - 1;
-					if (heatmap.heatmapCoordsGet(x, invertedY) != 0) {													//If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
+					if (heatmap.heatmapCoordsGet(x, invertedY) != 0) {														//If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
 						currStepValue = ((float) heatmap.heatmapCoordsGet(x, invertedY) - minVal) / (maxVal - minVal);	//Calculate normalized step value
-						currHue = (float)(0.333 - (currStepValue * 0.333));												//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
-						currRGB = Color.HSBtoRGB(currHue, 1, 1);										//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
+						currHue = (float)(0.333 - (currStepValue * 0.333));													//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
+						currRGB = Color.HSBtoRGB(currHue, 1, 1);											//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
+						//Now we reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
+						worldMapImage.setRGB(x*3 + 0, y*3 + 0, currRGB);
+						worldMapImage.setRGB(x*3 + 0, y*3 + 1, currRGB);
+						worldMapImage.setRGB(x*3 + 0, y*3 + 2, currRGB);
+						worldMapImage.setRGB(x*3 + 1, y*3 + 0, currRGB);
+						worldMapImage.setRGB(x*3 + 1, y*3 + 1, currRGB);
+						worldMapImage.setRGB(x*3 + 1, y*3 + 2, currRGB);
+						worldMapImage.setRGB(x*3 + 2, y*3 + 0, currRGB);
+						worldMapImage.setRGB(x*3 + 2, y*3 + 1, currRGB);
+						worldMapImage.setRGB(x*3 + 2, y*3 + 2, currRGB);
+					}
+				}
+			}
+			File heatmapImageFile = new File(fileName);
+			if (!Files.exists(Paths.get(heatmapImageFile.getParent()))){
+				new File(heatmapImageFile.getParent()).mkdirs();
+			}
+			ImageIO.write(worldMapImage, "png", heatmapImageFile);
+		}
+		catch (IOException e){
+			e.printStackTrace();
+			log.error("Exception thrown whilst creating and/or writing image file.");
+		}
+	}
+
+	/**
+	 * Writes a visualization of the heatmap matrix over top of the OSRS world map as a PNG image to the "Heatmap Results" folder.
+	 */
+	private void writeTypeBImageFile(Heatmap heatmap, String fileName){
+		//First, to normalize the range of step values, we find the maximum and minimum values in the heatmap
+		int[] maxValAndCoords = heatmap.getMaxVal();
+		int maxVal = maxValAndCoords[0];
+		int maxX = maxValAndCoords[1];
+		int maxY = maxValAndCoords[2];
+		log.debug("Maximum steps on a tile is: " + maxVal + " at (" + maxX + ", " + maxY + "), for " + fileName);
+		int[] minValAndCoords = heatmap.getMinVal();
+		int minVal = minValAndCoords[0];
+		int minX = minValAndCoords[1];
+		int minY = minValAndCoords[2];
+		log.debug("Minimum steps on a tile is: " + minVal + " at (" + minX + ", " + minY + "), for " + fileName);
+		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); //If maxVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero.
+
+		try{
+			File worldMapImageFile = new File("osrs_world_map.png");
+			BufferedImage worldMapImage = ImageIO.read(worldMapImageFile);
+			if (worldMapImage.getWidth() != HEATMAP_WIDTH*3 || worldMapImage.getHeight() != HEATMAP_HEIGHT*3){
+				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH*3 + " x " + HEATMAP_HEIGHT*3);
+				return;
+			}
+			int currRGB = 0;
+			float currStepValue = 0, currHue = 0; //a number on the interval [0, 1] that will represent the intensity of the current heatmap pixel
+			for (int y = 0; y < HEATMAP_HEIGHT; y++) {
+				for (int x = 0; x < HEATMAP_WIDTH; x++) {
+					int invertedY = HEATMAP_HEIGHT - y - 1;
+					if (heatmap.heatmapCoordsGet(x, invertedY) >= 1) {														//If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
+						//Calculate normalized step value
+						int normalizedMin = 0;
+						int normalizedMax = 1;
+						currStepValue = (float) (Math.log(heatmap.heatmapCoordsGet(x, invertedY) + 1 - minVal) / Math.log(maxVal + 1 - minVal));
+						currStepValue = currStepValue > 1 ? 1 : currStepValue;
+						float normalized = currStepValue*(normalizedMax-normalizedMin);
+						currHue = (float)(0.333 - (normalized * 0.333));														//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
+						currRGB = Color.HSBtoRGB(currHue, 1, 1);											//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
 						//Now we reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
 						worldMapImage.setRGB(x*3 + 0, y*3 + 0, currRGB);
 						worldMapImage.setRGB(x*3 + 0, y*3 + 1, currRGB);

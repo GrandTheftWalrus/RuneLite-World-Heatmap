@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import jdk.tools.jlink.internal.Jlink;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
 
@@ -27,6 +28,8 @@ public class WorldHeatmapPanel extends PluginPanel{
         mainPanel = new JPanel();
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         mainPanel.setBorder(new EmptyBorder(8, 0, 10, 0));
+
+        //'Open Heatmaps Folder' button
         JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
         openHeatmapFolderButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
         openHeatmapFolderButton.addMouseListener(new MouseAdapter() {
@@ -73,7 +76,7 @@ public class WorldHeatmapPanel extends PluginPanel{
             }
         });
         typeAPanel.add(clearHeatmapButton);
-        typeACountLabel = new JLabel("Step count: " + plugin.heatmapTypeA.getStepCount());
+        typeACountLabel = new JLabel();
         typeAPanel.add(typeACountLabel);
         add(typeAPanel);
 
@@ -106,19 +109,26 @@ public class WorldHeatmapPanel extends PluginPanel{
             }
         });
         typeBPanel.add(clearTypeBHeatmapButton);
-        typeBCountLabel = new JLabel("Step count: " + plugin.heatmapTypeB.getStepCount());
+        typeBCountLabel = new JLabel();
         typeBPanel.add(typeBCountLabel);
         add(typeBPanel);
     }
 
     protected void updateCounts(){
-        typeAPanel.remove(typeACountLabel);
-        typeACountLabel = new JLabel("Step count: " + plugin.heatmapTypeA.getStepCount());
-        typeAPanel.add(typeACountLabel);
-        typeBPanel.remove(typeBCountLabel);
-        typeBCountLabel = new JLabel("Step count: " + plugin.heatmapTypeB.getStepCount());
-        typeBPanel.add(typeBCountLabel);
+
+        if (plugin.heatmapTypeA != null)
+            typeACountLabel.setText("Step count: " + plugin.heatmapTypeA.getStepCount());
+        else
+            typeACountLabel.setText("");
+
+        if (plugin.heatmapTypeB != null)
+            typeBCountLabel.setText("Step count: " + plugin.heatmapTypeB.getStepCount());
+        else
+            typeBCountLabel.setText("");
         updateUI();
+    }
+    protected void enableButtons(){
+
     }
 
     private void writeTypeAHeatmapImage(){
@@ -138,6 +148,8 @@ public class WorldHeatmapPanel extends PluginPanel{
     }
 
     private void openHeatmapsFolder() throws IOException {
-        Desktop.getDesktop().open(new File(plugin.HEATMAP_IMAGE_PATH));
+        if (!plugin.WORLDHEATMAP_DIR.exists())
+            plugin.WORLDHEATMAP_DIR.mkdirs();
+        Desktop.getDesktop().open(plugin.WORLDHEATMAP_DIR);
     }
 }

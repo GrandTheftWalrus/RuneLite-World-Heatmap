@@ -21,6 +21,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 			keyName = "typeAImageAutosaveFrequency",
 			name = "Image Autosave Frequency",
+			position = 0,
 			description = "This determines how often (in number of steps) to automatically save the 'Type A' world heatmap PNG image. Default value of 1000 tiles (which equates to 5 mins of running, or 10 mins of walking). Minimum value of 100.",
 			section = typeA
 	)
@@ -32,6 +33,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 			keyName = "typeAAutosaveOnOff",
 			name = "Autosave Image to Disk",
+			position = 1,
 			description = "Should the 'Type A' internal heatmap matrix be automatically saved at the frequency specified above?",
 			section = typeA
 	)
@@ -43,6 +45,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 			keyName = "typeAHeatmapBackupFrequency",
 			name = "Heatmap Backup Frequency",
+			position = 2,
 			description = "This determines how often (in number of steps) to make a new backup of the 'Type A' heatmap matrix, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of 10-100kb. Default value 12,000 tiles (which is 1 hour of sprinting, or 2 hours of walking). Minimum value 100.",
 			section = typeA
 	)
@@ -65,6 +68,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 			keyName = "typeBImageAutosaveFrequency",
 			name = "Image Autosave Frequency",
+			position = 0,
 			description = "This determines how often (in number of steps + game ticks) to automatically save the 'Type B' world heatmap PNG image to disk. Default value of 1000. Minimum value of 500.",
 			section = typeB
 	)
@@ -76,6 +80,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 			keyName = "typeBAutosaveOnOff",
 			name = "Autosave Image to Disk",
+			position = 1,
 			description = "Should the 'Type B' internal heatmap matrix be automatically saved at the frequency specified above?",
 			section = typeB
 	)
@@ -87,6 +92,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 			keyName = "typeBHeatmapBackupFrequency",
 			name = "Heatmap Backup Frequency",
+			position = 2,
 			description = "This determines how often (in number of steps + game ticks) to make a new backup of the 'Type B' heatmap matrix, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of 10-100kb. Default value of 6000. Minimum value of 100.",
 			section = typeB
 	)
