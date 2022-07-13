@@ -1,6 +1,5 @@
 package com.worldheatmap;
 
-import jdk.tools.jlink.internal.Jlink;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
 
@@ -9,7 +8,6 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.File;
 import java.io.IOException;
 
 public class WorldHeatmapPanel extends PluginPanel{
@@ -17,6 +15,7 @@ public class WorldHeatmapPanel extends PluginPanel{
     private final WorldHeatmapPlugin plugin;
     private JPanel mainPanel, typeAPanel, typeBPanel;
     private JLabel typeACountLabel, typeBCountLabel;
+    protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -54,7 +53,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         typeAPanel.add(new JLabel("Heatmap Type A"));
 
         //'Write Heatmap Image' button for Type A
-        JButton writeTypeAHeatmapImageButton = new JButton("Write Heatmap Image");
+        writeTypeAHeatmapImageButton = new JButton("Write Heatmap Image");
         writeTypeAHeatmapImageButton.setFont(new Font(writeTypeAHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
         writeTypeAHeatmapImageButton.addMouseListener(new MouseAdapter() {
             @Override
@@ -66,16 +65,16 @@ public class WorldHeatmapPanel extends PluginPanel{
         typeAPanel.add(writeTypeAHeatmapImageButton);
 
         //'Restart Heatmap' button for Type A
-        JButton clearHeatmapButton = new JButton("Restart Heatmap");
-        clearHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        clearHeatmapButton.addMouseListener(new MouseAdapter() {
+        clearTypeAHeatmapButton = new JButton("Restart Heatmap");
+        clearTypeAHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
+        clearTypeAHeatmapButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
                 clearTypeAHeatmap();
             }
         });
-        typeAPanel.add(clearHeatmapButton);
+        typeAPanel.add(clearTypeAHeatmapButton);
         typeACountLabel = new JLabel();
         typeAPanel.add(typeACountLabel);
         add(typeAPanel);
@@ -87,7 +86,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         typeBPanel.add(new JLabel("Heatmap Type B"));
 
         //'Write Heatmap Image' button for Type B
-        JButton writeTypeBHeatmapImageButton = new JButton("Write Heatmap Image");
+        writeTypeBHeatmapImageButton = new JButton("Write Heatmap Image");
         writeTypeBHeatmapImageButton.setFont(new Font(writeTypeBHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
         writeTypeBHeatmapImageButton.addMouseListener(new MouseAdapter() {
             @Override
@@ -99,7 +98,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         typeBPanel.add(writeTypeBHeatmapImageButton);
 
         //'Restart Heatmap' button for Type B
-        JButton clearTypeBHeatmapButton = new JButton("Restart Heatmap");
+        clearTypeBHeatmapButton = new JButton("Restart Heatmap");
         clearTypeBHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
         clearTypeBHeatmapButton.addMouseListener(new MouseAdapter() {
             @Override

@@ -58,6 +58,7 @@ public class WorldHeatmapPlugin extends Plugin
 	private WorldHeatmapPanel panel;
 	private boolean shouldLoadHeatmaps;
 	private String mostRecentLocalUserName;
+	private float HEATMAP_TRANSPARENCY = 0.65f;
 
 	@Inject
 	private Client client;
@@ -67,6 +68,10 @@ public class WorldHeatmapPlugin extends Plugin
 		String filepathTypeB = Paths.get(HEATMAP_FILES_DIR, client.getLocalPlayer().getName()).toString() + "_TypeB.heatmap";
 		heatmapTypeA = readHeatmapFile(filepathTypeA);
 		heatmapTypeB = readHeatmapFile(filepathTypeB);
+		panel.writeTypeAHeatmapImageButton.setEnabled(true);
+		panel.writeTypeBHeatmapImageButton.setEnabled(true);
+		panel.clearTypeAHeatmapButton.setEnabled(true);
+		panel.clearTypeBHeatmapButton.setEnabled(true);
 	};
 	private Future loadHeatmapsFuture;
 
@@ -103,7 +108,7 @@ public class WorldHeatmapPlugin extends Plugin
 		long startTime = System.nanoTime();
 		String filepathTypeB = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeB").toString();
 		writeTypeBImageFile(heatmapTypeB, filepathTypeB);
-		log.info("Finished writing 'Type B' heatmap images to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		log.info("Finished writing 'Type B' heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	};
 
 	protected final Runnable CLEAR_TYPE_A_HEATMAP = () -> {
@@ -169,6 +174,10 @@ public class WorldHeatmapPlugin extends Plugin
 				.panel(panel)
 				.build();
 		clientToolbar.addNavigation(toolbarButton);
+		panel.writeTypeAHeatmapImageButton.setEnabled(false);
+		panel.writeTypeBHeatmapImageButton.setEnabled(false);
+		panel.clearTypeAHeatmapButton.setEnabled(false);
+		panel.clearTypeBHeatmapButton.setEnabled(false);
 	}
 
 	@Override
@@ -185,13 +194,25 @@ public class WorldHeatmapPlugin extends Plugin
 		if (gameStateChanged.getGameState() == GameState.LOGGING_IN){
 			shouldLoadHeatmaps = true;
 			loadHeatmapsFuture = null;
-			//TODO: enable/disabled panel buttons
+			//The panel buttons are loaded within the LOAD_HEATMAPS Runnable thingamajigger
 		}
 
 		if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN && loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()){
 			executor.execute(SAVE_TYPE_A_HEATMAP);
 			executor.execute(SAVE_TYPE_B_HEATMAP);
 			loadHeatmapsFuture = null;
+		}
+		if (gameStateChanged.getGameState() != GameState.LOGGED_IN){
+			panel.writeTypeAHeatmapImageButton.setEnabled(false);
+			panel.writeTypeBHeatmapImageButton.setEnabled(false);
+			panel.clearTypeAHeatmapButton.setEnabled(false);
+			panel.clearTypeBHeatmapButton.setEnabled(false);
+		}
+		if (gameStateChanged.getGameState() == GameState.LOGGED_IN){
+			panel.writeTypeAHeatmapImageButton.setEnabled(true);
+			panel.writeTypeBHeatmapImageButton.setEnabled(true);
+			panel.clearTypeAHeatmapButton.setEnabled(true);
+			panel.clearTypeBHeatmapButton.setEnabled(true);
 		}
 	}
 
@@ -407,8 +428,9 @@ public class WorldHeatmapPlugin extends Plugin
 		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); //If maxVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero.
 
 		try{
-			File worldMapImageFile = new File("osrs_world_map.png");
+			File worldMapImageFile = new File(WORLDHEATMAP_DIR, "osrs_world_map.png");
 			BufferedImage worldMapImage = ImageIO.read(worldMapImageFile);
+			BufferedImage heatmapOverlay = new BufferedImage(worldMapImage.getWidth(), worldMapImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
 			if (worldMapImage.getWidth() != HEATMAP_WIDTH*3 || worldMapImage.getHeight() != HEATMAP_HEIGHT*3){
 				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH*3 + " x " + HEATMAP_HEIGHT*3);
 				return;
@@ -423,22 +445,27 @@ public class WorldHeatmapPlugin extends Plugin
 						currHue = (float)(0.333 - (currStepValue * 0.333));													//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
 						currRGB = Color.HSBtoRGB(currHue, 1, 1);											//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
 						//Now we reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
-						worldMapImage.setRGB(x*3 + 0, y*3 + 0, currRGB);
-						worldMapImage.setRGB(x*3 + 0, y*3 + 1, currRGB);
-						worldMapImage.setRGB(x*3 + 0, y*3 + 2, currRGB);
-						worldMapImage.setRGB(x*3 + 1, y*3 + 0, currRGB);
-						worldMapImage.setRGB(x*3 + 1, y*3 + 1, currRGB);
-						worldMapImage.setRGB(x*3 + 1, y*3 + 2, currRGB);
-						worldMapImage.setRGB(x*3 + 2, y*3 + 0, currRGB);
-						worldMapImage.setRGB(x*3 + 2, y*3 + 1, currRGB);
-						worldMapImage.setRGB(x*3 + 2, y*3 + 2, currRGB);
+						heatmapOverlay.setRGB(x*3 + 0, y*3 + 0, currRGB);
+						heatmapOverlay.setRGB(x*3 + 0, y*3 + 1, currRGB);
+						heatmapOverlay.setRGB(x*3 + 0, y*3 + 2, currRGB);
+						heatmapOverlay.setRGB(x*3 + 1, y*3 + 0, currRGB);
+						heatmapOverlay.setRGB(x*3 + 1, y*3 + 1, currRGB);
+						heatmapOverlay.setRGB(x*3 + 1, y*3 + 2, currRGB);
+						heatmapOverlay.setRGB(x*3 + 2, y*3 + 0, currRGB);
+						heatmapOverlay.setRGB(x*3 + 2, y*3 + 1, currRGB);
+						heatmapOverlay.setRGB(x*3 + 2, y*3 + 2, currRGB);
 					}
 				}
 			}
+
 			File heatmapImageFile = new File(fileName);
-			if (!Files.exists(Paths.get(heatmapImageFile.getParent()))){
+			if (!Files.exists(Paths.get(heatmapImageFile.getParent())))
 				new File(heatmapImageFile.getParent()).mkdirs();
-			}
+			Graphics2D graphics = worldMapImage.createGraphics();
+			AlphaComposite alphaChannel = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, HEATMAP_TRANSPARENCY);
+			graphics.setComposite(alphaChannel);
+			graphics.drawImage(heatmapOverlay, 0, 0, null);
+			graphics.dispose();
 			ImageIO.write(worldMapImage, "png", heatmapImageFile);
 		}
 		catch (IOException e){
@@ -465,12 +492,14 @@ public class WorldHeatmapPlugin extends Plugin
 		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); //If maxVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero.
 
 		try{
-			File worldMapImageFile = new File("osrs_world_map.png");
+			File worldMapImageFile = new File(WORLDHEATMAP_DIR,"osrs_world_map.png");
 			BufferedImage worldMapImage = ImageIO.read(worldMapImageFile);
 			if (worldMapImage.getWidth() != HEATMAP_WIDTH*3 || worldMapImage.getHeight() != HEATMAP_HEIGHT*3){
 				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH*3 + " x " + HEATMAP_HEIGHT*3);
 				return;
 			}
+			BufferedImage heatmapOverlay = new BufferedImage(worldMapImage.getWidth(), worldMapImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+
 			int currRGB = 0;
 			float currStepValue = 0, currHue = 0; //a number on the interval [0, 1] that will represent the intensity of the current heatmap pixel
 			for (int y = 0; y < HEATMAP_HEIGHT; y++) {
@@ -486,22 +515,26 @@ public class WorldHeatmapPlugin extends Plugin
 						currHue = (float)(0.333 - (normalized * 0.333));														//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
 						currRGB = Color.HSBtoRGB(currHue, 1, 1);											//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
 						//Now we reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
-						worldMapImage.setRGB(x*3 + 0, y*3 + 0, currRGB);
-						worldMapImage.setRGB(x*3 + 0, y*3 + 1, currRGB);
-						worldMapImage.setRGB(x*3 + 0, y*3 + 2, currRGB);
-						worldMapImage.setRGB(x*3 + 1, y*3 + 0, currRGB);
-						worldMapImage.setRGB(x*3 + 1, y*3 + 1, currRGB);
-						worldMapImage.setRGB(x*3 + 1, y*3 + 2, currRGB);
-						worldMapImage.setRGB(x*3 + 2, y*3 + 0, currRGB);
-						worldMapImage.setRGB(x*3 + 2, y*3 + 1, currRGB);
-						worldMapImage.setRGB(x*3 + 2, y*3 + 2, currRGB);
+						heatmapOverlay.setRGB(x*3 + 0, y*3 + 0, currRGB);
+						heatmapOverlay.setRGB(x*3 + 0, y*3 + 1, currRGB);
+						heatmapOverlay.setRGB(x*3 + 0, y*3 + 2, currRGB);
+						heatmapOverlay.setRGB(x*3 + 1, y*3 + 0, currRGB);
+						heatmapOverlay.setRGB(x*3 + 1, y*3 + 1, currRGB);
+						heatmapOverlay.setRGB(x*3 + 1, y*3 + 2, currRGB);
+						heatmapOverlay.setRGB(x*3 + 2, y*3 + 0, currRGB);
+						heatmapOverlay.setRGB(x*3 + 2, y*3 + 1, currRGB);
+						heatmapOverlay.setRGB(x*3 + 2, y*3 + 2, currRGB);
 					}
 				}
 			}
 			File heatmapImageFile = new File(fileName);
-			if (!Files.exists(Paths.get(heatmapImageFile.getParent()))){
+			if (!Files.exists(Paths.get(heatmapImageFile.getParent())))
 				new File(heatmapImageFile.getParent()).mkdirs();
-			}
+			Graphics2D graphics = worldMapImage.createGraphics();
+			AlphaComposite alphaChannel = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, HEATMAP_TRANSPARENCY);
+			graphics.setComposite(alphaChannel);
+			graphics.drawImage(heatmapOverlay, 0, 0, null);
+			graphics.dispose();
 			ImageIO.write(worldMapImage, "png", heatmapImageFile);
 		}
 		catch (IOException e){
