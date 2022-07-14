@@ -104,7 +104,7 @@ public class WorldHeatmapPlugin extends Plugin
 	};
 
 	protected final Runnable WRITE_TYPE_B_IMAGE = () -> {
-		log.info("Saving 'Type B' heatmap images to disk...");
+		log.info("Saving 'Type B' heatmap image to disk...");
 		long startTime = System.nanoTime();
 		String filepathTypeB = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeB").toString();
 		writeHeatmapImage(heatmapTypeB, filepathTypeB, Heatmap.TYPE_B);
@@ -113,11 +113,11 @@ public class WorldHeatmapPlugin extends Plugin
 
 	protected final Runnable CLEAR_TYPE_A_HEATMAP = () -> {
 		heatmapTypeA = new Heatmap(HEATMAP_WIDTH, HEATMAP_HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y);
-		log.info("Writing blank 'Type A' heatmap images to disk...");
+		log.info("Writing blank 'Type A' heatmap image to disk...");
 		long startTime = System.nanoTime();
 		String imageFilepathTypeA = Paths.get(HEATMAP_IMAGE_DIR, client.getLocalPlayer().getName() + "_TypeA").toString();
 		writeHeatmapImage(heatmapTypeA, imageFilepathTypeA, Heatmap.TYPE_A);
-		log.info("Finished writing blank 'Type B' heatmap images to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		log.info("Finished writing blank 'Type B' heatmap image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 		String heatmapFilepathTypeA = Paths.get(HEATMAP_FILES_DIR, client.getLocalPlayer().getName()) + "_TypeA.heatmap";
 		writeHeatmapFile(heatmapTypeA, heatmapFilepathTypeA);
 	};
