@@ -10,8 +10,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigSection(
 			name = "'Type A' Heatmap",
 			description = "The 'Type A' heatmap's tiles are incremented each time they are stepped on",
-			position = 0,
-			closedByDefault = false
+			position = 0
 	)
 	String typeA = "type_a";
 
@@ -57,8 +56,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigSection(
 			name = "'Type B' Heatmap",
 			description = "The 'Type B' heatmap's tiles are incremented each time they are stepped on, as well as once for every game tick that you are standing on them.",
-			position = 1,
-			closedByDefault = false
+			position = 1
 	)
 	String typeB = "type_b";
 

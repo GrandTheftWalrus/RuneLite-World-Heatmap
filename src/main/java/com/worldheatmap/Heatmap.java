@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class Heatmap implements Serializable {
 
     private final int WIDTH, HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y;
+    protected final static int TYPE_A = 0, TYPE_B = 1;
     private int[][] heatmap;
     private int stepCount;
 

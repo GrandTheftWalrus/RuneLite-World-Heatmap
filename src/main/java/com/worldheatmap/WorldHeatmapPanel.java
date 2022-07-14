@@ -13,7 +13,6 @@ import java.io.IOException;
 public class WorldHeatmapPanel extends PluginPanel{
 
     private final WorldHeatmapPlugin plugin;
-    private JPanel mainPanel, typeAPanel, typeBPanel;
     private JLabel typeACountLabel, typeBCountLabel;
     protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton;
 
@@ -24,7 +23,7 @@ public class WorldHeatmapPanel extends PluginPanel{
 
     protected void rebuild(){
         removeAll();
-        mainPanel = new JPanel();
+        JPanel mainPanel = new JPanel();
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         mainPanel.setBorder(new EmptyBorder(8, 0, 10, 0));
 
@@ -47,7 +46,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         add(mainPanel);
 
         //Panel for Type A heatmap
-        typeAPanel = new JPanel();
+        JPanel typeAPanel = new JPanel();
         typeAPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         typeAPanel.setBorder(new EmptyBorder(8, 0, 76, 0));
         typeAPanel.add(new JLabel("Heatmap Type A"));
@@ -80,7 +79,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         add(typeAPanel);
 
         //Panel for Type B heatmaps
-        typeBPanel = new JPanel();
+        JPanel typeBPanel = new JPanel();
         typeBPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         typeBPanel.setBorder(new EmptyBorder(8, 0, 76, 0));
         typeBPanel.add(new JLabel("Heatmap Type B"));
@@ -125,9 +124,6 @@ public class WorldHeatmapPanel extends PluginPanel{
         else
             typeBCountLabel.setText("");
         updateUI();
-    }
-    protected void enableButtons(){
-
     }
 
     private void writeTypeAHeatmapImage(){
