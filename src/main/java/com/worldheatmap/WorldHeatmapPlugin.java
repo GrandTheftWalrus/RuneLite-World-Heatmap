@@ -428,8 +428,7 @@ public class WorldHeatmapPlugin extends Plugin
 		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); //If maxVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero, in which case we add 1 to max val.
 
 		try{
-			File worldMapImageFile = new File(WORLDHEATMAP_DIR, "osrs_world_map.png");
-			BufferedImage worldMapImage = ImageIO.read(worldMapImageFile);
+			BufferedImage worldMapImage = ImageUtil.loadImageResource(getClass(), "/osrs_world_map.png");
 			BufferedImage heatmapOverlay = new BufferedImage(worldMapImage.getWidth(), worldMapImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
 			if (worldMapImage.getWidth() != HEATMAP_WIDTH*3 || worldMapImage.getHeight() != HEATMAP_HEIGHT*3){
 				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH*3 + " x " + HEATMAP_HEIGHT*3);
