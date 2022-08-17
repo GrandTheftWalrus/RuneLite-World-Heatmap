@@ -440,20 +440,14 @@ public class WorldHeatmapPlugin extends Plugin
 				for (int x = 0; x < HEATMAP_WIDTH; x++) {
 					int invertedY = HEATMAP_HEIGHT - y - 1;
 					if (heatmap.heatmapCoordsGet(x, invertedY) != 0) {														//If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
-						if (heatmapType == Heatmap.TYPE_A){
-							//Calculate normalized step value
-							currStepValue = ((float) heatmap.heatmapCoordsGet(x, invertedY) - minVal) / (maxVal - minVal);
-							currHue = (float)(0.333 - (currStepValue * 0.333));												//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
-						}
-						if (heatmapType == Heatmap.TYPE_B){
-							//Calculate normalized step value
-							int normalizedMin = 0;
-							int normalizedMax = 1;
-							currStepValue = (float) (Math.log(heatmap.heatmapCoordsGet(x, invertedY) + 1 - minVal) / Math.log(maxVal + 1 - minVal));
-							currStepValue = currStepValue > 1 ? 1 : currStepValue;
-							float normalized = currStepValue*(normalizedMax-normalizedMin);
-							currHue = (float)(0.333 - (normalized * 0.333));												//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
-						}
+						//Calculate normalized step value
+						int normalizedMin = 0;
+						int normalizedMax = 1;
+						double LOG_BASE = 4;
+						currStepValue = (float) ((Math.log(heatmap.heatmapCoordsGet(x, invertedY) / Math.log(LOG_BASE)) + 1 - minVal) / (Math.log(maxVal + 1 - minVal)/Math.log(LOG_BASE)));
+						currStepValue = currStepValue > 1 ? 1 : currStepValue;
+						float normalized = currStepValue*(normalizedMax-normalizedMin);
+						currHue = (float)(0.333 - (normalized * 0.333));												//Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
 
 						//convert HSB to RGB with the calculated Hue, with Saturation and Brightness always 1
 						currRGB = Color.HSBtoRGB(currHue, 1, 1);
