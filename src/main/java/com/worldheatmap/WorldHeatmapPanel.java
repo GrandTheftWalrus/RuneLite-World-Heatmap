@@ -8,13 +8,17 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Paths;
+import java.util.Map;
 
 public class WorldHeatmapPanel extends PluginPanel{
 
     private final WorldHeatmapPlugin plugin;
     private JLabel typeACountLabel, typeBCountLabel;
-    protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton;
+    protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton, writeTypeBcsvButton, writeTypeAcsvButton;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -48,7 +52,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         //Panel for Type A heatmap
         JPanel typeAPanel = new JPanel();
         typeAPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        typeAPanel.setBorder(new EmptyBorder(8, 0, 76, 0));
+        typeAPanel.setBorder(new EmptyBorder(8, 0, 108, 0));
         typeAPanel.add(new JLabel("Heatmap Type A"));
 
         //'Write Heatmap Image' button for Type A
@@ -70,7 +74,13 @@ public class WorldHeatmapPanel extends PluginPanel{
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
-                clearTypeAHeatmap();
+                final int result = JOptionPane.showOptionDialog(typeAPanel,
+                        "<html>Art thou sure you want to restart your Type A heatmap? Both the file and .PNG image will be restarted.</html>",
+                        "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+                        null, new String[]{"Yes", "No"}, "No");
+
+                if (result == JOptionPane.YES_OPTION)
+                    clearTypeAHeatmap();
             }
         });
         typeAPanel.add(clearTypeAHeatmapButton);
@@ -78,10 +88,33 @@ public class WorldHeatmapPanel extends PluginPanel{
         typeAPanel.add(typeACountLabel);
         add(typeAPanel);
 
+        //The "Write CSV" button for Type A
+        writeTypeAcsvButton = new JButton("Write CSV File");
+        writeTypeAcsvButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
+        writeTypeAcsvButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                JFileChooser jfs = new JFileChooser();
+                jfs.setDialogTitle("Specify where to save CSV");
+                int userSelection = jfs.showSaveDialog(typeAPanel);
+                if (userSelection == JFileChooser.APPROVE_OPTION) {
+                    File fileToSave = jfs.getSelectedFile();
+                    try {
+                        writeCSVFile(fileToSave,  plugin.heatmapTypeB);
+                    }
+                    catch(IOException ex){
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+        typeAPanel.add(writeTypeAcsvButton);
+
         //Panel for Type B heatmaps
         JPanel typeBPanel = new JPanel();
         typeBPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        typeBPanel.setBorder(new EmptyBorder(8, 0, 76, 0));
+        typeBPanel.setBorder(new EmptyBorder(8, 0, 108, 0));
         typeBPanel.add(new JLabel("Heatmap Type B"));
 
         //'Write Heatmap Image' button for Type B
@@ -103,13 +136,42 @@ public class WorldHeatmapPanel extends PluginPanel{
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
-                clearTypeBHeatmap();
+                final int result = JOptionPane.showOptionDialog(typeBPanel,
+                        "<html>Art thou sure you want to restart your Type B heatmap? Both the file and .PNG image will be restarted.</html>",
+                        "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+                        null, new String[]{"Yes", "No"}, "No");
+
+                if (result == JOptionPane.YES_OPTION)
+                    clearTypeBHeatmap();
             }
         });
         typeBPanel.add(clearTypeBHeatmapButton);
         typeBCountLabel = new JLabel();
         typeBPanel.add(typeBCountLabel);
         add(typeBPanel);
+
+        //The "Write CSV" button for Type B
+        writeTypeBcsvButton = new JButton("Write CSV File");
+        writeTypeBcsvButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
+        writeTypeBcsvButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                JFileChooser jfs = new JFileChooser();
+                jfs.setDialogTitle("Specify where to save CSV");
+                int userSelection = jfs.showSaveDialog(typeBPanel);
+                if (userSelection == JFileChooser.APPROVE_OPTION) {
+                    File fileToSave = jfs.getSelectedFile();
+                    try {
+                        writeCSVFile(fileToSave,  plugin.heatmapTypeB);
+                    }
+                    catch(IOException ex){
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+        typeBPanel.add(writeTypeBcsvButton);
     }
 
     protected void updateCounts(){
@@ -127,24 +189,43 @@ public class WorldHeatmapPanel extends PluginPanel{
     }
 
     private void writeTypeAHeatmapImage(){
-        plugin.executor.execute(plugin.WRITE_TYPE_A_IMAGE);
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, plugin.mostRecentLocalUserName + "_TypeA.heatmap"));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, plugin.mostRecentLocalUserName + "_TypeA.png"));
     }
 
     private void clearTypeAHeatmap() {
-        plugin.executor.execute(plugin.CLEAR_TYPE_A_HEATMAP);
+        plugin.heatmapTypeA = new HeatmapNew();
+        String filepathA = Paths.get(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserName + "_TypeA.heatmap").toString();
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, filepathA));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, plugin.mostRecentLocalUserName + "_TypeA.png"));
     }
 
     private void writeTypeBHeatmapImage(){
-        plugin.executor.execute(plugin.WRITE_TYPE_B_IMAGE);
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, plugin.mostRecentLocalUserName + "_TypeB.heatmap"));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, plugin.mostRecentLocalUserName + "_TypeB.png"));
     }
 
     private void clearTypeBHeatmap() {
-        plugin.executor.execute(plugin.CLEAR_TYPE_B_HEATMAP);
+        plugin.heatmapTypeB = new HeatmapNew();
+        String filepathB = Paths.get(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserName + "_TypeB.heatmap").toString();
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, filepathB));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, plugin.mostRecentLocalUserName + "_TypeB.png"));
     }
 
     private void openHeatmapsFolder() throws IOException {
         if (!plugin.WORLDHEATMAP_DIR.exists())
             plugin.WORLDHEATMAP_DIR.mkdirs();
         Desktop.getDesktop().open(plugin.WORLDHEATMAP_DIR);
+    }
+
+    private void writeCSVFile(File csvURI, HeatmapNew heatmap) throws IOException{
+        PrintWriter pw = new PrintWriter(csvURI);
+        for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()){
+            int x = e.getKey().x;
+            int y = e.getKey().y;
+            int stepVal = e.getValue();
+            pw.write("" + x + ", " + y + ", " + stepVal + "\n");
+        }
+        pw.close();
     }
 }
