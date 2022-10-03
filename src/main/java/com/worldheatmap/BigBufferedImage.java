@@ -260,30 +260,17 @@ public class BigBufferedImage extends BufferedImage {
 			dispose();
 		}
 
-		private void disposeNow() {
-			final MappedByteBuffer[] disposedBuffer = this.buffer;
-			this.buffer = null;
-			disposeNow(disposedBuffer);
-		}
-
 		public void dispose() {
-			final MappedByteBuffer[] disposedBuffer = this.buffer;
-			this.buffer = null;
 			new Thread() {
 				@Override
 				public void run() {
-					disposeNow(disposedBuffer);
+					disposeNow();
 				}
 			}.start();
 		}
 
-		private void disposeNow(final MappedByteBuffer[] disposedBuffer) {
-			FileDataBufferDeleterHook.undisposedBuffers.remove(this);
-			if (disposedBuffer != null) {
-				for (MappedByteBuffer b : disposedBuffer) {
-					((DirectBuffer) b).cleaner().clean();
-				}
-			}
+		private void disposeNow() {
+			this.buffer = null;
 			if (accessFiles != null) {
 				for (RandomAccessFile file : accessFiles) {
 					try {
@@ -305,6 +292,5 @@ public class BigBufferedImage extends BufferedImage {
 				path = null;
 			}
 		}
-
 	}
 }
