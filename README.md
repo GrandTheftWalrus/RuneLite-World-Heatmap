@@ -4,3 +4,7 @@ This plugin logs each tile that the local player steps on to create a visualizat
 ![heatmap after](https://user-images.githubusercontent.com/70998757/193519766-971c6ae8-0f44-42cd-8013-84ec34e2c122.png)
 ![image](https://user-images.githubusercontent.com/70998757/193519598-e1c4f87d-c29a-4813-afd1-7d1c77e482eb.png)
 ![image](https://user-images.githubusercontent.com/70998757/193519625-1e6a5246-865a-4ec1-a804-e8279c3481f5.png)
+
+With the .csv export option, the data can be analyzed more fancily with other tools such as R, or Quicken 2003 (not included):
+![image](https://user-images.githubusercontent.com/70998757/193536404-1aad969d-e2fb-4ab1-af27-3c38be4ac90d.png)
+
