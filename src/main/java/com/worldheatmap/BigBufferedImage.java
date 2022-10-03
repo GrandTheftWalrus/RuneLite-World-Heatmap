@@ -47,9 +47,9 @@ import sun.nio.ch.DirectBuffer;
 public class BigBufferedImage extends BufferedImage {
 
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
-	public static int MAX_PIXELS_IN_MEMORY = 2048 * 2048;
+	//public int MAX_PIXELS_IN_MEMORY = 2048 * 2048;
 
-	public static BufferedImage create(int width, int height, int imageType) {
+	public static BufferedImage create(int width, int height, int imageType, int MAX_PIXELS_IN_MEMORY) {
 		if (width * height > MAX_PIXELS_IN_MEMORY) {
 			try {
 				final File tempDir = new File(TMP_DIR);
@@ -62,7 +62,7 @@ public class BigBufferedImage extends BufferedImage {
 		}
 	}
 
-	public static BufferedImage create(File inputFile, int imageType) throws IOException {
+	public static BufferedImage create(File inputFile, int imageType, int MAX_PIXELS_IN_MEMORY) throws IOException {
 		try (ImageInputStream stream = ImageIO.createImageInputStream(inputFile);) {
 			Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
 			if (readers.hasNext()) {
@@ -71,7 +71,7 @@ public class BigBufferedImage extends BufferedImage {
 					reader.setInput(stream, true, true);
 					int width = reader.getWidth(reader.getMinIndex());
 					int height = reader.getHeight(reader.getMinIndex());
-					BufferedImage image = create(width, height, imageType);
+					BufferedImage image = create(width, height, imageType, MAX_PIXELS_IN_MEMORY);
 					int cores = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
 					int block = Math.min(MAX_PIXELS_IN_MEMORY / cores / width, (int) (Math.ceil(height / (double) cores)));
 					ExecutorService generalExecutor = Executors.newFixedThreadPool(cores);

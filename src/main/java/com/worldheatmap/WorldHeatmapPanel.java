@@ -1,11 +1,14 @@
 package com.worldheatmap;
 
+import net.runelite.api.Actor;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -34,10 +37,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //'Open Heatmaps Folder' button
         JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
         openHeatmapFolderButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        openHeatmapFolderButton.addMouseListener(new MouseAdapter() {
+        openHeatmapFolderButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 try{
                     openHeatmapsFolder();
                 }
@@ -58,10 +60,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //'Write Heatmap Image' button for Type A
         writeTypeAHeatmapImageButton = new JButton("Write Heatmap Image");
         writeTypeAHeatmapImageButton.setFont(new Font(writeTypeAHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeAHeatmapImageButton.addMouseListener(new MouseAdapter() {
+        writeTypeAHeatmapImageButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 writeTypeAHeatmapImage();
             }
         });
@@ -70,10 +71,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //'Restart Heatmap' button for Type A
         clearTypeAHeatmapButton = new JButton("Restart Heatmap");
         clearTypeAHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        clearTypeAHeatmapButton.addMouseListener(new MouseAdapter() {
+        clearTypeAHeatmapButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 final int result = JOptionPane.showOptionDialog(typeAPanel,
                         "<html>Art thou sure you want to restart your Type A heatmap? Both the file and .PNG image will be restarted.</html>",
                         "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
@@ -91,10 +91,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //The "Write CSV" button for Type A
         writeTypeAcsvButton = new JButton("Write CSV File");
         writeTypeAcsvButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeAcsvButton.addMouseListener(new MouseAdapter() {
+        writeTypeAcsvButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 JFileChooser jfs = new JFileChooser();
                 jfs.setDialogTitle("Specify where to save CSV");
                 int userSelection = jfs.showSaveDialog(typeAPanel);
@@ -120,10 +119,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //'Write Heatmap Image' button for Type B
         writeTypeBHeatmapImageButton = new JButton("Write Heatmap Image");
         writeTypeBHeatmapImageButton.setFont(new Font(writeTypeBHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeBHeatmapImageButton.addMouseListener(new MouseAdapter() {
+        writeTypeBHeatmapImageButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 writeTypeBHeatmapImage();
             }
         });
@@ -132,10 +130,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //'Restart Heatmap' button for Type B
         clearTypeBHeatmapButton = new JButton("Restart Heatmap");
         clearTypeBHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        clearTypeBHeatmapButton.addMouseListener(new MouseAdapter() {
+        clearTypeBHeatmapButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 final int result = JOptionPane.showOptionDialog(typeBPanel,
                         "<html>Art thou sure you want to restart your Type B heatmap? Both the file and .PNG image will be restarted.</html>",
                         "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
@@ -153,10 +150,9 @@ public class WorldHeatmapPanel extends PluginPanel{
         //The "Write CSV" button for Type B
         writeTypeBcsvButton = new JButton("Write CSV File");
         writeTypeBcsvButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeBcsvButton.addMouseListener(new MouseAdapter() {
+        writeTypeBcsvButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
+            public void actionPerformed(ActionEvent e) {
                 JFileChooser jfs = new JFileChooser();
                 jfs.setDialogTitle("Specify where to save CSV");
                 int userSelection = jfs.showSaveDialog(typeBPanel);

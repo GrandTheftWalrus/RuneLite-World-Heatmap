@@ -119,18 +119,30 @@ public interface WorldHeatmapConfig extends Config
 	)
 	default double heatmapAlpha() { return 0.65;	}
 
-//	@Range(
-//			min = 512
-//	)
-//	@ConfigItem(
-//			keyName = "imagePixelBufer",
-//			name = "Image Pixel Buffer Size",
-//			position = 1,
-//			description = "If you find that the plugin isn't able to write images due to a memory overflow error (and therefore crashing), decrease this value. Decreasing this value causes less RAM to be utilized, but it will take longer to write the image. I would not recommend going less than 1024, because that takes about 25 seconds to write an image, on my desktop. The more memory-hungry plugins you have running on RuneLite, the more likely it is that you won't have much memory to spare and will need to have this value lowered. By the way, this value you enter here will actually be the square root of the number of pixels stored in memory as the large world map image is written. so 2048 will be 2048 * 2048 = 4194304.",
-//			section = other
-//	)
-//	default int imagePixelBuffer()
-//	{
-//		return 2048;
-//	}
+	@Range(
+			min = 1024,
+			max = 8320
+	)
+	@ConfigItem(
+			keyName = "imageBuffer",
+			name = "Image writing buffer size",
+			position = 1,
+			description = "The (square root of the) maximum number of bytes to keep in memory whilst writing the image files. Lower numbers prevent crashes due to memory usage (which can happen if you have lots of plugins installed), but causes writing the images to take longer. For me, 2048 bytes takes ~8 seconds. I prefer 4160 bytes.",
+			section = other
+	)
+	default int imageBuffer() { return 2048;	}
+
+	@Range(
+			min = 1,
+			max = 4
+	)
+	@ConfigItem(
+			keyName = "heatmapSensitivity",
+			name = "Heatmap sensitivity",
+			position = 2,
+			description = "Increasing this makes the heatmap's colour gradient more sensitive to step counts.",
+			section = other
+	)
+	default int heatmapSensitivity() { return 2; }
+
 }

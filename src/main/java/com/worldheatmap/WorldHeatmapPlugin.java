@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import com.google.common.collect.Lists;
 import com.google.inject.Provides;
 
 import javax.imageio.ImageIO;
@@ -27,12 +28,11 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
-//TODO: See if there is a way to let users change MAX_PIXELS_IN_MEMORY of BigBufferedImage. This isn't straightforward because it's a static variable referenced by static classes
-//TODO: Make a loading bar for the image save progress (Especially if we can't do the above todo)
+//TODO: Make a loading bar for the image save progress
 
 @Slf4j
 @PluginDescriptor(
@@ -98,6 +98,8 @@ public class WorldHeatmapPlugin extends Plugin
 		panel.writeTypeBHeatmapImageButton.setEnabled(true);
 		panel.clearTypeAHeatmapButton.setEnabled(true);
 		panel.clearTypeBHeatmapButton.setEnabled(true);
+		panel.writeTypeAcsvButton.setEnabled(true);
+		panel.writeTypeBcsvButton.setEnabled(true);
 	}
 
 	@Override
@@ -120,6 +122,8 @@ public class WorldHeatmapPlugin extends Plugin
 		panel.writeTypeBHeatmapImageButton.setEnabled(false);
 		panel.clearTypeAHeatmapButton.setEnabled(false);
 		panel.clearTypeBHeatmapButton.setEnabled(false);
+		panel.writeTypeAcsvButton.setEnabled(false);
+		panel.writeTypeBcsvButton.setEnabled(false);
 	}
 
 	@Override
@@ -154,12 +158,16 @@ public class WorldHeatmapPlugin extends Plugin
 			panel.writeTypeBHeatmapImageButton.setEnabled(false);
 			panel.clearTypeAHeatmapButton.setEnabled(false);
 			panel.clearTypeBHeatmapButton.setEnabled(false);
+			panel.writeTypeAcsvButton.setEnabled(false);
+			panel.writeTypeBcsvButton.setEnabled(false);
 		}
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN){
 			panel.writeTypeAHeatmapImageButton.setEnabled(true);
 			panel.writeTypeBHeatmapImageButton.setEnabled(true);
 			panel.clearTypeAHeatmapButton.setEnabled(true);
 			panel.clearTypeBHeatmapButton.setEnabled(true);
+			panel.writeTypeAcsvButton.setEnabled(true);
+			panel.writeTypeBcsvButton.setEnabled(true);
 		}
 	}
 
@@ -425,24 +433,26 @@ public class WorldHeatmapPlugin extends Plugin
 		int maxVal = maxValAndCoords[0];
 		int maxX = maxValAndCoords[1];
 		int maxY = maxValAndCoords[2];
-		log.debug("Maximum steps on a tile is: " + maxVal + " at (" + maxX + ", " + maxY + "), for " + filename + " of a total of " + heatmap.getStepCount() + " stepped-on tiles");
+		log.debug("Maximum steps on a tile is: " + maxVal + " at (" + maxX + ", " + maxY + "), for " + filename + " of a total of " + heatmap.getStepCount() + " steps");
 		int[] minValAndCoords = heatmap.getMinVal();
 		int minVal = minValAndCoords[0];
 		int minX = minValAndCoords[1];
 		int minY = minValAndCoords[2];
-		log.debug("Minimum steps on a tile is: " + minVal + " at (" + minX + ", " + minY + "), for " + filename + " of a total of " + heatmap.getStepCount() + " stepped-on tiles");
+		log.debug("Minimum steps on a tile is: " + minVal + " at (" + minX + ", " + minY + "), for " + filename + " of a total of " + heatmap.getStepCount() + " steps");
 		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); //If maxVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero, in which case we add 1 to max val.
+		log.debug("Number of tiles visited: " + heatmap.getTilesVisited());
 
 		try{
-			//BufferedImage worldMapImage = ImageUtil.loadImageResource(getClass(), "/osrs_world_map.png");
-			BufferedImage worldMapImage = BigBufferedImage.create(new File(getClass().getResource("/osrs_world_map.png").toURI()), BufferedImage.TYPE_INT_RGB);
-
+			int max_bytes = config.imageBuffer();
+			BufferedImage worldMapImage = BigBufferedImage.create(new File(getClass().getResource("/osrs_world_map.png").toURI()), BufferedImage.TYPE_INT_RGB, max_bytes * max_bytes);
 			if (worldMapImage.getWidth() != HEATMAP_WIDTH*3 || worldMapImage.getHeight() != HEATMAP_HEIGHT*3){
 				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH*3 + " x " + HEATMAP_HEIGHT*3);
 				return;
 			}
 			int currRGB = 0;
-			float currHue = 0; //a number on the interval [0, 1] that will represent the intensity of the current heatmap pixel
+			double currHue = 0; //a number on the interval [0, 1] that will represent the intensity of the current heatmap pixel
+			double minHue = 1/3., maxHue = 0;
+			double nthRoot = 1 + (config.heatmapSensitivity() - 1.0)/ 2;
 			int LOG_BASE = 4;
 
 			for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()){
@@ -453,7 +463,8 @@ public class WorldHeatmapPlugin extends Plugin
 				if (isInBounds && value != 0) {                                                        //If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
 					//Calculate normalized step value
 					currHue = (float) ((Math.log(value) / Math.log(LOG_BASE)) / (Math.log(maxVal + 1 - minVal) / Math.log(LOG_BASE)));
-					currHue = (float) (1/3. - (currHue * 1/3.));                                                //Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
+					currHue = Math.pow(currHue, 1.0/ nthRoot);
+					currHue = (float) (minHue + (currHue * (maxHue - minHue)));                                                //Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
 
 					//Reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
 					for (int x_offset = 0; x_offset <= 2; x_offset++) {
@@ -466,7 +477,7 @@ public class WorldHeatmapPlugin extends Plugin
 							int b = (srcRGB)&0xFF;
 							double srcBrightness = Color.RGBtoHSB(r, g, b, null)[2] * (1 - heatmapTransparency) + heatmapTransparency;
 							//convert HSB to RGB with the calculated Hue, with Saturation=1 and Brightness according to original map pixel
-							currRGB = Color.HSBtoRGB(currHue, 1, (float) srcBrightness);
+							currRGB = Color.HSBtoRGB((float)currHue, 1, (float) srcBrightness);
 							worldMapImage.setRGB(curX, curY, currRGB);
 						}
 					}
