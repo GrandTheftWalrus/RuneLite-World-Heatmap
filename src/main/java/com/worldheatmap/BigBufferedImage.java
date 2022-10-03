@@ -42,7 +42,6 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
-import sun.nio.ch.DirectBuffer;
 
 public class BigBufferedImage extends BufferedImage {
 
