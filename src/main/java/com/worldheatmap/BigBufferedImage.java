@@ -10,6 +10,8 @@ package com.worldheatmap;
  * https://www.facebook.com/pulispace
  * http://nyomdmegteis.hu/en/
  */
+import lombok.extern.slf4j.Slf4j;
+
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.color.ColorSpace;
@@ -43,6 +45,7 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
+@Slf4j
 public class BigBufferedImage extends BufferedImage {
 
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
@@ -259,7 +262,7 @@ public class BigBufferedImage extends BufferedImage {
 			dispose();
 		}
 
-		public void dispose() {
+		private void dispose() {
 			new Thread() {
 				@Override
 				public void run() {
@@ -282,7 +285,8 @@ public class BigBufferedImage extends BufferedImage {
 			}
 			if (files != null) {
 				for (File file : files) {
-					file.delete();
+					if (!file.delete())
+						log.error("Failed to delete temp file " + file + "! This is important because there's probably now a large file sitting around in your temp folder.");
 				}
 				files = null;
 			}

@@ -1,27 +1,29 @@
 package com.worldheatmap;
 
-import net.runelite.api.Actor;
+import com.sun.jna.platform.win32.COM.COMBindingBaseObject;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ImageUtil;
+import sun.jvm.hotspot.ui.table.LongCellRenderer;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Paths;
 import java.util.Map;
 
+@Slf4j
 public class WorldHeatmapPanel extends PluginPanel{
 
     private final WorldHeatmapPlugin plugin;
-    private JLabel typeACountLabel, typeBCountLabel;
-    protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton, writeTypeBcsvButton, writeTypeAcsvButton;
+    private JLabel typeACountLabel, typeBCountLabel, playerIDLabel;
+    protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton, writeTypeBcsvButton, writeTypeAcsvButton, combinerToolButton;
+    private int hGap = 5, vGap = 5;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -30,144 +32,288 @@ public class WorldHeatmapPanel extends PluginPanel{
 
     protected void rebuild(){
         removeAll();
-        JPanel mainPanel = new JPanel();
+        Font buttonFont = new Font("Runescape", Font.BOLD, 18);
+        Font sectionLabelFont = new Font("Runescape", Font.BOLD, 18);
+
+        //Main Panel
+        JPanel mainPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
+        mainPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        mainPanel.setBorder(new EmptyBorder(8, 0, 10, 0));
+
+        //Player ID label
+        playerIDLabel = new JLabel("Player ID: unavailable");
+        playerIDLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        mainPanel.add(playerIDLabel);
 
         //'Open Heatmaps Folder' button
         JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
-        openHeatmapFolderButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        openHeatmapFolderButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                try{
-                    openHeatmapsFolder();
-                }
-                catch(IOException heatmapsIOError){
-                    heatmapsIOError.printStackTrace();
-                }
+        openHeatmapFolderButton.setFont(buttonFont);
+        log.debug("FONT:" + openHeatmapFolderButton.getFont());
+        log.debug("FONT:" + openHeatmapFolderButton.getFont().getName());
+        log.debug("FONT:" + openHeatmapFolderButton.getFont().getFontName());
+        openHeatmapFolderButton.addActionListener(e -> {
+            try{
+                openHeatmapsFolder();
+            }
+            catch(IOException heatmapsIOError){
+                heatmapsIOError.printStackTrace();
             }
         });
         mainPanel.add(openHeatmapFolderButton);
         add(mainPanel);
 
-        //Panel for Type A heatmap
-        JPanel typeAPanel = new JPanel();
+        //Type A Panel
+        JPanel typeAPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
+        typeAPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
         typeAPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        typeAPanel.setBorder(new EmptyBorder(8, 0, 108, 0));
-        typeAPanel.add(new JLabel("Heatmap Type A"));
+
+        //Type A label
+        JLabel typeALabel = new JLabel("Heatmap Type A");
+        typeALabel.setFont(sectionLabelFont);
+        typeALabel.setForeground(Color.WHITE);
+        typeALabel.setHorizontalAlignment(SwingConstants.CENTER);
+        typeAPanel.add(typeALabel);
 
         //'Write Heatmap Image' button for Type A
         writeTypeAHeatmapImageButton = new JButton("Write Heatmap Image");
-        writeTypeAHeatmapImageButton.setFont(new Font(writeTypeAHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeAHeatmapImageButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                writeTypeAHeatmapImage();
-            }
-        });
+        writeTypeAHeatmapImageButton.setFont(buttonFont);
+        writeTypeAHeatmapImageButton.addActionListener(e -> writeTypeAHeatmapImage());
         typeAPanel.add(writeTypeAHeatmapImageButton);
 
         //'Restart Heatmap' button for Type A
         clearTypeAHeatmapButton = new JButton("Restart Heatmap");
-        clearTypeAHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        clearTypeAHeatmapButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                final int result = JOptionPane.showOptionDialog(typeAPanel,
-                        "<html>Art thou sure you want to restart your Type A heatmap? Both the file and .PNG image will be restarted.</html>",
-                        "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
-                        null, new String[]{"Yes", "No"}, "No");
+        clearTypeAHeatmapButton.setFont(buttonFont);
+        clearTypeAHeatmapButton.addActionListener(e -> {
+            final int result = JOptionPane.showOptionDialog(typeAPanel,
+                    "<html>Art thou sure you want to restart your Type A heatmap? Both the file and .PNG image will be restarted.</html>",
+                    "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+                    null, new String[]{"Yes", "No"}, "No");
 
-                if (result == JOptionPane.YES_OPTION)
-                    clearTypeAHeatmap();
-            }
+            if (result == JOptionPane.YES_OPTION)
+                clearTypeAHeatmap();
         });
         typeAPanel.add(clearTypeAHeatmapButton);
-        typeACountLabel = new JLabel();
+        typeACountLabel = new JLabel("Step count: 0");
+        typeACountLabel.setHorizontalAlignment(SwingConstants.CENTER);
         typeAPanel.add(typeACountLabel);
-        add(typeAPanel);
 
         //The "Write CSV" button for Type A
         writeTypeAcsvButton = new JButton("Write CSV File");
-        writeTypeAcsvButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeAcsvButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JFileChooser jfs = new JFileChooser();
-                jfs.setDialogTitle("Specify where to save CSV");
-                int userSelection = jfs.showSaveDialog(typeAPanel);
-                if (userSelection == JFileChooser.APPROVE_OPTION) {
-                    File fileToSave = jfs.getSelectedFile();
-                    try {
-                        writeCSVFile(fileToSave,  plugin.heatmapTypeB);
-                    }
-                    catch(IOException ex){
-                        ex.printStackTrace();
-                    }
-                }
-            }
-        });
+        writeTypeAcsvButton.setFont(buttonFont);
+        writeTypeAcsvButton.addActionListener(e -> showCSVSavingDialog(typeAPanel));
         typeAPanel.add(writeTypeAcsvButton);
+        add(typeAPanel);
 
-        //Panel for Type B heatmaps
-        JPanel typeBPanel = new JPanel();
+        //Type B Panel
+        JPanel typeBPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
+        typeBPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
         typeBPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        typeBPanel.setBorder(new EmptyBorder(8, 0, 108, 0));
-        typeBPanel.add(new JLabel("Heatmap Type B"));
+
+        //Type B label
+        JLabel typeBLabel = new JLabel("Heatmap Type B");
+        typeBLabel.setForeground(Color.WHITE);
+        typeBLabel.setFont(sectionLabelFont);
+        typeBLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        typeBPanel.add(typeBLabel);
 
         //'Write Heatmap Image' button for Type B
         writeTypeBHeatmapImageButton = new JButton("Write Heatmap Image");
-        writeTypeBHeatmapImageButton.setFont(new Font(writeTypeBHeatmapImageButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeBHeatmapImageButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                writeTypeBHeatmapImage();
-            }
-        });
+        writeTypeBHeatmapImageButton.setFont(buttonFont);
+        writeTypeBHeatmapImageButton.addActionListener(e -> writeTypeBHeatmapImage());
         typeBPanel.add(writeTypeBHeatmapImageButton);
 
         //'Restart Heatmap' button for Type B
         clearTypeBHeatmapButton = new JButton("Restart Heatmap");
-        clearTypeBHeatmapButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        clearTypeBHeatmapButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                final int result = JOptionPane.showOptionDialog(typeBPanel,
-                        "<html>Art thou sure you want to restart your Type B heatmap? Both the file and .PNG image will be restarted.</html>",
-                        "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
-                        null, new String[]{"Yes", "No"}, "No");
+        clearTypeBHeatmapButton.setFont(buttonFont);
+        clearTypeBHeatmapButton.addActionListener(e -> {
+            final int result = JOptionPane.showOptionDialog(typeBPanel,
+                    "<html>Art thou sure you want to restart your Type B heatmap? Both the file and .PNG image will be restarted.</html>",
+                    "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+                    null, new String[]{"Yes", "No"}, "No");
 
-                if (result == JOptionPane.YES_OPTION)
-                    clearTypeBHeatmap();
-            }
+            if (result == JOptionPane.YES_OPTION)
+                clearTypeBHeatmap();
         });
         typeBPanel.add(clearTypeBHeatmapButton);
-        typeBCountLabel = new JLabel();
+        typeBCountLabel = new JLabel("Step count: 0");
+        typeBCountLabel.setHorizontalAlignment(SwingConstants.CENTER);
         typeBPanel.add(typeBCountLabel);
         add(typeBPanel);
 
         //The "Write CSV" button for Type B
         writeTypeBcsvButton = new JButton("Write CSV File");
-        writeTypeBcsvButton.setFont(new Font(openHeatmapFolderButton.getFont().getName(), Font.BOLD, 18));
-        writeTypeBcsvButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JFileChooser jfs = new JFileChooser();
-                jfs.setDialogTitle("Specify where to save CSV");
-                int userSelection = jfs.showSaveDialog(typeBPanel);
-                if (userSelection == JFileChooser.APPROVE_OPTION) {
-                    File fileToSave = jfs.getSelectedFile();
-                    try {
-                        writeCSVFile(fileToSave,  plugin.heatmapTypeB);
-                    }
-                    catch(IOException ex){
-                        ex.printStackTrace();
-                    }
+        writeTypeBcsvButton.setFont(buttonFont);
+        writeTypeBcsvButton.addActionListener(e -> showCSVSavingDialog(typeBPanel));
+        typeBPanel.add(writeTypeBcsvButton);
+
+        //Heatmap combiner panel
+        JPanel combinerToolPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
+        combinerToolPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
+        combinerToolPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        //Heatmap combiner label
+        JLabel combinerToolLabel = new JLabel("Heatmap Combiner Tool");
+        combinerToolLabel.setFont(sectionLabelFont);
+        combinerToolLabel.setForeground(Color.WHITE);
+        combinerToolLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        combinerToolPanel.add(combinerToolLabel);
+
+        //Heatmap combiner button
+        JDialog combinerJDialog = createHeatmapCombinerDialog();
+        combinerToolButton = new JButton("Heatmap Combiner");
+        combinerToolButton.setFont(buttonFont);
+        combinerToolButton.addActionListener(e -> combinerJDialog.setVisible(true));
+        combinerToolPanel.add(combinerToolButton);
+
+        add(combinerToolPanel);
+    }
+
+    public JDialog createHeatmapCombinerDialog(){
+        //Heatmap combiner JDialog
+        Window parentWindow = SwingUtilities.getWindowAncestor(this);
+        JDialog combinerJDialog = new JDialog(parentWindow, "Heatmap Combiner", Dialog.ModalityType.APPLICATION_MODAL);
+        combinerJDialog.setIconImage(ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png"));
+        JPanel combinerJPanel = new JPanel();
+        combinerJPanel.setLayout(new BoxLayout(combinerJPanel, BoxLayout.Y_AXIS));
+        combinerJPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        //Input file chooser
+        JPanel inputsPanel = new JPanel();
+        JFileChooser inputsJFC = new JFileChooser();
+        inputsJFC.addChoosableFileFilter(new FileNameExtensionFilter("Heatmap files", "heatmap"));
+        inputsJFC.setAcceptAllFileFilterUsed(false);
+        inputsJFC.setMultiSelectionEnabled(true);
+        inputsJFC.setSelectedFile(new File(plugin.HEATMAP_FILES_DIR, "ballsack.heatmap"));
+        inputsJFC.setDialogTitle("Choose the .heatmap files whomst you want to combine");
+
+        JLabel inputsJFCLabel = new JLabel("Input heatmap files");
+        JTextField inputsJFCTextfield = new JTextField("", 30);
+        inputsJFCTextfield.setEnabled(false);
+        Button inputsJFCButton = new Button("Choose file");
+        inputsPanel.add(inputsJFCTextfield);
+        inputsPanel.add(inputsJFCButton);
+        inputsJFCButton.addActionListener(e -> {
+            int retVal = inputsJFC.showDialog(this, "Select");
+            if (retVal == JFileChooser.APPROVE_OPTION){
+                StringBuilder text = new StringBuilder();
+                text.append('"');
+                for (File f : inputsJFC.getSelectedFiles()) {
+                    text.append(f.getAbsolutePath());
+                    text.append("\" \"");
                 }
+                text.delete(text.length()-2, text.length());
+                inputsJFCTextfield.setText(text.toString());
             }
         });
-        typeBPanel.add(writeTypeBcsvButton);
+        combinerJPanel.add(inputsJFCLabel);
+        combinerJPanel.add(inputsPanel);
+
+        //Output file chooser
+        JPanel outputPanel = new JPanel();
+        JFileChooser outputJFC = new JFileChooser();
+        outputJFC.addChoosableFileFilter(new FileNameExtensionFilter("Heatmap files", "heatmap"));
+        outputJFC.setAcceptAllFileFilterUsed(false);
+        outputJFC.setSelectedFile(new File(plugin.HEATMAP_FILES_DIR, "output.heatmap"));
+        outputJFC.setDialogTitle("Enter a name for the combined .heatmap");
+
+        JLabel outputJFCLabel = new JLabel("Output heatmap file");
+        JTextField outputJFCTextfield = new JTextField("", 30);
+        Button outputsJFCButton = new Button("Choose file");
+        outputPanel.add(outputJFCTextfield);
+        outputPanel.add(outputsJFCButton);
+        outputsJFCButton.addActionListener(e -> {
+            int retVal = outputJFC.showDialog(this, "Select");
+            if (retVal == JFileChooser.APPROVE_OPTION)
+                outputJFCTextfield.setText(outputJFC.getSelectedFile().toString());
+        });
+        combinerJPanel.add(outputJFCLabel);
+        combinerJPanel.add(outputPanel);
+
+        //Output image chooser
+        JPanel outputImagePanel = new JPanel();
+        JFileChooser outputImageJFC = new JFileChooser();
+        outputImageJFC.addChoosableFileFilter(new FileNameExtensionFilter("PNG files", "png"));
+        outputImageJFC.setAcceptAllFileFilterUsed(false);
+        outputImageJFC.setSelectedFile(new File(plugin.HEATMAP_IMAGE_DIR, "output.png"));
+        outputImageJFC.setDialogTitle("Enter a name for the combined heatmap .PNG");
+
+        JLabel outputImageJFCLabel = new JLabel("Output image file (optional)");
+        JTextField outputImageJFCTextfield = new JTextField("", 30);
+        Button outputImageJFCButton = new Button("Choose file");
+        outputImagePanel.add(outputImageJFCTextfield);
+        outputImagePanel.add(outputImageJFCButton);
+        outputImageJFCButton.addActionListener(e -> {
+            int retVal = outputImageJFC.showDialog(this, "Select");
+            if (retVal == JFileChooser.APPROVE_OPTION)
+                outputImageJFCTextfield.setText(outputImageJFC.getSelectedFile().toString());
+        });
+        combinerJPanel.add(outputImageJFCLabel);
+        combinerJPanel.add(outputImagePanel);
+
+        JButton combinerSubmitButton = new JButton("Combine Heatmaps");
+        combinerJPanel.add(combinerSubmitButton);
+        combinerSubmitButton.addActionListener(e -> {
+            File[] filesToOpen = inputsJFC.getSelectedFiles();
+            File fileToSave = new File(outputJFCTextfield.getText());
+            File imageFileOut = new File(outputImageJFCTextfield.getText());
+            //TODO: for some reason when the file isn't absolute it's using the program's active directory as the root instead of the heatmap images folder
+            log.debug("Textfield text: " + outputImageJFCTextfield.getText());
+            log.debug("IMAGE FILE OUT: " + imageFileOut.getAbsolutePath());
+
+            if (filesToOpen.length == 0 ||  fileToSave.getName().isEmpty()){
+                JOptionPane.showMessageDialog(combinerJDialog, "You either didn't select an output file or any input files", "Le error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (!fileToSave.getName().endsWith(".heatmap"))
+                fileToSave = new File(fileToSave.getAbsolutePath() + ".heatmap");
+            if (!imageFileOut.getName().endsWith(".png"))
+                imageFileOut = new File(imageFileOut.getAbsolutePath() + ".png");
+
+            combinerSubmitButton.setText("Loading...");
+            combinerSubmitButton.setEnabled(false);
+            File finalFileToSave = fileToSave;
+            File finalImageFileOut = imageFileOut;
+            //Re-check if nothing was actually entered here
+            if (outputImageJFCTextfield.getText().isEmpty())
+                finalImageFileOut = null;
+            if (combineHeatmaps(finalFileToSave, finalImageFileOut, filesToOpen))
+                JOptionPane.showMessageDialog(combinerJDialog, "The heatmaps have been combined and are wherever you stashed them", "Success", JOptionPane.PLAIN_MESSAGE);
+            else
+                JOptionPane.showMessageDialog(combinerJDialog, "There was an error combining the heatmaps for some reason", "Error", JOptionPane.ERROR_MESSAGE);
+            combinerSubmitButton.setText("Submit");
+            combinerSubmitButton.setEnabled(true);
+        });
+
+        combinerJDialog.add(combinerJPanel);
+        combinerJDialog.pack();
+        combinerJDialog.setLocationRelativeTo(null);
+
+        return combinerJDialog;
+    }
+
+    protected void showCSVSavingDialog(Component typeXPanel){
+        JFileChooser jfc = new JFileChooser();
+        jfc.addChoosableFileFilter(new FileNameExtensionFilter("CSV files", "csv"));
+        jfc.setAcceptAllFileFilterUsed(false);
+        jfc.setSelectedFile(new File(jfc.getCurrentDirectory().getAbsolutePath(), "ballsack.csv"));
+        jfc.setDialogTitle("Specify where to save CSV");
+        int userSelection = jfc.showSaveDialog(typeXPanel);
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = jfc.getSelectedFile();
+            fileToSave = (fileToSave.getName().endsWith(".csv") ? fileToSave : new File(fileToSave.getAbsolutePath() + ".csv"));
+            log.debug("File to save: " + fileToSave);
+            try {
+                writeCSVFile(fileToSave,  plugin.heatmapTypeB);
+            }
+            catch(IOException ex){
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    protected void updatePlayerID(){
+        playerIDLabel.setText("Player ID: " + plugin.mostRecentLocalUserID);
+        updateUI();
     }
 
     protected void updateCounts(){
@@ -185,27 +331,27 @@ public class WorldHeatmapPanel extends PluginPanel{
     }
 
     private void writeTypeAHeatmapImage(){
-        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, plugin.mostRecentLocalUserName + "_TypeA.heatmap"));
-        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, plugin.mostRecentLocalUserName + "_TypeA.png"));
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.heatmap")));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.png")));
     }
 
     private void clearTypeAHeatmap() {
         plugin.heatmapTypeA = new HeatmapNew();
-        String filepathA = Paths.get(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserName + "_TypeA.heatmap").toString();
-        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, filepathA));
-        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, plugin.mostRecentLocalUserName + "_TypeA.png"));
+        String filepathA = Paths.get(plugin.HEATMAP_FILES_DIR.toString(), plugin.mostRecentLocalUserID + "_TypeA.heatmap").toString();
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, new File(filepathA)));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.png")));
     }
 
     private void writeTypeBHeatmapImage(){
-        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, plugin.mostRecentLocalUserName + "_TypeB.heatmap"));
-        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, plugin.mostRecentLocalUserName + "_TypeB.png"));
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.heatmap")));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.png")));
     }
 
     private void clearTypeBHeatmap() {
         plugin.heatmapTypeB = new HeatmapNew();
-        String filepathB = Paths.get(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserName + "_TypeB.heatmap").toString();
-        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, filepathB));
-        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, plugin.mostRecentLocalUserName + "_TypeB.png"));
+        String filepathB = Paths.get(plugin.HEATMAP_FILES_DIR.toString(), plugin.mostRecentLocalUserID + "_TypeB.heatmap").toString();
+        plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, new File(filepathB)));
+        plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.png")));
     }
 
     private void openHeatmapsFolder() throws IOException {
@@ -223,5 +369,18 @@ public class WorldHeatmapPanel extends PluginPanel{
             pw.write("" + x + ", " + y + ", " + stepVal + "\n");
         }
         pw.close();
+    }
+
+    private boolean combineHeatmaps(File fileToSave, File imageFileOut, File[] filesToOpen){
+        if (!plugin.HEATMAP_FILES_DIR.exists())
+            plugin.HEATMAP_FILES_DIR.mkdirs();
+        log.debug("Combining " + filesToOpen.length + " heatmap files ...");
+        long startTime = System.nanoTime();
+        boolean isSuccessful = plugin.combineHeatmaps(fileToSave, imageFileOut, filesToOpen);
+        if (isSuccessful){
+            long endTime = System.nanoTime();
+            log.info("Finished combining " + filesToOpen.length + " heatmap files in " + (endTime - startTime)/1_000_000 + " ms");
+        }
+        return isSuccessful;
     }
 }
