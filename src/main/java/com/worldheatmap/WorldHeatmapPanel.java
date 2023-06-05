@@ -48,9 +48,6 @@ public class WorldHeatmapPanel extends PluginPanel{
         //'Open Heatmaps Folder' button
         JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
         openHeatmapFolderButton.setFont(buttonFont);
-        log.debug("FONT:" + openHeatmapFolderButton.getFont());
-        log.debug("FONT:" + openHeatmapFolderButton.getFont().getName());
-        log.debug("FONT:" + openHeatmapFolderButton.getFont().getFontName());
         openHeatmapFolderButton.addActionListener(e -> {
             try{
                 openHeatmapsFolder();
@@ -255,10 +252,11 @@ public class WorldHeatmapPanel extends PluginPanel{
         combinerSubmitButton.addActionListener(e -> {
             File[] filesToOpen = inputsJFC.getSelectedFiles();
             File fileToSave = new File(outputJFCTextfield.getText());
-            File imageFileOut = new File(outputImageJFCTextfield.getText());
-            //TODO: for some reason when the file isn't absolute it's using the program's active directory as the root instead of the heatmap images folder
-            log.debug("Textfield text: " + outputImageJFCTextfield.getText());
-            log.debug("IMAGE FILE OUT: " + imageFileOut.getAbsolutePath());
+            File imageFileOut;
+            if (outputImageJFCTextfield.getText().isEmpty())
+                imageFileOut = null;
+            else
+                imageFileOut = new File(outputImageJFCTextfield.getText());
 
             if (filesToOpen.length == 0 ||  fileToSave.getName().isEmpty()){
                 JOptionPane.showMessageDialog(combinerJDialog, "You either didn't select an output file or any input files", "Le error", JOptionPane.ERROR_MESSAGE);
@@ -266,11 +264,12 @@ public class WorldHeatmapPanel extends PluginPanel{
             }
             if (!fileToSave.getName().endsWith(".heatmap"))
                 fileToSave = new File(fileToSave.getAbsolutePath() + ".heatmap");
-            if (!imageFileOut.getName().endsWith(".png"))
+            if (imageFileOut != null && !imageFileOut.getName().endsWith(".png"))
                 imageFileOut = new File(imageFileOut.getAbsolutePath() + ".png");
 
             combinerSubmitButton.setText("Loading...");
             combinerSubmitButton.setEnabled(false);
+            //TODO: the above changes aren't updated in the UI because this function is blocking or something
             File finalFileToSave = fileToSave;
             File finalImageFileOut = imageFileOut;
             //Re-check if nothing was actually entered here
@@ -301,7 +300,7 @@ public class WorldHeatmapPanel extends PluginPanel{
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File fileToSave = jfc.getSelectedFile();
             fileToSave = (fileToSave.getName().endsWith(".csv") ? fileToSave : new File(fileToSave.getAbsolutePath() + ".csv"));
-            log.debug("File to save: " + fileToSave);
+            log.debug("File to save as CSV: " + fileToSave);
             try {
                 writeCSVFile(fileToSave,  plugin.heatmapTypeB);
             }
@@ -374,7 +373,7 @@ public class WorldHeatmapPanel extends PluginPanel{
     private boolean combineHeatmaps(File fileToSave, File imageFileOut, File[] filesToOpen){
         if (!plugin.HEATMAP_FILES_DIR.exists())
             plugin.HEATMAP_FILES_DIR.mkdirs();
-        log.debug("Combining " + filesToOpen.length + " heatmap files ...");
+        log.info("Combining " + filesToOpen.length + " heatmap files ...");
         long startTime = System.nanoTime();
         boolean isSuccessful = plugin.combineHeatmaps(fileToSave, imageFileOut, filesToOpen);
         if (isSuccessful){

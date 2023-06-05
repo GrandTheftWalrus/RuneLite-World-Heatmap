@@ -1,5 +1,9 @@
 package com.worldheatmap;
 
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.annotation.Nullable;
 import java.awt.*;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -7,10 +11,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 public class HeatmapNew implements Serializable{
-
-    //TODO: consider making it so that tiles have a value storing the order in which they were made,
-    //which would be cool for animating/timestamping/visualizing le adventures
-
     protected HashMap<Point, Integer> heatmapHashMap;
     protected static final long serialVersionUID = 100L;
     protected int stepCount;
@@ -20,20 +20,32 @@ public class HeatmapNew implements Serializable{
             HEATMAP_HEIGHT = 1664,      //never change these
             HEATMAP_OFFSET_X = -1152,   //never change these
             HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
+    public long playerID = -1;
 
     public HeatmapNew(){
-        stepCount = 0;
-        heatmapHashMap = new HashMap<Point, Integer>();
+        this.stepCount = 0;
+        this.heatmapHashMap = new HashMap<Point, Integer>();
+    }
+
+    public HeatmapNew(long playerID){
+        this.stepCount = 0;
+        this.heatmapHashMap = new HashMap<Point, Integer>();
+        this.playerID = playerID;
     }
 
     // The following horse shit is for backwards compatibility with the old, retarded method of storing heatmap data
-    public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle){
-        HeatmapNew newStyle = new HeatmapNew();
+    public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle, long userId){
+        HeatmapNew newStyle = new HeatmapNew(userId);
         for (int x = 0; x < HEATMAP_WIDTH; x++)
             for (int y = 0; y < HEATMAP_HEIGHT; y++)
                 if (oldStyle.heatmapCoordsGet(x, y) != 0)
                     newStyle.set(x - HEATMAP_OFFSET_X , y - HEATMAP_OFFSET_Y, oldStyle.heatmapCoordsGet(x, y));
         return newStyle;
+    }
+
+    //Overloaded ting
+    public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle){
+        return convertOldHeatmapToNew(oldStyle, -1);
     }
 
     protected Set<Entry<Point, Integer>> getEntrySet(){

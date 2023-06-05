@@ -100,24 +100,24 @@ public class WorldHeatmapPlugin extends Plugin
 		if (new File(filepathTypeAUserID).exists())
 			heatmapTypeA = readHeatmapFile(filepathTypeAUserID);
 		else if (new File(filepathTypeAUsername).exists()) {
-			log.debug("File '" + filepathTypeAUserID + "' did not exist. Checking for alternative file '" + filepathTypeAUsername + "'...");
+			log.info("File '" + filepathTypeAUserID + "' did not exist. Checking for alternative file '" + filepathTypeAUsername + "'...");
 			heatmapTypeA = readHeatmapFile(filepathTypeAUsername);
 		}
 		else {
-			log.debug("File '" + filepathTypeAUserID + "' did not exist. Creating a new heatmap...");
-			heatmapTypeA = new HeatmapNew();
+			log.info("File '" + filepathTypeAUserID + "' did not exist. Creating a new heatmap...");
+			heatmapTypeA = new HeatmapNew(mostRecentLocalUserID);
 		}
 
 		//Load heatmap type B
 		if (new File(filepathTypeBUserID).exists())
 			heatmapTypeB = readHeatmapFile(filepathTypeBUserID);
 		else if (new File(filepathTypeBUsername).exists()) {
-			log.debug("File '" + filepathTypeBUserID + "' did not exist. Checking for alternative file '" + filepathTypeBUsername + "'...");
+			log.info("File '" + filepathTypeBUserID + "' did not exist. Checking for alternative file '" + filepathTypeBUsername + "'...");
 			heatmapTypeB = readHeatmapFile(filepathTypeBUsername);
 		}
 		else {
-			log.debug("File '" + filepathTypeBUserID + "' did not exist. Creating a new heatmap...");
-			heatmapTypeB = new HeatmapNew();
+			log.info("File '" + filepathTypeBUserID + "' did not exist. Creating a new heatmap...");
+			heatmapTypeB = new HeatmapNew(mostRecentLocalUserID);
 		}
 		panel.writeTypeAHeatmapImageButton.setEnabled(true);
 		panel.writeTypeBHeatmapImageButton.setEnabled(true);
@@ -392,7 +392,7 @@ public class WorldHeatmapPlugin extends Plugin
 				if (heatmap instanceof Heatmap) {
 					log.info("Attempting to convert old-style heatmap file to new style...");
 					long startTime = System.nanoTime();
-					HeatmapNew result = HeatmapNew.convertOldHeatmapToNew((Heatmap) heatmap);
+					HeatmapNew result = HeatmapNew.convertOldHeatmapToNew((Heatmap) heatmap, mostRecentLocalUserID);
 					log.info("Finished converting old-style heatmap to new style in " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 					return result;
 				}
@@ -422,7 +422,7 @@ public class WorldHeatmapPlugin extends Plugin
 	protected void writeHeatmapFile(HeatmapNew heatmap, File fileOut) {
 		if (!fileOut.isAbsolute())
 			fileOut = new File(HEATMAP_FILES_DIR, fileOut.toString());
-		log.info("Saving " + fileOut + " to disk...");
+		log.info("Saving " + fileOut + " heatmap file to disk...");
 		long startTime = System.nanoTime();
 		//Make the directory path if it doesn't exist
 		File file = fileOut;
@@ -441,17 +441,19 @@ public class WorldHeatmapPlugin extends Plugin
 			e.printStackTrace();
 			log.error("World Heatmap was not able to save heatmap file");
 		}
-		log.info("Finished writing " + fileOut + " to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+		log.info("Finished writing " + fileOut + " heatmap file to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 	}
 
 	/**
 	 * Writes a visualization of the heatmap over top of the OSRS world map as a PNG image to the "Heatmap Images" folder.
 	 */
 	protected void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut){
-		log.info("Saving " + imageFileOut + " to disk...");
+		log.info("Saving " + imageFileOut + " image to disk...");
 		long startTime = System.nanoTime();
 		if (!imageFileOut.getName().endsWith(".png"))
 			imageFileOut = new File(imageFileOut.getName() + ".png");
+		if (!imageFileOut.isAbsolute())
+			imageFileOut = new File(HEATMAP_IMAGE_DIR, imageFileOut.toString());
 		double heatmapTransparency = config.heatmapAlpha();
 		if (heatmapTransparency < 0)
 			heatmapTransparency = 0;
@@ -527,13 +529,11 @@ public class WorldHeatmapPlugin extends Plugin
 					log.debug("Heatmap for some reason had out of bounds value at (" + x + ", " + y + ")");
 			}
 
-			if (!imageFileOut.isAbsolute())
-				imageFileOut = new File(HEATMAP_IMAGE_DIR, imageFileOut.toString());
 			if (!Files.exists(Paths.get(imageFileOut.getParent())))
 				new File(imageFileOut.getParent()).mkdirs();
 			ImageIO.write(worldMapImage, "png", imageFileOut);
 			((BigBufferedImage) worldMapImage).dispose();
-			log.info("Finished writing " + imageFileOut + " to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
+			log.info("Finished writing " + imageFileOut + " image to disk after " + (System.nanoTime() - startTime)/1_000_000 + " ms");
 		}
 		catch (OutOfMemoryError e){
 			e.printStackTrace();
@@ -561,14 +561,14 @@ public class WorldHeatmapPlugin extends Plugin
 	 * @return True if completed successfully, else false
 	 */
 	public boolean combineHeatmaps(File outputFile, @Nullable File outputImageFile, File... heatmapFiles){
-		HeatmapNew outputHeatmap = new HeatmapNew();
+		HeatmapNew outputHeatmap = new HeatmapNew(mostRecentLocalUserID);
 		for (File hmapFile : heatmapFiles){
 			if (!hmapFile.exists()) {
 				log.error("Input heatmap file " + hmapFile.getAbsolutePath() + " doesn't exist");
 				return false;
 			}
 			HeatmapNew hmap = readHeatmapFile(hmapFile.getAbsolutePath());
-			log.debug("doing heatmap file " + hmapFile + "...");
+			log.info("Adding heatmap file " + hmapFile + " to " + outputFile.getName() + "...");
 			for (Map.Entry<Point, Integer> e : hmap.getEntrySet())
 				outputHeatmap.set(e.getKey().x, e.getKey().y, e.getValue());
 		}
