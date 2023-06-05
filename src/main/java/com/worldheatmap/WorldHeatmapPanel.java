@@ -264,18 +264,15 @@ public class WorldHeatmapPanel extends PluginPanel{
             }
             if (!fileToSave.getName().endsWith(".heatmap"))
                 fileToSave = new File(fileToSave.getAbsolutePath() + ".heatmap");
-            if (imageFileOut != null && !imageFileOut.getName().endsWith(".png"))
-                imageFileOut = new File(imageFileOut.getAbsolutePath() + ".png");
 
             combinerSubmitButton.setText("Loading...");
             combinerSubmitButton.setEnabled(false);
             //TODO: the above changes aren't updated in the UI because this function is blocking or something
             File finalFileToSave = fileToSave;
-            File finalImageFileOut = imageFileOut;
             //Re-check if nothing was actually entered here
             if (outputImageJFCTextfield.getText().isEmpty())
-                finalImageFileOut = null;
-            if (combineHeatmaps(finalFileToSave, finalImageFileOut, filesToOpen))
+                imageFileOut = null;
+            if (combineHeatmaps(finalFileToSave, imageFileOut, filesToOpen))
                 JOptionPane.showMessageDialog(combinerJDialog, "The heatmaps have been combined and are wherever you stashed them", "Success", JOptionPane.PLAIN_MESSAGE);
             else
                 JOptionPane.showMessageDialog(combinerJDialog, "There was an error combining the heatmaps for some reason", "Error", JOptionPane.ERROR_MESSAGE);
@@ -371,8 +368,6 @@ public class WorldHeatmapPanel extends PluginPanel{
     }
 
     private boolean combineHeatmaps(File fileToSave, File imageFileOut, File[] filesToOpen){
-        if (!plugin.HEATMAP_FILES_DIR.exists())
-            plugin.HEATMAP_FILES_DIR.mkdirs();
         log.info("Combining " + filesToOpen.length + " heatmap files ...");
         long startTime = System.nanoTime();
         boolean isSuccessful = plugin.combineHeatmaps(fileToSave, imageFileOut, filesToOpen);

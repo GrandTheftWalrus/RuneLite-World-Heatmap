@@ -452,8 +452,11 @@ public class WorldHeatmapPlugin extends Plugin
 		long startTime = System.nanoTime();
 		if (!imageFileOut.getName().endsWith(".png"))
 			imageFileOut = new File(imageFileOut.getName() + ".png");
-		if (!imageFileOut.isAbsolute())
-			imageFileOut = new File(HEATMAP_IMAGE_DIR, imageFileOut.toString());
+
+		if (!imageFileOut.isAbsolute()) {
+			imageFileOut = new File(HEATMAP_IMAGE_DIR, imageFileOut.getName());
+		}
+
 		double heatmapTransparency = config.heatmapAlpha();
 		if (heatmapTransparency < 0)
 			heatmapTransparency = 0;
