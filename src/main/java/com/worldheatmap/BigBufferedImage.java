@@ -1,8 +1,8 @@
 package com.worldheatmap;
 
 /*
- * This class is part of MCFS (Mission Control - Flight Software) a development 
- * of Team Puli Space, official Google Lunar XPRIZE contestant. 
+ * This class is part of MCFS (Mission Control - Flight Software) a development
+ * of Team Puli Space, official Google Lunar XPRIZE contestant.
  * This class is released under Creative Commons CC0.
  * @author Zsolt Pocze, Dimitry Polivaev
  * Please like us on facebook, and/or join our Small Step Club.
@@ -10,6 +10,7 @@ package com.worldheatmap;
  * https://www.facebook.com/pulispace
  * http://nyomdmegteis.hu/en/
  */
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.awt.Point;
@@ -46,29 +47,41 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
 @Slf4j
-public class BigBufferedImage extends BufferedImage {
+public class BigBufferedImage extends BufferedImage
+{
 
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
 	//public int MAX_PIXELS_IN_MEMORY = 2048 * 2048;
 
-	public static BufferedImage create(int width, int height, int imageType, int MAX_PIXELS_IN_MEMORY) {
-		if (width * height > MAX_PIXELS_IN_MEMORY) {
-			try {
+	public static BufferedImage create(int width, int height, int imageType, int MAX_PIXELS_IN_MEMORY)
+	{
+		if (width * height > MAX_PIXELS_IN_MEMORY)
+		{
+			try
+			{
 				final File tempDir = new File(TMP_DIR);
 				return createBigBufferedImage(tempDir, width, height, imageType);
-			} catch (IOException e) {
+			}
+			catch (IOException e)
+			{
 				throw new RuntimeException(e);
 			}
-		} else {
+		}
+		else
+		{
 			return new BufferedImage(width, height, imageType);
 		}
 	}
 
-	public static BufferedImage create(File inputFile, int imageType, int MAX_PIXELS_IN_MEMORY) throws IOException {
-		try (ImageInputStream stream = ImageIO.createImageInputStream(inputFile);) {
+	public static BufferedImage create(File inputFile, int imageType, int MAX_PIXELS_IN_MEMORY) throws IOException
+	{
+		try (ImageInputStream stream = ImageIO.createImageInputStream(inputFile);)
+		{
 			Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
-			if (readers.hasNext()) {
-				try {
+			if (readers.hasNext())
+			{
+				try
+				{
 					ImageReader reader = readers.next();
 					reader.setInput(stream, true, true);
 					int width = reader.getWidth(reader.getMinIndex());
@@ -78,14 +91,17 @@ public class BigBufferedImage extends BufferedImage {
 					int block = Math.min(MAX_PIXELS_IN_MEMORY / cores / width, (int) (Math.ceil(height / (double) cores)));
 					ExecutorService generalExecutor = Executors.newFixedThreadPool(cores);
 					List<Callable<ImagePartLoader>> partLoaders = new ArrayList<>();
-					for (int y = 0; y < height; y += block) {
+					for (int y = 0; y < height; y += block)
+					{
 						partLoaders.add(new ImagePartLoader(
 							y, width, Math.min(block, height - y), inputFile, image));
 					}
 					generalExecutor.invokeAll(partLoaders);
 					generalExecutor.shutdown();
 					return image;
-				} catch (InterruptedException ex) {
+				}
+				catch (InterruptedException ex)
+				{
 					Logger.getLogger(BigBufferedImage.class.getName()).log(Level.SEVERE, null, ex);
 				}
 			}
@@ -94,11 +110,13 @@ public class BigBufferedImage extends BufferedImage {
 	}
 
 	private static BufferedImage createBigBufferedImage(File tempDir, int width, int height, int imageType)
-		throws FileNotFoundException, IOException {
+		throws FileNotFoundException, IOException
+	{
 		FileDataBuffer buffer = new FileDataBuffer(tempDir, width * height, 4);
 		ColorModel colorModel = null;
 		BandedSampleModel sampleModel = null;
-		switch (imageType) {
+		switch (imageType)
+		{
 			case TYPE_INT_RGB:
 				colorModel = new ComponentColorModel(ColorSpace.getInstance(ColorSpace.CS_sRGB),
 					new int[]{8, 8, 8, 0},
@@ -125,14 +143,16 @@ public class BigBufferedImage extends BufferedImage {
 		return image;
 	}
 
-	private static class ImagePartLoader implements Callable<ImagePartLoader> {
+	private static class ImagePartLoader implements Callable<ImagePartLoader>
+	{
 
 		private final int y;
 		private final BufferedImage image;
 		private final Rectangle region;
 		private final File file;
 
-		public ImagePartLoader(int y, int width, int height, File file, BufferedImage image) {
+		public ImagePartLoader(int y, int width, int height, File file, BufferedImage image)
+		{
 			this.y = y;
 			this.image = image;
 			this.file = file;
@@ -140,11 +160,14 @@ public class BigBufferedImage extends BufferedImage {
 		}
 
 		@Override
-		public ImagePartLoader call() throws Exception {
+		public ImagePartLoader call() throws Exception
+		{
 			Thread.currentThread().setPriority((Thread.MIN_PRIORITY + Thread.NORM_PRIORITY) / 2);
-			try (ImageInputStream stream = ImageIO.createImageInputStream(file);) {
+			try (ImageInputStream stream = ImageIO.createImageInputStream(file);)
+			{
 				Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
-				if (readers.hasNext()) {
+				if (readers.hasNext())
+				{
 					ImageReader reader = readers.next();
 					reader.setInput(stream, true, true);
 					ImageReadParam param = reader.getDefaultReadParam();
@@ -159,50 +182,62 @@ public class BigBufferedImage extends BufferedImage {
 		}
 	}
 
-	private BigBufferedImage(ColorModel cm, SimpleRaster raster, boolean isRasterPremultiplied, Hashtable<?, ?> properties) {
+	private BigBufferedImage(ColorModel cm, SimpleRaster raster, boolean isRasterPremultiplied, Hashtable<?, ?> properties)
+	{
 		super(cm, raster, isRasterPremultiplied, properties);
 	}
 
-	public void dispose() {
+	public void dispose()
+	{
 		((SimpleRaster) getRaster()).dispose();
 	}
 
-	public static void dispose(RenderedImage image) {
-		if (image instanceof BigBufferedImage) {
+	public static void dispose(RenderedImage image)
+	{
+		if (image instanceof BigBufferedImage)
+		{
 			((BigBufferedImage) image).dispose();
 		}
 	}
 
-	private static class SimpleRaster extends WritableRaster {
+	private static class SimpleRaster extends WritableRaster
+	{
 
-		public SimpleRaster(SampleModel sampleModel, FileDataBuffer dataBuffer, Point origin) {
+		public SimpleRaster(SampleModel sampleModel, FileDataBuffer dataBuffer, Point origin)
+		{
 			super(sampleModel, dataBuffer, origin);
 		}
 
-		public void dispose() {
+		public void dispose()
+		{
 			((FileDataBuffer) getDataBuffer()).dispose();
 		}
 
 	}
 
-	private static final class FileDataBufferDeleterHook extends Thread {
+	private static final class FileDataBufferDeleterHook extends Thread
+	{
 
-		static {
+		static
+		{
 			Runtime.getRuntime().addShutdownHook(new FileDataBufferDeleterHook());
 		}
 
 		private static final HashSet<FileDataBuffer> undisposedBuffers = new HashSet<>();
 
 		@Override
-		public void run() {
+		public void run()
+		{
 			final FileDataBuffer[] buffers = undisposedBuffers.toArray(new FileDataBuffer[0]);
-			for (FileDataBuffer b : buffers) {
+			for (FileDataBuffer b : buffers)
+			{
 				b.disposeNow();
 			}
 		}
 	}
 
-	private static class FileDataBuffer extends DataBuffer {
+	private static class FileDataBuffer extends DataBuffer
+	{
 
 		private final String id = "buffer-" + System.currentTimeMillis() + "-" + ((int) (Math.random() * 1000));
 		private File dir;
@@ -211,27 +246,33 @@ public class BigBufferedImage extends BufferedImage {
 		private RandomAccessFile[] accessFiles;
 		private MappedByteBuffer[] buffer;
 
-		public FileDataBuffer(File dir, int size) throws FileNotFoundException, IOException {
+		public FileDataBuffer(File dir, int size) throws FileNotFoundException, IOException
+		{
 			super(TYPE_BYTE, size);
 			this.dir = dir;
 			init();
 		}
 
-		public FileDataBuffer(File dir, int size, int numBanks) throws FileNotFoundException, IOException {
+		public FileDataBuffer(File dir, int size, int numBanks) throws FileNotFoundException, IOException
+		{
 			super(TYPE_BYTE, size, numBanks);
 			this.dir = dir;
 			init();
 		}
 
-		private void init() throws FileNotFoundException, IOException {
+		private void init() throws FileNotFoundException, IOException
+		{
 			FileDataBufferDeleterHook.undisposedBuffers.add(this);
-			if (dir == null) {
+			if (dir == null)
+			{
 				dir = new File(".");
 			}
-			if (!dir.exists()) {
+			if (!dir.exists())
+			{
 				throw new RuntimeException("FileDataBuffer constructor parameter dir does not exist: " + dir);
 			}
-			if (!dir.isDirectory()) {
+			if (!dir.isDirectory())
+			{
 				throw new RuntimeException("FileDataBuffer constructor parameter dir is not a directory: " + dir);
 			}
 			path = dir.getPath() + "/" + id;
@@ -240,7 +281,8 @@ public class BigBufferedImage extends BufferedImage {
 			buffer = new MappedByteBuffer[banks];
 			accessFiles = new RandomAccessFile[banks];
 			files = new File[banks];
-			for (int i = 0; i < banks; i++) {
+			for (int i = 0; i < banks; i++)
+			{
 				File file = files[i] = new File(path + "/bank" + i + ".dat");
 				final RandomAccessFile randomAccessFile = accessFiles[i] = new RandomAccessFile(file, "rw");
 				buffer[i] = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, getSize());
@@ -248,49 +290,66 @@ public class BigBufferedImage extends BufferedImage {
 		}
 
 		@Override
-		public int getElem(int bank, int i) {
+		public int getElem(int bank, int i)
+		{
 			return buffer[bank].get(i) & 0xff;
 		}
 
 		@Override
-		public void setElem(int bank, int i, int val) {
+		public void setElem(int bank, int i, int val)
+		{
 			buffer[bank].put(i, (byte) val);
 		}
 
 		@Override
-		protected void finalize() throws Throwable {
+		protected void finalize() throws Throwable
+		{
 			dispose();
 		}
 
-		private void dispose() {
-			new Thread() {
+		private void dispose()
+		{
+			new Thread()
+			{
 				@Override
-				public void run() {
+				public void run()
+				{
 					disposeNow();
 				}
 			}.start();
 		}
 
-		private void disposeNow() {
+		private void disposeNow()
+		{
 			this.buffer = null;
-			if (accessFiles != null) {
-				for (RandomAccessFile file : accessFiles) {
-					try {
+			if (accessFiles != null)
+			{
+				for (RandomAccessFile file : accessFiles)
+				{
+					try
+					{
 						file.close();
-					} catch (IOException e) {
+					}
+					catch (IOException e)
+					{
 						e.printStackTrace();
 					}
 				}
 				accessFiles = null;
 			}
-			if (files != null) {
-				for (File file : files) {
+			if (files != null)
+			{
+				for (File file : files)
+				{
 					if (!file.delete())
+					{
 						log.error("Failed to delete temp file " + file + "! This is important because there's probably now a large file sitting around in your temp folder.");
+					}
 				}
 				files = null;
 			}
-			if (path != null) {
+			if (path != null)
+			{
 				new File(path).delete();
 				path = null;
 			}
