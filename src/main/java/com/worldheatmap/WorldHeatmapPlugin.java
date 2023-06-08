@@ -223,7 +223,7 @@ public class WorldHeatmapPlugin extends Plugin
 		if (shouldLoadHeatmaps && client.getGameState().equals(GameState.LOGGED_IN))
 		{
 			shouldLoadHeatmaps = false;
-			loadHeatmapsFuture = executor.submit(() -> loadHeatmapFiles());
+			loadHeatmapsFuture = executor.submit(this::loadHeatmapFiles);
 		}
 		//The following code requires the heatmap files to have been loaded
 		if (loadHeatmapsFuture != null && !loadHeatmapsFuture.isDone())
@@ -557,8 +557,9 @@ public class WorldHeatmapPlugin extends Plugin
 
 		try
 		{
-			int max_bytes = config.imageBuffer();
+			int max_bytes = config.imageBufferSize();
 			BufferedImage worldMapImage = BigBufferedImage.create(new File(getClass().getResource("/osrs_world_map.png").toURI()), BufferedImage.TYPE_INT_RGB, max_bytes * max_bytes);
+			assert worldMapImage != null;
 			if (worldMapImage.getWidth() != HEATMAP_WIDTH * 3 || worldMapImage.getHeight() != HEATMAP_HEIGHT * 3)
 			{
 				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH * 3 + " x " + HEATMAP_HEIGHT * 3);

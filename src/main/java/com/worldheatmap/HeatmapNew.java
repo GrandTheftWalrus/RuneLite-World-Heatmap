@@ -8,7 +8,7 @@ import java.util.Set;
 
 public class HeatmapNew implements Serializable
 {
-	protected HashMap<Point, Integer> heatmapHashMap;
+	protected final HashMap<Point, Integer> heatmapHashMap;
 	protected static final long serialVersionUID = 100L;
 	protected int stepCount;
 	protected int[] maxVal = {1, 0, 0}, minVal = {1, 0, 0}; // {val, x, y}
@@ -22,13 +22,13 @@ public class HeatmapNew implements Serializable
 	public HeatmapNew()
 	{
 		this.stepCount = 0;
-		this.heatmapHashMap = new HashMap<Point, Integer>();
+		this.heatmapHashMap = new HashMap<>();
 	}
 
 	public HeatmapNew(long playerID)
 	{
 		this.stepCount = 0;
-		this.heatmapHashMap = new HashMap<Point, Integer>();
+		this.heatmapHashMap = new HashMap<>();
 		this.playerID = playerID;
 	}
 

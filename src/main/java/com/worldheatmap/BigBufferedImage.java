@@ -26,7 +26,6 @@ import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
@@ -98,7 +97,7 @@ public class BigBufferedImage extends BufferedImage
 
 	public static BufferedImage create(File inputFile, int imageType, int MAX_PIXELS_IN_MEMORY) throws IOException
 	{
-		try (ImageInputStream stream = ImageIO.createImageInputStream(inputFile);)
+		try (ImageInputStream stream = ImageIO.createImageInputStream(inputFile))
 		{
 			Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
 			if (readers.hasNext())
@@ -133,7 +132,7 @@ public class BigBufferedImage extends BufferedImage
 	}
 
 	private static BufferedImage createBigBufferedImage(File tempDir, int width, int height, int imageType)
-		throws FileNotFoundException, IOException
+		throws IOException
 	{
 		FileDataBuffer buffer = new FileDataBuffer(tempDir, width * height, 4);
 		ColorModel colorModel = null;
@@ -162,8 +161,7 @@ public class BigBufferedImage extends BufferedImage
 				throw new IllegalArgumentException("Unsupported image type: " + imageType);
 		}
 		SimpleRaster raster = new SimpleRaster(sampleModel, buffer, new Point(0, 0));
-		BigBufferedImage image = new BigBufferedImage(colorModel, raster, colorModel.isAlphaPremultiplied(), null);
-		return image;
+		return new BigBufferedImage(colorModel, raster, colorModel.isAlphaPremultiplied(), null);
 	}
 
 	private static class ImagePartLoader implements Callable<ImagePartLoader>
@@ -186,7 +184,7 @@ public class BigBufferedImage extends BufferedImage
 		public ImagePartLoader call() throws Exception
 		{
 			Thread.currentThread().setPriority((Thread.MIN_PRIORITY + Thread.NORM_PRIORITY) / 2);
-			try (ImageInputStream stream = ImageIO.createImageInputStream(file);)
+			try (ImageInputStream stream = ImageIO.createImageInputStream(file))
 			{
 				Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
 				if (readers.hasNext())
@@ -269,21 +267,21 @@ public class BigBufferedImage extends BufferedImage
 		private RandomAccessFile[] accessFiles;
 		private MappedByteBuffer[] buffer;
 
-		public FileDataBuffer(File dir, int size) throws FileNotFoundException, IOException
+		public FileDataBuffer(File dir, int size) throws IOException
 		{
 			super(TYPE_BYTE, size);
 			this.dir = dir;
 			init();
 		}
 
-		public FileDataBuffer(File dir, int size, int numBanks) throws FileNotFoundException, IOException
+		public FileDataBuffer(File dir, int size, int numBanks) throws IOException
 		{
 			super(TYPE_BYTE, size, numBanks);
 			this.dir = dir;
 			init();
 		}
 
-		private void init() throws FileNotFoundException, IOException
+		private void init() throws IOException
 		{
 			FileDataBufferDeleterHook.undisposedBuffers.add(this);
 			if (dir == null)
@@ -324,41 +322,14 @@ public class BigBufferedImage extends BufferedImage
 			buffer[bank].put(i, (byte) val);
 		}
 
-		@Override
-		protected void finalize() throws Throwable
-		{
-			dispose();
-		}
-
 		private void dispose()
 		{
-			new Thread()
-			{
-				@Override
-				public void run()
-				{
-					disposeNow();
-				}
-			}.start();
+			new Thread(() -> disposeNow()).start();
 		}
 
 		private void disposeNow()
 		{
-			for (MappedByteBuffer b : buffer)
-			{
-				b.force();
-			}
 			this.buffer = null;
-			try
-			{
-				System.gc();
-				Thread.sleep(1000);
-			}
-			catch (InterruptedException e)
-			{
-				throw new RuntimeException(e);
-			}
-
 			if (accessFiles != null)
 			{
 				for (RandomAccessFile file : accessFiles)
@@ -381,8 +352,8 @@ public class BigBufferedImage extends BufferedImage
 				{
 					file.delete();
 				}
+				files = null;
 			}
-			files = null;
 			if (path != null)
 			{
 				new File(path).delete();

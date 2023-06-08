@@ -289,10 +289,10 @@ public class WorldHeatmapPanel extends PluginPanel
 			}
 
 			File finalFileToSave = fileToSave;
-			SwingWorker<Boolean, Object> swingWorker = new SwingWorker<Boolean, Object>()
+			SwingWorker<Boolean, Object> swingWorker = new SwingWorker<>()
 			{
 				@Override
-				protected Boolean doInBackground() throws Exception
+				protected Boolean doInBackground()
 				{
 					combinerJDialog.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 					combinerSubmitButton.setText("Loading...");
@@ -308,7 +308,7 @@ public class WorldHeatmapPanel extends PluginPanel
 					combinerJDialog.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 					try
 					{
-						if ((Boolean) get())
+						if (get())
 						{
 							JOptionPane.showMessageDialog(combinerJDialog, "The heatmaps have been combined and are wherever you stashed them", "Success", JOptionPane.PLAIN_MESSAGE);
 						}
