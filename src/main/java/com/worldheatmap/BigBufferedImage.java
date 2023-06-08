@@ -11,11 +11,6 @@ package com.worldheatmap;
  * http://nyomdmegteis.hu/en/
  */
 
-import java.lang.ref.Cleaner;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.security.PrivilegedAction;
 import lombok.extern.slf4j.Slf4j;
 
 import java.awt.Point;
