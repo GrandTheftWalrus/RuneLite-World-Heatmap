@@ -557,8 +557,7 @@ public class WorldHeatmapPlugin extends Plugin
 
 		try
 		{
-			int max_bytes = config.imageBufferSize();
-			BufferedImage worldMapImage = BigBufferedImage.create(new File(getClass().getResource("/osrs_world_map.png").toURI()), BufferedImage.TYPE_INT_RGB, max_bytes * max_bytes);
+			BufferedImage worldMapImage = ImageUtil.loadImageResource(getClass(), "/osrs_world_map.png");
 			assert worldMapImage != null;
 			if (worldMapImage.getWidth() != HEATMAP_WIDTH * 3 || worldMapImage.getHeight() != HEATMAP_HEIGHT * 3)
 			{
@@ -571,22 +570,7 @@ public class WorldHeatmapPlugin extends Plugin
 			double nthRoot = 1 + (config.heatmapSensitivity() - 1.0) / 2;
 			int LOG_BASE = 4;
 
-			ArrayList<Map.Entry<Point, Integer>> sortedTiles = new ArrayList<>(heatmap.getEntrySet());
-			// Sorts tiles left-to-right top-to-bottom, because it might help
-			// BigBufferedImage to deal with png IDAT chunks one at a time rather than randomly loading and unloading
-			// the same chunks repeatedly, if that's how bigbufferedimage works (no idear)
-			sortedTiles.sort((o1, o2) -> {
-				if (o1.getKey().y == o2.getKey().y)
-				{
-					return o1.getKey().x - o2.getKey().x;
-				}
-				else
-				{
-					return o1.getKey().y - o2.getKey().y;
-				}
-			});
-
-			for (Map.Entry<Point, Integer> e : sortedTiles)
+			for (Map.Entry<Point, Integer> e : heatmap.getEntrySet())
 			{
 				int x = e.getKey().x + HEATMAP_OFFSET_X;
 				int y = HEATMAP_HEIGHT - (e.getKey().y + HEATMAP_OFFSET_Y) - 1;
@@ -628,7 +612,6 @@ public class WorldHeatmapPlugin extends Plugin
 				new File(imageFileOut.getParent()).mkdirs();
 			}
 			ImageIO.write(worldMapImage, "png", imageFileOut);
-			((BigBufferedImage) worldMapImage).dispose();
 			log.info("Finished writing " + imageFileOut + " image to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
 		}
 		catch (OutOfMemoryError e)

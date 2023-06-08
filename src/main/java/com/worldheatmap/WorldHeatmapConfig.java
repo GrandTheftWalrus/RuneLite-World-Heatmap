@@ -129,22 +129,6 @@ public interface WorldHeatmapConfig extends Config
 	}
 
 	@Range(
-		min = 1024,
-		max = 8320
-	)
-	@ConfigItem(
-		keyName = "imageBuffer",
-		name = "Image writing buffer size",
-		position = 1,
-		description = "The (square root of the) maximum number of bytes to keep in memory whilst writing the image files. Lower numbers prevent crashes due to memory usage (which can happen if you have lots of plugins installed), but causes writing the images to take longer. For me, 2048 bytes takes ~8 seconds. I prefer 4160 bytes.",
-		section = other
-	)
-	default int imageBufferSize()
-	{
-		return 2048;
-	}
-
-	@Range(
 		min = 1,
 		max = 6
 	)
