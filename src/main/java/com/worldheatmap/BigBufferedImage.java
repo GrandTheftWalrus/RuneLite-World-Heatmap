@@ -11,6 +11,11 @@ package com.worldheatmap;
  * http://nyomdmegteis.hu/en/
  */
 
+import java.lang.ref.Cleaner;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.security.PrivilegedAction;
 import lombok.extern.slf4j.Slf4j;
 
 import java.awt.Point;
@@ -51,7 +56,6 @@ public class BigBufferedImage extends BufferedImage
 {
 
 	private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
-	//public int MAX_PIXELS_IN_MEMORY = 2048 * 2048;
 
 	public static BufferedImage create(int width, int height, int imageType, int MAX_PIXELS_IN_MEMORY)
 	{
@@ -59,7 +63,31 @@ public class BigBufferedImage extends BufferedImage
 		{
 			try
 			{
-				final File tempDir = new File(TMP_DIR);
+				final File tempDir = new File(TMP_DIR, "worldheatmap-buffer");
+				tempDir.mkdir();
+				//Deleting old temporary files which, if the program is running on Windows,
+				//were probably not deleted back when the program was actually finished with them
+				//because windows is dumb and doesn't unmap mapped byte buffers until the program using them dies.
+				//Anyway this solution works just fine
+				for (File subfolder : tempDir.listFiles())
+				{
+					if (subfolder.isDirectory())
+					{
+						for (File f : subfolder.listFiles())
+						{
+							f.delete();
+						}
+						if (subfolder.delete())
+						{
+							log.debug("Old temp files " + subfolder + " successfully deleted.");
+						}
+						else
+						{
+							log.debug("Old temp files " + subfolder + " NOT DELETED. It will probably get deleted later on though.");
+						}
+					}
+				}
+
 				return createBigBufferedImage(tempDir, width, height, imageType);
 			}
 			catch (IOException e)
@@ -321,7 +349,21 @@ public class BigBufferedImage extends BufferedImage
 
 		private void disposeNow()
 		{
+			for (MappedByteBuffer b : buffer)
+			{
+				b.force();
+			}
 			this.buffer = null;
+			try
+			{
+				System.gc();
+				Thread.sleep(1000);
+			}
+			catch (InterruptedException e)
+			{
+				throw new RuntimeException(e);
+			}
+
 			if (accessFiles != null)
 			{
 				for (RandomAccessFile file : accessFiles)
@@ -337,17 +379,15 @@ public class BigBufferedImage extends BufferedImage
 				}
 				accessFiles = null;
 			}
+
 			if (files != null)
 			{
 				for (File file : files)
 				{
-					if (!file.delete())
-					{
-						log.error("Failed to delete temp file " + file + "! This is important because there's probably now a large file sitting around in your temp folder.");
-					}
+					file.delete();
 				}
-				files = null;
 			}
+			files = null;
 			if (path != null)
 			{
 				new File(path).delete();

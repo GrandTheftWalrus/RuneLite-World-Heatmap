@@ -592,7 +592,7 @@ public class WorldHeatmapPlugin extends Plugin
 				int value = e.getValue();
 				boolean isInBounds = (0 <= x && x < HEATMAP_WIDTH && 0 <= y && y < HEATMAP_HEIGHT);
 				if (isInBounds && value != 0)
-				{                                                        //If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
+				{   //If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
 					//Calculate normalized step value
 					currHue = (float) ((Math.log(value) / Math.log(LOG_BASE)) / (Math.log(maxVal + 1 - minVal) / Math.log(LOG_BASE)));
 					currHue = Math.pow(currHue, 1.0 / nthRoot);
