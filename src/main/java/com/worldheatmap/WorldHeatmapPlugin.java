@@ -213,10 +213,13 @@ public class WorldHeatmapPlugin extends Plugin
 		{
 			return;
 		}
-		else if (client.getAccountHash() != mostRecentLocalUserID)
+		if (mostRecentLocalUserID != client.getAccountHash())
 		{
 			mostRecentLocalUserName = client.getLocalPlayer().getName();
 			mostRecentLocalUserID = client.getAccountHash();
+		}
+		if (panel.mostRecentLocalUserID != mostRecentLocalUserID)
+		{
 			SwingUtilities.invokeLater(panel::updatePlayerID);
 		}
 
@@ -638,9 +641,9 @@ public class WorldHeatmapPlugin extends Plugin
 	/**
 	 * Combines heatmaps, adding together each tile value
 	 *
-	 * @param outputFile Output .heatmap file
+	 * @param outputFile      Output .heatmap file
 	 * @param outputImageFile Output .png file
-	 * @param heatmapFiles Input .heatmap files
+	 * @param heatmapFiles    Input .heatmap files
 	 * @return True if completed successfully, else false
 	 */
 	public boolean combineHeatmaps(File outputFile, @Nullable File outputImageFile, File... heatmapFiles)

@@ -21,6 +21,7 @@ public class WorldHeatmapPanel extends PluginPanel
 	private final WorldHeatmapPlugin plugin;
 	private JLabel typeACountLabel, typeBCountLabel, playerIDLabel;
 	protected JButton writeTypeAHeatmapImageButton, writeTypeBHeatmapImageButton, clearTypeAHeatmapButton, clearTypeBHeatmapButton, writeTypeBcsvButton, writeTypeAcsvButton, combinerToolButton;
+	protected long mostRecentLocalUserID;
 
 	public WorldHeatmapPanel(WorldHeatmapPlugin plugin)
 	{
@@ -102,7 +103,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		//The "Write CSV" button for Type A
 		writeTypeAcsvButton = new JButton("Write CSV File");
 		writeTypeAcsvButton.setFont(buttonFont);
-		writeTypeAcsvButton.addActionListener(e -> showCSVSavingDialog(typeAPanel));
+		writeTypeAcsvButton.addActionListener(e -> showCSVSavingDialog(typeAPanel, plugin.heatmapTypeA));
 		typeAPanel.add(writeTypeAcsvButton);
 		add(typeAPanel);
 
@@ -147,7 +148,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		//The "Write CSV" button for Type B
 		writeTypeBcsvButton = new JButton("Write CSV File");
 		writeTypeBcsvButton.setFont(buttonFont);
-		writeTypeBcsvButton.addActionListener(e -> showCSVSavingDialog(typeBPanel));
+		writeTypeBcsvButton.addActionListener(e -> showCSVSavingDialog(typeBPanel, plugin.heatmapTypeB));
 		typeBPanel.add(writeTypeBcsvButton);
 
 		//Heatmap combiner panel
@@ -334,7 +335,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		return combinerJDialog;
 	}
 
-	protected void showCSVSavingDialog(Component typeXPanel)
+	protected void showCSVSavingDialog(Component typeXPanel, HeatmapNew heatmap)
 	{
 		JFileChooser jfc = new JFileChooser();
 		jfc.addChoosableFileFilter(new FileNameExtensionFilter("CSV files", "csv"));
@@ -349,7 +350,7 @@ public class WorldHeatmapPanel extends PluginPanel
 			log.debug("File to save as CSV: " + fileToSave);
 			try
 			{
-				writeCSVFile(fileToSave, plugin.heatmapTypeB);
+				writeCSVFile(fileToSave, heatmap);
 			}
 			catch (IOException ex)
 			{
@@ -360,7 +361,15 @@ public class WorldHeatmapPanel extends PluginPanel
 
 	protected void updatePlayerID()
 	{
-		playerIDLabel.setText("Player ID: " + plugin.mostRecentLocalUserID);
+		this.mostRecentLocalUserID = plugin.mostRecentLocalUserID;
+		if (this.mostRecentLocalUserID == -1 || this.mostRecentLocalUserID == 0)
+		{
+			playerIDLabel = new JLabel("Player ID: unavailable");
+		}
+		else
+		{
+			playerIDLabel.setText("Player ID: " + this.mostRecentLocalUserID);
+		}
 		updateUI();
 	}
 
@@ -419,7 +428,10 @@ public class WorldHeatmapPanel extends PluginPanel
 	{
 		if (!plugin.WORLDHEATMAP_DIR.exists())
 		{
-			plugin.WORLDHEATMAP_DIR.mkdirs();
+			if (!plugin.WORLDHEATMAP_DIR.mkdirs())
+			{
+				log.error("Error: was not able to create worldheatmap folder");
+			}
 		}
 		Desktop.getDesktop().open(plugin.WORLDHEATMAP_DIR);
 	}
