@@ -182,7 +182,7 @@ public class WorldHeatmapPlugin extends Plugin
 		{
 			String filepathA = Paths.get(mostRecentLocalUserID + "_TypeA.heatmap").toString();
 			executor.execute(() -> writeHeatmapFile(heatmapTypeA, new File(filepathA)));
-			String filepathB = Paths.get(mostRecentLocalUserID + "_TypeA.heatmap").toString();
+			String filepathB = Paths.get(mostRecentLocalUserID + "_TypeB.heatmap").toString();
 			executor.execute(() -> writeHeatmapFile(heatmapTypeB, new File(filepathB)));
 			loadHeatmapsFuture = null;
 		}
