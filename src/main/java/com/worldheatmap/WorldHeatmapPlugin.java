@@ -21,6 +21,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
+import org.eclipse.collections.api.tuple.primitive.IntIntPair;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -229,7 +230,7 @@ public class WorldHeatmapPlugin extends Plugin {
                 // Increments all the tiles between new position and last position
                 for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                     if (isInBounds(tile.x, tile.y)) {
-                        heatmapTypeA.increment(tile.x, tile.y);
+                        heatmapTypeA.increment((short) tile.x, (short) tile.y);
 
                         // If it's time to autosave the image, then save heatmap file and write image file
                         if (config.typeAImageAutosaveOnOff() && heatmapTypeA.getStepCount() % config.typeAImageAutosaveFrequency() == 0) {
@@ -269,7 +270,7 @@ public class WorldHeatmapPlugin extends Plugin {
                 // Increments all the tiles between new position and last position
                 for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                     if (isInBounds(tile.x, tile.y)) {
-                        heatmapTypeB.increment(tile.x, tile.y);
+                        heatmapTypeB.increment((short) tile.x, (short) tile.y);
 
                         // If it's time to autosave the image, then save heatmap file and write image file
                         if (config.typeBImageAutosaveOnOff() && heatmapTypeB.getStepCount() % config.typeBImageAutosaveFrequency() == 0) {
@@ -443,7 +444,7 @@ public class WorldHeatmapPlugin extends Plugin {
             reader.lines().forEach(s -> {
                 String[] tile = s.split(",");
                 try {
-                    heatmapNew.setFast(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
+                    heatmapNew.setFast(Short.parseShort(tile[0]), Short.parseShort(tile[1]), Integer.parseInt(tile[2]));
                 } catch (NumberFormatException e) {
                     errorCount[0]++;
                 }
@@ -492,10 +493,11 @@ public class WorldHeatmapPlugin extends Plugin {
                     "," + heatmap.minVal[1] +
                     "," + heatmap.minVal[2] + "\n");
             // Write the tile values
-            for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()) {
-                int x = e.getKey().x;
-                int y = e.getKey().y;
-                int stepVal = e.getValue();
+            for (IntIntPair e : heatmap.getKeyValuesView()) {
+                short[] coords = HeatmapNew.decodeIntCoordinate(e.getOne());
+                short x = coords[0];
+                short y = coords[1];
+                int stepVal = e.getTwo();
                 osw.write(x + "," + y + "," + stepVal + "\n");
             }
             osw.close();
@@ -514,10 +516,11 @@ public class WorldHeatmapPlugin extends Plugin {
      */
     protected void writeCSVFile(File csvURI, HeatmapNew heatmap) {
         try (PrintWriter pw = new PrintWriter(csvURI)) {
-            for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()) {
-                int x = e.getKey().x;
-                int y = e.getKey().y;
-                int stepVal = e.getValue();
+            for (IntIntPair e : heatmap.getKeyValuesView()) {
+                short[] coords = HeatmapNew.decodeIntCoordinate(e.getOne());
+                short x = coords[0];
+                short y = coords[1];
+                int stepVal = e.getTwo();
                 pw.write(x + "," + y + "," + stepVal + "\n");
             }
         } catch (FileNotFoundException e) {
@@ -574,10 +577,11 @@ public class WorldHeatmapPlugin extends Plugin {
             double nthRoot = 1 + (config.heatmapSensitivity() - 1.0) / 2;
             int LOG_BASE = 4;
 
-            for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()) {
-                int x = e.getKey().x + HEATMAP_OFFSET_X;
-                int y = HEATMAP_HEIGHT - (e.getKey().y + HEATMAP_OFFSET_Y) - 1;
-                int value = e.getValue();
+            for (IntIntPair e : heatmap.getKeyValuesView()) {
+                short[] coords = HeatmapNew.decodeIntCoordinate(e.getOne());
+                int x = coords[0] + HEATMAP_OFFSET_X;
+                int y = HEATMAP_HEIGHT - (coords[1] + HEATMAP_OFFSET_Y) - 1;
+                int value = e.getTwo();
                 boolean isInBounds = (0 <= x && x < HEATMAP_WIDTH && 0 <= y && y < HEATMAP_HEIGHT);
                 if (isInBounds && value != 0) {   // If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
                     // Calculate normalized step value
@@ -643,8 +647,11 @@ public class WorldHeatmapPlugin extends Plugin {
             }
             HeatmapNew hmap = readHeatmapFile(hmapFile.getAbsolutePath());
             log.info("Adding heatmap file " + hmapFile + " to " + outputFile.getName() + "...");
-            for (Map.Entry<Point, Integer> e : hmap.getEntrySet()) {
-                outputHeatmap.set(e.getKey().x, e.getKey().y, e.getValue());
+            for (IntIntPair e : hmap.getKeyValuesView()) {
+                short[] coords = HeatmapNew.decodeIntCoordinate(e.getOne());
+                short x = coords[0];
+                short y = coords[1];
+                outputHeatmap.set(x, y, e.getTwo());
             }
         }
         writeHeatmapFile(outputHeatmap, outputFile);
