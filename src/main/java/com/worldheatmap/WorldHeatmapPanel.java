@@ -348,14 +348,7 @@ public class WorldHeatmapPanel extends PluginPanel
 			File fileToSave = jfc.getSelectedFile();
 			fileToSave = (fileToSave.getName().endsWith(".csv") ? fileToSave : new File(fileToSave.getAbsolutePath() + ".csv"));
 			log.debug("File to save as CSV: " + fileToSave);
-			try
-			{
-				writeCSVFile(fileToSave, heatmap);
-			}
-			catch (IOException ex)
-			{
-				ex.printStackTrace();
-			}
+			plugin.writeCSVFile(fileToSave, heatmap);
 		}
 	}
 
@@ -434,19 +427,6 @@ public class WorldHeatmapPanel extends PluginPanel
 			}
 		}
 		Desktop.getDesktop().open(plugin.WORLDHEATMAP_DIR);
-	}
-
-	private void writeCSVFile(File csvURI, HeatmapNew heatmap) throws IOException
-	{
-		PrintWriter pw = new PrintWriter(csvURI);
-		for (Map.Entry<Point, Integer> e : heatmap.getEntrySet())
-		{
-			int x = e.getKey().x;
-			int y = e.getKey().y;
-			int stepVal = e.getValue();
-			pw.write("" + x + ", " + y + ", " + stepVal + "\n");
-		}
-		pw.close();
 	}
 
 	private boolean combineHeatmaps(File fileToSave, File imageFileOut, File[] filesToOpen)
