@@ -615,8 +615,7 @@ public class WorldHeatmapPlugin extends Plugin
 				ImageWriter writer = ImageIO.getImageWritersByFormatName("tif").next();
 				writer.setOutput(ios);
 				final int tileWidth = 8800;
-				///final int tileHeight = 496;
-				final int tileHeight = 4960;
+				final int tileHeight = 496;
 				final int N = reader.getHeight(0) / tileHeight;
 
 				// Prepare writing parameters
