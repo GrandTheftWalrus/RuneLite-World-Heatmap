@@ -38,16 +38,18 @@ public class HeatmapImage implements RenderedImage
 	private final int numYTiles;
 	private int heatmapMinVal;
 	private int heatmapMaxVal;
+	private float heatmapTransparency;
 
 	/**
-	 * @param worldMapImageReader osrs_world_map.png (8256 x 4992)
+	 * @param worldMapImageReader osrs_world_map.png
 	 * @param numYTiles Image width must be evenly divisible by numYTiles
 	 */
-	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles)
+	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency)
 	{
 		initializeProcessingVariables(heatmap);
 		this.worldMapImageReader = worldMapImageReader;
 		this.numYTiles = numYTiles;
+		this.heatmapTransparency = transparency;
 		try
 		{
 			if (worldMapImageReader.getHeight(0) % numYTiles != 0)
@@ -224,13 +226,10 @@ public class HeatmapImage implements RenderedImage
 	public void processImageRegion(BufferedImage imageRegion, Rectangle region)
 	{
 		// Run them heatmap tiles through the ol' rigamarole
-		long startTime = System.nanoTime();
-		int numTilesProcessed = 0;
 		// For each pixel in current image region
 		while (!sortedHeatmapTiles.isEmpty())
 		{
 			Map.Entry<Point, Integer> tile = sortedHeatmapTiles.poll();
-			numTilesProcessed++;
 			Point coords = tile.getKey();
 			coords = gameCoordsToImageCoords(coords);
 			boolean isInImageBounds = (coords.x > 0 && coords.y > 0);
@@ -271,15 +270,13 @@ public class HeatmapImage implements RenderedImage
 					int r = (srcRGB >> 16) & 0xFF;
 					int g = (srcRGB >> 8) & 0xFF;
 					int b = (srcRGB) & 0xFF;
-					float HEATMAP_TRANSPARENCY = 0.65f;
-					float brightness = Color.RGBtoHSB(r, g, b, null)[2] * (1 - HEATMAP_TRANSPARENCY) + HEATMAP_TRANSPARENCY;
+					float brightness = Color.RGBtoHSB(r, g, b, null)[2] * (1 - heatmapTransparency) + heatmapTransparency;
 					// convert HSB to RGB with the calculated Hue, with Saturation=1
 					int currRGB = Color.HSBtoRGB((float) currHue, 1, brightness);
 					imageRegion.setRGB(curX, curY, currRGB);
 				}
 			}
 		}
-		//log.debug(String.format("Finished processing image chunk %(4d, %4d, %4d, %4d) after %3d ms (%4d tiles)", region.x, region.y, region.width, region.height, (System.nanoTime() - startTime) / 1_000_000, numTilesProcessed));
 	}
 
 	private double calculateHue(int tileValue, int heatmapSensitivity, int minVal, int maxVal)

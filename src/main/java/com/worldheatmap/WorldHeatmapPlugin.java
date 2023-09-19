@@ -15,6 +15,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -590,10 +591,10 @@ public class WorldHeatmapPlugin extends Plugin
 			imageFileOut = new File(HEATMAP_IMAGE_DIR, imageFileOut.getName());
 		}
 
-		double heatmapTransparency = config.heatmapAlpha();
+		float heatmapTransparency = (float) config.heatmapAlpha();
 		if (heatmapTransparency < 0)
 		{
-			heatmapTransparency = 0; // TODO: make this an argument for HeatmapImage
+			heatmapTransparency = 0;
 		}
 		else if (heatmapTransparency > 1)
 		{
@@ -601,7 +602,7 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 
 		// Prepare the image reader
-		try (InputStream inputStream = WorldHeatmapPlugin.class.getResourceAsStream("/osrs_world_map.png");
+		try (InputStream inputStream = new URL("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map.png").openStream();
 			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource osrs_world_map.png didn't exist")))
 		{
 			ImageReader reader = ImageIO.getImageReadersByFormatName("PNG").next();
@@ -627,7 +628,7 @@ public class WorldHeatmapPlugin extends Plugin
 				writeParam.setCompressionQuality(0);
 
 				// Write heatmap image
-				RenderedImage heatmapImage = new HeatmapImage(heatmap, reader, N);
+				RenderedImage heatmapImage = new HeatmapImage(heatmap, reader, N, heatmapTransparency);
 				writer.write(null, new IIOImage(heatmapImage, null, null), writeParam);
 				reader.dispose();
 				writer.dispose();
