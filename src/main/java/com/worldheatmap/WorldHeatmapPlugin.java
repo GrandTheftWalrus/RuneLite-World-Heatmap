@@ -1,15 +1,39 @@
 package com.worldheatmap;
 
 import com.google.inject.Provides;
-
+import java.awt.Point;
+import java.awt.image.RenderedImage;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
+import java.util.zip.InflaterInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageInputStream;
+import javax.imageio.stream.ImageOutputStream;
 import javax.inject.Inject;
-import javax.swing.*;
-
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.Constants;
 import net.runelite.api.GameState;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
@@ -21,16 +45,11 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
-
-import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
 import java.util.concurrent.*;
-import java.util.zip.*;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
 
@@ -40,33 +59,21 @@ import static net.runelite.client.RuneLite.RUNELITE_DIR;
 )
 public class WorldHeatmapPlugin extends Plugin
 {
-	private static final int
-		OVERWORLD_MAX_X = 3904,
-		OVERWORLD_MAX_Y = Constants.OVERWORLD_MAX_Y,
-		TYPE_A_HEATMAP_AUTOSAVE_FREQUENCY = 100,
-		TYPE_B_HEATMAP_AUTOSAVE_FREQUENCY = 500,
-		HEATMAP_OFFSET_X = -1152, // never change these
-		HEATMAP_OFFSET_Y = -2496, // never change these
-		MIN_X = 1152,
-		MAX_X = 3903,
-		MIN_Y = 2496,
-		MAX_Y = 4159;
-	private int
-		lastX = 0,
-		lastY = 0,
-		lastStepCountA = 0,
-		lastStepCountB = 0;
-	protected final File
-		WORLDHEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap"),
-		HEATMAP_FILES_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Files").toFile(),
-		HEATMAP_IMAGE_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Images").toFile();
-	private final int HEATMAP_WIDTH = 2752, HEATMAP_HEIGHT = 1664;
+	private static final int TYPE_A_HEATMAP_AUTOSAVE_FREQUENCY = 100;
+	private static final int TYPE_B_HEATMAP_AUTOSAVE_FREQUENCY = 500;
+	private int lastX = 0;
+	private int lastY = 0;
+	private int lastStepCountA = 0;
+	private int lastStepCountB = 0;
+	protected long mostRecentLocalUserID;
+	private boolean shouldLoadHeatmaps;
+	protected final File WORLDHEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
+	protected final File HEATMAP_FILES_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Files").toFile();
+	protected final File HEATMAP_IMAGE_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Images").toFile();
 	protected HeatmapNew heatmapTypeA, heatmapTypeB;
 	private NavigationButton toolbarButton;
 	private WorldHeatmapPanel panel;
-	private boolean shouldLoadHeatmaps;
 	protected String mostRecentLocalUserName;
-	protected long mostRecentLocalUserID;
 
 	@Inject
 	private Client client;
@@ -91,19 +98,19 @@ public class WorldHeatmapPlugin extends Plugin
 	protected void loadHeatmapFiles()
 	{
 		log.debug("Loading heatmaps under user ID " + mostRecentLocalUserID + "...");
-		String filepathTypeAUsername = Paths.get(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName) + "_TypeA.heatmap";
-		String filepathTypeAUserID = Paths.get(HEATMAP_FILES_DIR.toString(), "" + mostRecentLocalUserID) + "_TypeA.heatmap";
-		String filepathTypeBUsername = Paths.get(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName) + "_TypeB.heatmap";
-		String filepathTypeBUserID = Paths.get(HEATMAP_FILES_DIR.toString(), "" + mostRecentLocalUserID) + "_TypeB.heatmap";
+		File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeA.heatmap");
+		File filepathTypeAUserID = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserID + "_TypeA.heatmap");
+		File heatmapTypeBUsernameFile = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeB.heatmap");
+		File filepathTypeBUserID = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserID + "_TypeB.heatmap");
 
 		// Load heatmap Type A
 		// To fix/deal with how previous versions of the plugin used player names
 		// (which can change) instead of player IDs, we also do the following check
-		if (new File(filepathTypeAUserID).exists())
+		if (filepathTypeAUserID.exists())
 		{
 			heatmapTypeA = readHeatmapFile(filepathTypeAUserID);
 		}
-		else if (new File(filepathTypeAUsername).exists())
+		else if (filepathTypeAUsername.exists())
 		{
 			log.info("File '" + filepathTypeAUserID + "' did not exist. Checking for alternative file '" + filepathTypeAUsername + "'...");
 			heatmapTypeA = readHeatmapFile(filepathTypeAUsername);
@@ -115,14 +122,14 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 
 		// Load heatmap type B
-		if (new File(filepathTypeBUserID).exists())
+		if (filepathTypeBUserID.exists())
 		{
 			heatmapTypeB = readHeatmapFile(filepathTypeBUserID);
 		}
-		else if (new File(filepathTypeBUsername).exists())
+		else if (heatmapTypeBUsernameFile.exists())
 		{
-			log.info("File '" + filepathTypeBUserID + "' did not exist. Checking for alternative file '" + filepathTypeBUsername + "'...");
-			heatmapTypeB = readHeatmapFile(filepathTypeBUsername);
+			log.info("File '" + filepathTypeBUserID + "' did not exist. Checking for alternative file '" + heatmapTypeBUsernameFile + "'...");
+			heatmapTypeB = readHeatmapFile(heatmapTypeBUsernameFile);
 		}
 		else
 		{
@@ -257,10 +264,11 @@ public class WorldHeatmapPlugin extends Plugin
 			for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY)))
 			{
 				//If the player has moved since last game tick, increment Heatmap Type A
-				if (playerMovedSinceLastTick){
+				if (playerMovedSinceLastTick)
+				{
 					heatmapTypeA.increment(tile.x, tile.y);
 					File heatmapFile = Paths.get(mostRecentLocalUserID + "_TypeA.heatmap").toFile();
-					File heatmapImageFileName = new File(mostRecentLocalUserID + "_TypeA.png");
+					File heatmapImageFileName = new File(mostRecentLocalUserID + "_TypeA.tif");
 					File heatmapBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now() + "_TypeA.heatmap").toFile();
 					autosaveRoutine(heatmapTypeA, heatmapFile, heatmapImageFileName, config.typeAImageAutosaveFrequency(), TYPE_A_HEATMAP_AUTOSAVE_FREQUENCY, config.typeAImageAutosaveOnOff());
 					backupRoutine(heatmapTypeA, heatmapBackupFile, config.typeAHeatmapBackupFrequency());
@@ -269,7 +277,7 @@ public class WorldHeatmapPlugin extends Plugin
 				// Increment Type B even if player hasn't moved
 				heatmapTypeB.increment(tile.x, tile.y);
 				File heatmapFile = Paths.get(mostRecentLocalUserID + "_TypeB.heatmap").toFile();
-				File heatmapImageFileName = new File(mostRecentLocalUserID + "_TypeB.png");
+				File heatmapImageFileName = new File(mostRecentLocalUserID + "_TypeB.tif");
 				File heatmapBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now() + "_TypeB.heatmap").toFile();
 				autosaveRoutine(heatmapTypeB, heatmapFile, heatmapImageFileName, config.typeBImageAutosaveFrequency(), TYPE_B_HEATMAP_AUTOSAVE_FREQUENCY, config.typeBImageAutosaveOnOff());
 				backupRoutine(heatmapTypeB, heatmapBackupFile, config.typeBHeatmapBackupFrequency());
@@ -400,22 +408,21 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	// Loads heatmap from local storage. If file does not exist, or an error occurs, it will return null.
-	private HeatmapNew readHeatmapFile(String filepath)
+	private HeatmapNew readHeatmapFile(File heatmapFile)
 	{
-		log.info("Loading heatmap file '" + filepath + "'");
-		File heatmapFile = new File(filepath);
+		log.info("Loading heatmap file '" + heatmapFile.getName() + "'");
 		if (!heatmapFile.exists())
 		{
 			// Return new blank heatmap if specified file doesn't exist
-			log.error("World Heatmap was not able to load Worldheatmap file " + filepath + " because it does not exist.");
+			log.error("World Heatmap was not able to load Worldheatmap file " + heatmapFile.getName() + " because it does not exist.");
 			return null;
 		}
 		// Detect whether the .heatmap file is the old style (serialized Heatmap, rather than a zipped .CSV file)
 		// And if it is, then convert it to the new style
-		try (FileInputStream fis = new FileInputStream(filepath))
+		try (FileInputStream fis = new FileInputStream(heatmapFile);
+			 InflaterInputStream iis = new InflaterInputStream(fis);
+			 ObjectInputStream ois = new ObjectInputStream(iis))
 		{
-			InflaterInputStream iis = new InflaterInputStream(fis);
-			ObjectInputStream ois = new ObjectInputStream(iis);
 			Object heatmap = ois.readObject();
 			if (heatmap instanceof Heatmap)
 			{
@@ -431,7 +438,7 @@ public class WorldHeatmapPlugin extends Plugin
 			// If reached here, then the file was not of the older type.
 		}
 		// Test if it is of the newer type, or something else altogether.
-		try (FileInputStream fis = new FileInputStream(filepath))
+		try (FileInputStream fis = new FileInputStream(heatmapFile))
 		{
 			ZipInputStream zis = new ZipInputStream(fis);
 			InputStreamReader isr = new InputStreamReader(zis, StandardCharsets.UTF_8);
@@ -440,14 +447,14 @@ public class WorldHeatmapPlugin extends Plugin
 			String[] fieldNames = reader.readLine().split(",");
 			String[] fieldValues = reader.readLine().split(",");
 			log.debug("Field Variables detectarino'd: " + Arrays.toString(fieldNames));
-			long userID = (fieldValues[0].length() == 0 ? -1 : Long.parseLong(fieldValues[0]));
-			int stepCount = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[2]));
-			int maxVal = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[3]));
-			int maxValX = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[4]));
-			int maxValY = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[5]));
-			int minVal = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[6]));
-			int minValX = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[7]));
-			int minValY = (fieldValues[0].length() == 0 ? -1 : Integer.parseInt(fieldValues[8]));
+			long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
+			int stepCount = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[2]));
+			int maxVal = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
+			int maxValX = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
+			int maxValY = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
+			int minVal = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[6]));
+			int minValX = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[7]));
+			int minValY = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[8]));
 
 			HeatmapNew heatmapNew;
 			if (userID != -1)
@@ -468,20 +475,26 @@ public class WorldHeatmapPlugin extends Plugin
 				String[] tile = s.split(",");
 				try
 				{
-					heatmapNew.setFast(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
+					heatmapNew.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
 				}
 				catch (NumberFormatException e)
 				{
 					errorCount[0]++;
 				}
 			});
-			log.error(errorCount[0] + " errors occurred during heatmap file read.");
+			if (errorCount[0] != 0)
+			{
+				log.error(errorCount[0] + " errors occurred during heatmap file read.");
+			}
 			return heatmapNew;
 		}
-		catch (Exception e)
+		catch (FileNotFoundException e)
 		{
-			e.printStackTrace();
-			log.error("The file " + filepath + " is not a heatmap file or it is corrupt, or something.");
+			log.error("Was not able to read heatmap file " + heatmapFile.getName() + " because it doesn't exist");
+		}
+		catch (IOException e)
+		{
+			log.error("Was not able to read heatmap file " + heatmapFile.getName() + " for some reason (IOException)");
 		}
 		return null;
 	}
@@ -505,18 +518,17 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 
 		// Write the heatmap file
-		try
+		try (FileOutputStream fos = new FileOutputStream(fileOut);
+			 ZipOutputStream zos = new ZipOutputStream(fos);
+			 BufferedOutputStream bos = new BufferedOutputStream(zos);
+			 OutputStreamWriter osw = new OutputStreamWriter(bos, StandardCharsets.UTF_8))
 		{
-			FileOutputStream fos = new FileOutputStream(fileOut);
-			ZipOutputStream zos = new ZipOutputStream(fos);
-			BufferedOutputStream bos = new BufferedOutputStream(zos);
-			OutputStreamWriter osw = new OutputStreamWriter(bos, StandardCharsets.UTF_8);
 			ZipEntry ze = new ZipEntry("heatmap.csv");
 			zos.putNextEntry(ze);
 			// Write them field variables
 			osw.write("userID,heatmapVersion,stepCount,maxVal,maxValX,maxValY,minVal,minValX,minValY\n");
 			osw.write(mostRecentLocalUserID +
-				"," + heatmap.heatmapVersion +
+				"," + HeatmapNew.heatmapVersion +
 				"," + heatmap.stepCount +
 				"," + heatmap.maxVal[0] +
 				"," + heatmap.maxVal[1] +
@@ -532,11 +544,9 @@ public class WorldHeatmapPlugin extends Plugin
 				int stepVal = e.getValue();
 				osw.write(x + "," + y + "," + stepVal + "\n");
 			}
-			osw.close();
 		}
 		catch (IOException e)
 		{
-			e.printStackTrace();
 			log.error("World Heatmap was not able to save heatmap file");
 		}
 		log.info("Finished writing " + fileOut + " heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
@@ -562,21 +572,17 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 		catch (FileNotFoundException e)
 		{
-			e.printStackTrace();
 			log.error("World Heatmap was not able to save heatmap CSV file");
 		}
 	}
 
-	/**
-	 * Writes a visualization of the heatmap over top of the OSRS world map as a PNG image to the "Heatmap Images" folder.
-	 */
 	protected void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut)
 	{
 		log.info("Saving " + imageFileOut + " image to disk...");
 		long startTime = System.nanoTime();
-		if (!imageFileOut.getName().endsWith(".png"))
+		if (!imageFileOut.getName().endsWith(".tif"))
 		{
-			imageFileOut = new File(imageFileOut.getName() + ".png");
+			imageFileOut = new File(imageFileOut.getName() + ".tif");
 		}
 
 		if (!imageFileOut.isAbsolute())
@@ -587,100 +593,59 @@ public class WorldHeatmapPlugin extends Plugin
 		double heatmapTransparency = config.heatmapAlpha();
 		if (heatmapTransparency < 0)
 		{
-			heatmapTransparency = 0;
+			heatmapTransparency = 0; // TODO: make this an argument for HeatmapImage
 		}
 		else if (heatmapTransparency > 1)
 		{
 			heatmapTransparency = 1;
 		}
 
-		// First, to normalize the range of step values, we find the maximum and minimum values in the heatmap
-		int[] maxValAndCoords = heatmap.getMaxVal();
-		int maxVal = maxValAndCoords[0];
-		int maxX = maxValAndCoords[1];
-		int maxY = maxValAndCoords[2];
-		log.debug("Maximum steps on a tile is: " + maxVal + " at (" + maxX + ", " + maxY + "), for " + imageFileOut + " of a total of " + heatmap.getStepCount() + " steps");
-		int[] minValAndCoords = heatmap.getMinVal();
-		int minVal = minValAndCoords[0];
-		int minX = minValAndCoords[1];
-		int minY = minValAndCoords[2];
-		log.debug("Minimum steps on a tile is: " + minVal + " at (" + minX + ", " + minY + "), for " + imageFileOut + " of a total of " + heatmap.getStepCount() + " steps");
-		maxVal = (maxVal == minVal ? maxVal + 1 : maxVal); // If minVal == maxVal, which is the case when a new heatmap is created, it might cause division by zero, in which case we add 1 to max val.
-		log.debug("Number of tiles visited: " + heatmap.getNumTilesVisited());
-
-		try
+		// Prepare the image reader
+		try (InputStream inputStream = WorldHeatmapPlugin.class.getResourceAsStream("/osrs_world_map.png");
+			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource osrs_world_map.png didn't exist")))
 		{
-			BufferedImage worldMapImage = ImageUtil.loadImageResource(getClass(), "/osrs_world_map.png");
-			assert worldMapImage != null;
-			if (worldMapImage.getWidth() != HEATMAP_WIDTH * 3 || worldMapImage.getHeight() != HEATMAP_HEIGHT * 3)
-			{
-				log.error("The file 'osrs_world_map.png' must have dimensions " + HEATMAP_WIDTH * 3 + " x " + HEATMAP_HEIGHT * 3);
-				return;
-			}
-			int currRGB = 0;
-			double currHue = 0; // a number on the interval [0, 1] that will represent the intensity of the current heatmap pixel
-			double minHue = 1 / 3., maxHue = 0;
-			double nthRoot = 1 + (config.heatmapSensitivity() - 1.0) / 2;
-			int LOG_BASE = 4;
+			ImageReader reader = ImageIO.getImageReadersByFormatName("PNG").next();
+			reader.setInput(worldMapImageInputStream, true);
 
-			for (Map.Entry<Point, Integer> e : heatmap.getEntrySet())
+			// Prepare the image writer
+			try (FileOutputStream fos = new FileOutputStream(imageFileOut);
+				 BufferedOutputStream bos = new BufferedOutputStream(fos);
+				 ImageOutputStream ios = ImageIO.createImageOutputStream(bos))
 			{
-				int x = e.getKey().x + HEATMAP_OFFSET_X;
-				int y = HEATMAP_HEIGHT - (e.getKey().y + HEATMAP_OFFSET_Y) - 1;
-				int value = e.getValue();
-				boolean isInBounds = (0 <= x && x < HEATMAP_WIDTH && 0 <= y && y < HEATMAP_HEIGHT);
-				if (isInBounds && value != 0)
-				{   // If the current tile HAS been stepped on (also we invert the y-coords here, because the game uses a different coordinate system than what is typical for images)
-					// Calculate normalized step value
-					currHue = (float) ((Math.log(value) / Math.log(LOG_BASE)) / (Math.log(maxVal + 1 - minVal) / Math.log(LOG_BASE)));
-					currHue = Math.pow(currHue, 1.0 / nthRoot);
-					currHue = (float) (minHue + (currHue * (maxHue - minHue)));                                                // Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
+				ImageWriter writer = ImageIO.getImageWritersByFormatName("tif").next();
+				writer.setOutput(ios);
+				final int tileWidth = 8800;
+				///final int tileHeight = 496;
+				final int tileHeight = 4960;
+				final int N = reader.getHeight(0) / tileHeight;
 
-					// Reassign the new RGB values to the corresponding 9 pixels (we scale by a factor of 3)
-					for (int x_offset = 0; x_offset <= 2; x_offset++)
-					{
-						for (int y_offset = 0; y_offset <= 2; y_offset++)
-						{
-							int curX = x * 3 + x_offset;
-							int curY = y * 3 + y_offset;
-							int srcRGB = worldMapImage.getRGB(curX, curY);
-							int r = (srcRGB >> 16) & 0xFF;
-							int g = (srcRGB >> 8) & 0xFF;
-							int b = (srcRGB) & 0xFF;
-							double srcBrightness = Color.RGBtoHSB(r, g, b, null)[2] * (1 - heatmapTransparency) + heatmapTransparency;
-							// convert HSB to RGB with the calculated Hue, with Saturation=1 and Brightness according to original map pixel
-							currRGB = Color.HSBtoRGB((float) currHue, 1, (float) srcBrightness);
-							worldMapImage.setRGB(curX, curY, currRGB);
-						}
-					}
-				}
-			}
+				// Prepare writing parameters
+				ImageWriteParam writeParam = writer.getDefaultWriteParam();
+				writeParam.setTilingMode(ImageWriteParam.MODE_EXPLICIT);
+				writeParam.setTiling(tileWidth, tileHeight, 0, 0);
+				writeParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+				writeParam.setCompressionType("Deflate");
+				writeParam.setCompressionQuality(0);
 
-			if (!Files.exists(Paths.get(imageFileOut.getParent())))
-			{
-				new File(imageFileOut.getParent()).mkdirs();
+				// Write heatmap image
+				RenderedImage heatmapImage = new HeatmapImage(heatmap, reader, N);
+				writer.write(null, new IIOImage(heatmapImage, null, null), writeParam);
+				reader.dispose();
+				writer.dispose();
 			}
-			ImageIO.write(worldMapImage, "png", imageFileOut);
 			log.info("Finished writing " + imageFileOut + " image to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
 		}
 		catch (OutOfMemoryError e)
 		{
-			e.printStackTrace();
-			log.error("OutOfMemoryError thrown whilst creating and/or writing image file." +
-				"Perhaps try making a Runelite plugin profile with no other plugins enabled" +
-				"besides World Heatmap. If it works then, then you might have too many plugins" +
-				"running. If not, then I unno chief, perhaps you should submit an issue on the" +
-				"GitHub.");
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-			log.error("IOException thrown whilst creating and/or writing image file.");
+			log.error("OutOfMemoryError thrown whilst creating and/or writing image file. " +
+				"If you're not able to fix the issue by lowering the memory usage settings " +
+				"(if they exist in this version of the plugin) then perhaps consider submitting" +
+				"an Issue on the GitHub");
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace();
-			log.error("Exception thrown whilst creating and/or writing image file.");
+			log.error("Exception thrown whilst creating and/or writing image file: " + e.getMessage());
 		}
 	}
 
@@ -688,23 +653,28 @@ public class WorldHeatmapPlugin extends Plugin
 	 * Combines heatmaps, adding together each tile value
 	 *
 	 * @param outputFile      Output .heatmap file
-	 * @param outputImageFile Output .png file
+	 * @param outputImageFile Output .tif file
 	 * @param heatmapFiles    Input .heatmap files
 	 * @return True if completed successfully, else false
 	 */
 	public boolean combineHeatmaps(File outputFile, @Nullable File outputImageFile, File... heatmapFiles)
 	{
 		HeatmapNew outputHeatmap = new HeatmapNew(mostRecentLocalUserID);
-		for (File hmapFile : heatmapFiles)
+		for (File inputHeatmapFile : heatmapFiles)
 		{
-			if (!hmapFile.exists())
+			if (!inputHeatmapFile.exists())
 			{
-				log.error("Input heatmap file " + hmapFile.getAbsolutePath() + " doesn't exist");
+				log.error("Input heatmap file " + inputHeatmapFile.getAbsolutePath() + " doesn't exist");
 				return false;
 			}
-			HeatmapNew hmap = readHeatmapFile(hmapFile.getAbsolutePath());
-			log.info("Adding heatmap file " + hmapFile + " to " + outputFile.getName() + "...");
-			for (Map.Entry<Point, Integer> e : hmap.getEntrySet())
+			HeatmapNew inputHeatmap = readHeatmapFile(new File(inputHeatmapFile.getAbsolutePath()));
+			if (inputHeatmap == null)
+			{
+				log.error("Unable to add heatmap file " + inputHeatmapFile.getPath() + " to " + outputFile.getName() + " because it was unable to be read");
+				return false;
+			}
+			log.info("Adding heatmap file " + inputHeatmapFile + " to " + outputFile.getName() + "...");
+			for (Map.Entry<Point, Integer> e : inputHeatmap.getEntrySet())
 			{
 				outputHeatmap.set(e.getKey().x, e.getKey().y, e.getValue());
 			}

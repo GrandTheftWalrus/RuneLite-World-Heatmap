@@ -55,9 +55,9 @@ public class WorldHeatmapPanel extends PluginPanel
 			{
 				openHeatmapsFolder();
 			}
-			catch (IOException heatmapsIOError)
+			catch (IOException exception)
 			{
-				heatmapsIOError.printStackTrace();
+				exception.printStackTrace();
 			}
 		});
 		mainPanel.add(openHeatmapFolderButton);
@@ -86,7 +86,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		clearTypeAHeatmapButton.setFont(buttonFont);
 		clearTypeAHeatmapButton.addActionListener(e -> {
 			final int result = JOptionPane.showOptionDialog(typeAPanel,
-				"<html>Art thou sure you want to restart your Type A heatmap? Both the file and .PNG image will be restarted.</html>",
+				"<html>Art thou sure you want to restart your Type A heatmap? Both the file and .TIF image will be restarted.</html>",
 				"Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
 				null, new String[]{"Yes", "No"}, "No");
 
@@ -130,7 +130,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		clearTypeBHeatmapButton.setFont(buttonFont);
 		clearTypeBHeatmapButton.addActionListener(e -> {
 			final int result = JOptionPane.showOptionDialog(typeBPanel,
-				"<html>Art thou sure you want to restart your Type B heatmap? Both the file and .PNG image will be restarted.</html>",
+				"<html>Art thou sure you want to restart your Type B heatmap? Both the file and .TIF image will be restarted.</html>",
 				"Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
 				null, new String[]{"Yes", "No"}, "No");
 
@@ -243,10 +243,10 @@ public class WorldHeatmapPanel extends PluginPanel
 		//Output image chooser
 		JPanel outputImagePanel = new JPanel();
 		JFileChooser outputImageJFC = new JFileChooser();
-		outputImageJFC.addChoosableFileFilter(new FileNameExtensionFilter("PNG files", "png"));
+		outputImageJFC.addChoosableFileFilter(new FileNameExtensionFilter("TIF files", "tif"));
 		outputImageJFC.setAcceptAllFileFilterUsed(false);
-		outputImageJFC.setSelectedFile(new File(plugin.HEATMAP_IMAGE_DIR, "output.png"));
-		outputImageJFC.setDialogTitle("Enter a name for the combined heatmap .PNG");
+		outputImageJFC.setSelectedFile(new File(plugin.HEATMAP_IMAGE_DIR, "output.tif"));
+		outputImageJFC.setDialogTitle("Enter a name for the combined heatmap .TIF");
 
 		//Output image label
 		JLabel outputImageJFCLabel = new JLabel("Output image file (optional)");
@@ -392,7 +392,7 @@ public class WorldHeatmapPanel extends PluginPanel
 	private void writeTypeAHeatmapImage()
 	{
 		plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.heatmap")));
-		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.png")));
+		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.tif")));
 	}
 
 	private void clearTypeAHeatmap()
@@ -400,13 +400,13 @@ public class WorldHeatmapPanel extends PluginPanel
 		plugin.heatmapTypeA = new HeatmapNew();
 		String filepathA = Paths.get(plugin.HEATMAP_FILES_DIR.toString(), plugin.mostRecentLocalUserID + "_TypeA.heatmap").toString();
 		plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeA, new File(filepathA)));
-		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.png")));
+		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeA, new File(plugin.mostRecentLocalUserID + "_TypeA.tif")));
 	}
 
 	private void writeTypeBHeatmapImage()
 	{
 		plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.heatmap")));
-		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.png")));
+		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.tif")));
 	}
 
 	private void clearTypeBHeatmap()
@@ -414,7 +414,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		plugin.heatmapTypeB = new HeatmapNew();
 		String filepathB = Paths.get(plugin.HEATMAP_FILES_DIR.toString(), plugin.mostRecentLocalUserID + "_TypeB.heatmap").toString();
 		plugin.executor.execute(() -> plugin.writeHeatmapFile(plugin.heatmapTypeB, new File(filepathB)));
-		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.png")));
+		plugin.executor.execute(() -> plugin.writeHeatmapImage(plugin.heatmapTypeB, new File(plugin.mostRecentLocalUserID + "_TypeB.tif")));
 	}
 
 	private void openHeatmapsFolder() throws IOException

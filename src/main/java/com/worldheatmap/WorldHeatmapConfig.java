@@ -21,7 +21,7 @@ public interface WorldHeatmapConfig extends Config
 		keyName = "typeAImageAutosaveFrequency",
 		name = "Image Autosave Frequency",
 		position = 0,
-		description = "This determines how often (in number of steps) to automatically save the 'Type A' world heatmap PNG image. Default value of 1000 tiles (which equates to 5 mins of running, or 10 mins of walking). Minimum value of 100.",
+		description = "This determines how often (in number of steps) to automatically save the 'Type A' world heatmap TIF image. Default value of 1000 tiles (which equates to 5 mins of running, or 10 mins of walking). Minimum value of 100.",
 		section = typeA
 	)
 	default int typeAImageAutosaveFrequency()
@@ -70,7 +70,7 @@ public interface WorldHeatmapConfig extends Config
 		keyName = "typeBImageAutosaveFrequency",
 		name = "Image Autosave Frequency",
 		position = 0,
-		description = "This determines how often (in number of steps + ticks) to automatically save the 'Type B' world heatmap PNG image to disk. Default value of 1000. Minimum value of 500.",
+		description = "This determines how often (in number of steps + ticks) to automatically save the 'Type B' world heatmap TIF image to disk. Default value of 1000. Minimum value of 500.",
 		section = typeB
 	)
 	default int typeBImageAutosaveFrequency()

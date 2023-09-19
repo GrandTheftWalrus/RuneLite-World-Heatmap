@@ -1,9 +1,11 @@
 package com.worldheatmap;
 
-import java.awt.*;
+import java.awt.Point;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
+import javax.annotation.Nonnull;
+import lombok.NonNull;
 
 public class HeatmapNew {
 	protected final HashMap<Point, Integer> heatmapHashMap;
@@ -11,10 +13,10 @@ public class HeatmapNew {
 	protected int stepCount;
 	protected int[] maxVal = {1, 0, 0}, minVal = {1, 0, 0}; // {val, x, y}
 	protected static final int
-			HEATMAP_WIDTH = 2752,       //never change these
-			HEATMAP_HEIGHT = 1664,      //never change these
-			HEATMAP_OFFSET_X = -1152,   //never change these
-			HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
+		HEATMAP_WIDTH = 2752,       //never change these
+		HEATMAP_HEIGHT = 1664,      //never change these
+		HEATMAP_OFFSET_X = -1152,   //never change these
+		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
 	public long playerID = -1;
 
 	public HeatmapNew() {
@@ -128,17 +130,6 @@ public class HeatmapNew {
 		if (newValue <= minVal[0]) {
 			minVal = new int[]{newValue, x, y};
 		}
-	}
-
-	/**
-	 * Sets the value without any error checking for step count, min/max values, zero-step tiles, etc
-	 *
-	 * @param x
-	 * @param y
-	 * @param newValue
-	 */
-	protected void setFast(int x, int y, int newValue) {
-		heatmapHashMap.put(new Point(x, y), newValue);
 	}
 
 	/**
