@@ -18,6 +18,8 @@ public class HeatmapNew {
 		HEATMAP_OFFSET_X = -1152,   //never change these
 		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
 	public long playerID = -1;
+	public enum HeatmapType {UNKNOWN, TYPE_A, TYPE_B}
+	private HeatmapType heatmapType = HeatmapType.UNKNOWN;
 
 	public HeatmapNew() {
 		this.stepCount = 0;
@@ -67,6 +69,13 @@ public class HeatmapNew {
 		if (newValue >= maxVal[0]) {
 			maxVal = new int[]{newValue, x, y};
 		}
+	}
+
+	public HeatmapType getHeatmapType(){
+		return heatmapType;
+	}
+	public void setHeatmapType(HeatmapType heatmapType){
+		this.heatmapType = heatmapType;
 	}
 
 	/**

@@ -29,6 +29,8 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
+import javax.imageio.event.IIOWriteProgressListener;
+import javax.imageio.event.IIOWriteWarningListener;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 import javax.inject.Inject;
@@ -120,6 +122,7 @@ public class WorldHeatmapPlugin extends Plugin
 		{
 			log.info("File '" + filepathTypeAUserID + "' did not exist. Creating a new heatmap...");
 			heatmapTypeA = new HeatmapNew(mostRecentLocalUserID);
+			heatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
 		}
 
 		// Load heatmap type B
@@ -136,6 +139,7 @@ public class WorldHeatmapPlugin extends Plugin
 		{
 			log.info("File '" + filepathTypeBUserID + "' did not exist. Creating a new heatmap...");
 			heatmapTypeB = new HeatmapNew(mostRecentLocalUserID);
+			heatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
 		}
 		panel.writeTypeAHeatmapImageButton.setEnabled(true);
 		panel.writeTypeBHeatmapImageButton.setEnabled(true);
@@ -449,13 +453,14 @@ public class WorldHeatmapPlugin extends Plugin
 			String[] fieldValues = reader.readLine().split(",");
 			log.debug("Field Variables detectarino'd: " + Arrays.toString(fieldNames));
 			long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
-			int stepCount = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[2]));
-			int maxVal = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
-			int maxValX = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
-			int maxValY = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
-			int minVal = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[6]));
-			int minValX = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[7]));
-			int minValY = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[8]));
+			HeatmapNew.HeatmapType heatmapType = HeatmapNew.HeatmapType.valueOf(fieldValues[2]);
+			int stepCount = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
+			int maxVal = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
+			int maxValX = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
+			int maxValY = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[6]));
+			int minVal = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[7]));
+			int minValX = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[8]));
+			int minValY = (fieldValues[0].isEmpty() ? -1 : Integer.parseInt(fieldValues[9]));
 
 			HeatmapNew heatmapNew;
 			if (userID != -1)
@@ -466,9 +471,11 @@ public class WorldHeatmapPlugin extends Plugin
 			{
 				heatmapNew = new HeatmapNew();
 			}
+			log.debug("HEATMAP TYPE: " + heatmapType);
 			heatmapNew.maxVal = new int[]{maxVal, maxValX, maxValY};
 			heatmapNew.minVal = new int[]{minVal, minValX, minValY};
 			heatmapNew.stepCount = stepCount;
+			heatmapNew.setHeatmapType(heatmapType);
 
 			// Read the tile values
 			final int[] errorCount = {0}; // Number of parsing errors occurred during read
@@ -527,9 +534,10 @@ public class WorldHeatmapPlugin extends Plugin
 			ZipEntry ze = new ZipEntry("heatmap.csv");
 			zos.putNextEntry(ze);
 			// Write them field variables
-			osw.write("userID,heatmapVersion,stepCount,maxVal,maxValX,maxValY,minVal,minValX,minValY\n");
+			osw.write("userID,heatmapVersion,heatmapType,stepCount,maxVal,maxValX,maxValY,minVal,minValX,minValY\n");
 			osw.write(mostRecentLocalUserID +
 				"," + HeatmapNew.heatmapVersion +
+				"," + heatmap.getHeatmapType() +
 				"," + heatmap.stepCount +
 				"," + heatmap.maxVal[0] +
 				"," + heatmap.maxVal[1] +
@@ -619,6 +627,11 @@ public class WorldHeatmapPlugin extends Plugin
 				final int tileHeight = 496;
 				final int N = reader.getHeight(0) / tileHeight;
 
+				// Make progress listener majigger
+				HeatmapProgressListener progressListener = new HeatmapProgressListener();
+				progressListener.setHeatmapType(heatmap.getHeatmapType());
+				writer.addIIOWriteProgressListener(progressListener);
+
 				// Prepare writing parameters
 				ImageWriteParam writeParam = writer.getDefaultWriteParam();
 				writeParam.setTilingMode(ImageWriteParam.MODE_EXPLICIT);
@@ -685,5 +698,87 @@ public class WorldHeatmapPlugin extends Plugin
 			writeHeatmapImage(outputHeatmap, outputImageFile);
 		}
 		return true;
+	}
+
+	private class HeatmapProgressListener implements IIOWriteProgressListener
+	{
+		HeatmapNew.HeatmapType heatmapType = HeatmapNew.HeatmapType.UNKNOWN;
+
+		public void setHeatmapType(HeatmapNew.HeatmapType type)
+		{
+			this.heatmapType = type;
+		}
+
+		@Override
+		public void imageStarted(ImageWriter source, int imageIndex)
+		{
+			if (heatmapType == HeatmapNew.HeatmapType.TYPE_A)
+			{
+				panel.writeTypeAHeatmapImageButton.setEnabled(false);
+				panel.clearTypeAHeatmapButton.setEnabled(false);
+				panel.writeTypeAcsvButton.setEnabled(false);
+				panel.writeTypeAHeatmapImageButton.setText("Writing... 0%");
+			}
+			else if (heatmapType == HeatmapNew.HeatmapType.TYPE_B)
+			{
+				panel.writeTypeBHeatmapImageButton.setEnabled(false);
+				panel.clearTypeBHeatmapButton.setEnabled(false);
+				panel.writeTypeBcsvButton.setEnabled(false);
+				panel.writeTypeBHeatmapImageButton.setText("Writing... 0%");
+			}
+
+		}
+
+		@Override
+		public void imageProgress(ImageWriter source, float percentageDone)
+		{
+			if (heatmapType == HeatmapNew.HeatmapType.TYPE_A)
+			{
+				panel.writeTypeAHeatmapImageButton.setText("Writing... " + percentageDone + "%");
+			}
+			else if (heatmapType == HeatmapNew.HeatmapType.TYPE_B)
+			{
+				panel.writeTypeBHeatmapImageButton.setText("Writing... " + percentageDone + "%");
+			}
+		}
+
+		@Override
+		public void imageComplete(ImageWriter source)
+		{
+			if (heatmapType == HeatmapNew.HeatmapType.TYPE_A)
+			{
+				panel.writeTypeAHeatmapImageButton.setEnabled(true);
+				panel.clearTypeAHeatmapButton.setEnabled(true);
+				panel.writeTypeAcsvButton.setEnabled(true);
+				panel.writeTypeAHeatmapImageButton.setText("Write Heatmap Image");
+			}
+			else if (heatmapType == HeatmapNew.HeatmapType.TYPE_B)
+			{
+				panel.writeTypeBHeatmapImageButton.setEnabled(true);
+				panel.clearTypeBHeatmapButton.setEnabled(true);
+				panel.writeTypeBcsvButton.setEnabled(true);
+				panel.writeTypeBHeatmapImageButton.setText("Write Heatmap Image");
+			}
+		}
+
+		@Override
+		public void thumbnailStarted(ImageWriter source, int imageIndex, int thumbnailIndex)
+		{
+		}
+
+		@Override
+		public void thumbnailProgress(ImageWriter source, float percentageDone)
+		{
+		}
+
+		@Override
+		public void thumbnailComplete(ImageWriter source)
+		{
+		}
+
+		@Override
+		public void writeAborted(ImageWriter source)
+		{
+		}
 	}
 }
