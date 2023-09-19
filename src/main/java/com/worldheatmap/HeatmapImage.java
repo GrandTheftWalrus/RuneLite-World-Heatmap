@@ -34,15 +34,15 @@ public class HeatmapImage implements RenderedImage
 	// A queue that holds the heatmap coordinates along
 	// with their values, to be sorted by coordinate left-to-right top-to-bottom
 	private static LinkedList<Map.Entry<Point, Integer>> sortedHeatmapTiles;
+	private final float heatmapTransparency;
 	private final int numXTiles = 1;
 	private final int numYTiles;
 	private int heatmapMinVal;
 	private int heatmapMaxVal;
-	private float heatmapTransparency;
 
 	/**
 	 * @param worldMapImageReader osrs_world_map.png
-	 * @param numYTiles Image width must be evenly divisible by numYTiles
+	 * @param numYTiles           Image width must be evenly divisible by numYTiles
 	 */
 	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency)
 	{
@@ -220,8 +220,9 @@ public class HeatmapImage implements RenderedImage
 	/**
 	 * Assumes that the image will be processed in natural reading order pixel-wise (left-to-right, top-to-bottom) otherwise it won't work.
 	 * Make sure that initializeProcessingParameters() has been run before running this
+	 *
 	 * @param imageRegion The image region to be drawn on
-	 * @param region The x,y,width,height coordinates of where the imageRegion came from in the whole image
+	 * @param region      The x,y,width,height coordinates of where the imageRegion came from in the whole image
 	 */
 	public void processImageRegion(BufferedImage imageRegion, Rectangle region)
 	{
@@ -331,10 +332,9 @@ public class HeatmapImage implements RenderedImage
 		int PIXEL_OFFSET_X = -3109;
 		int PIXEL_OFFSET_Y = 7462;
 
+		point = remapGameTiles(point);
+
 		Point pixelLocation = new Point(3 * point.x + PIXEL_OFFSET_X, IMAGE_HEIGHT - (3 * point.y) + PIXEL_OFFSET_Y);
-		if (point.x ==  2662 && point.y == 2638){
-			log.debug("" + point + " --> " + pixelLocation);
-		}
 		if (pixelLocation.x < 0 || pixelLocation.y < 0 || pixelLocation.x > IMAGE_WIDTH || pixelLocation.y > IMAGE_HEIGHT)
 		{
 			return new Point(-1, -1);
@@ -343,5 +343,23 @@ public class HeatmapImage implements RenderedImage
 		{
 			return pixelLocation;
 		}
+	}
+
+	/**
+	 * This function remaps game tiles, so for example steps made in Prifdinnas which is actually located outside the overworld will be remapped to Prifdinnas's overworld location
+	 *
+	 * @param point Old location
+	 * @return New location
+	 */
+	private static Point remapGameTiles(Point point)
+	{
+		// Prifdinnas
+		Rectangle prifdinnas = new Rectangle(3391, 5952, 255, 255);
+		if (prifdinnas.contains(point))
+		{
+			return new Point(point.x - 1024, point.y - 2752);
+		}
+
+		return point;
 	}
 }
