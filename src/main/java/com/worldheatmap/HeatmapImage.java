@@ -35,6 +35,7 @@ public class HeatmapImage implements RenderedImage
 	// with their values, to be sorted by coordinate left-to-right top-to-bottom
 	private static LinkedList<Map.Entry<Point, Integer>> sortedHeatmapTiles;
 	private final float heatmapTransparency;
+	private final int heatmapSensitivity;
 	private final int numXTiles = 1;
 	private final int numYTiles;
 	private int heatmapMinVal;
@@ -44,12 +45,13 @@ public class HeatmapImage implements RenderedImage
 	 * @param worldMapImageReader osrs_world_map.png
 	 * @param numYTiles           Image width must be evenly divisible by numYTiles
 	 */
-	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency)
+	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency, int sensitivity)
 	{
 		initializeProcessingVariables(heatmap);
 		this.worldMapImageReader = worldMapImageReader;
 		this.numYTiles = numYTiles;
 		this.heatmapTransparency = transparency;
+		this.heatmapSensitivity = sensitivity;
 		try
 		{
 			if (worldMapImageReader.getHeight(0) % numYTiles != 0)
@@ -253,7 +255,6 @@ public class HeatmapImage implements RenderedImage
 			// Else continue
 
 			// Calculate color
-			int heatmapSensitivity = 4;
 			double currHue = calculateHue(tileValue, heatmapSensitivity, heatmapMinVal, heatmapMaxVal);
 
 			// Reassign the new RGB values to the corresponding 9 pixels (each tile covers 3x3 image pixels)

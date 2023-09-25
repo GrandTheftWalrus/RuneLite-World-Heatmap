@@ -7,14 +7,14 @@ public class Heatmap implements Serializable {
     private final int WIDTH, HEIGHT, HEATMAP_OFFSET_X, HEATMAP_OFFSET_Y;
     protected final static int TYPE_A = 0, TYPE_B = 1;
     private int[][] heatmap;
-    private int stepCount;
+    private int totalValue;
 
     public Heatmap(int WIDTH, int HEIGHT, int HEATMAP_OFFSET_X, int HEATMAP_OFFSET_Y){
         this.WIDTH = WIDTH;
         this.HEIGHT = HEIGHT;
         this.HEATMAP_OFFSET_Y = HEATMAP_OFFSET_Y;
         this.HEATMAP_OFFSET_X = HEATMAP_OFFSET_X;
-        stepCount = 0;
+        totalValue = 0;
         createHeatmap();
     }
 
@@ -65,11 +65,11 @@ public class Heatmap implements Serializable {
      */
     protected void increment(int x, int y) {
         set(get(x, y) + 1, x, y);
-        stepCount++;
+        totalValue++;
     }
 
-    protected int getStepCount(){
-        return stepCount;
+    protected int getTotalValue(){
+        return totalValue;
     }
 
     /**

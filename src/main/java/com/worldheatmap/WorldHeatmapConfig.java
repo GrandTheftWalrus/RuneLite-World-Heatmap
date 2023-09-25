@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import javax.inject.Inject;
 import net.runelite.client.config.*;
 
 @ConfigGroup(WorldHeatmapConfig.GROUP)
@@ -8,109 +9,41 @@ public interface WorldHeatmapConfig extends Config
 	String GROUP = "worldheatmap";
 
 	@ConfigSection(
-		name = "'Type A' Heatmap",
+		name = "Stuff",
 		description = "The 'Type A' heatmap's tiles are incremented each time they are stepped on",
 		position = 0
 	)
-	String typeA = "type_a";
+	String settings = "settings";
 
 	@Range(
-		min = 100
+		min = 30
 	)
 	@ConfigItem(
-		keyName = "typeAImageAutosaveFrequency",
-		name = "Image Autosave Frequency",
+		keyName = "ImageAutosaveFrequency",
+		name = "A&B Image Autosave Frequency",
 		position = 0,
-		description = "This determines how often (in number of steps) to automatically save the 'Type A' world heatmap TIF image. Default value of 1000 tiles (which equates to 5 mins of running, or 10 mins of walking). Minimum value of 100.",
-		section = typeA
+		description = "This determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 2000 ticks (20 minutes). Minimum value of 50.",
+		section = settings
 	)
 	default int typeAImageAutosaveFrequency()
 	{
-		return 1000;
-	}
-
-	@ConfigItem(
-		keyName = "typeAAutosaveOnOff",
-		name = "Autosave Image to Disk",
-		position = 1,
-		description = "Should the 'Type A' internal heatmap matrix be automatically saved at the frequency specified above?",
-		section = typeA
-	)
-	default boolean typeAImageAutosaveOnOff()
-	{
-		return true;
+		return 2000;
 	}
 
 	@Range(
-		min = 100
+		min = 30
 	)
 	@ConfigItem(
-		keyName = "typeAHeatmapBackupFrequency",
-		name = "Type A Backup Frequency",
+		keyName = "HeatmapBackupFrequency",
+		name = "Heatmap Backup Frequency",
 		position = 2,
-		description = "This determines how often (in number of steps) to make a new backup of the 'Type A' heatmap matrix, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of like 200kb depending on how well used it is. Default value 12,000 tiles (which is 1 hour of sprinting, or 2 hours of walking). Minimum value 100.",
-		section = typeA
+		description = "This determines how often (in ticks of game time) to make a new backup of the heatmap data, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups). Default value 36000 ticks (6 hours). Minimum value 50.",
+		section = settings
 	)
-	default int typeAHeatmapBackupFrequency()
-	{
-		return 12000;
-	}
-
-	@ConfigSection(
-		name = "'Type B' Heatmap",
-		description = "The 'Type B' heatmap's tiles are incremented each time they are stepped on, as well as once for every game tick that you are standing on them.",
-		position = 1
-	)
-	String typeB = "type_b";
-
-	@Range(
-		min = 500
-	)
-	@ConfigItem(
-		keyName = "typeBImageAutosaveFrequency",
-		name = "Image Autosave Frequency",
-		position = 0,
-		description = "This determines how often (in number of steps + ticks) to automatically save the 'Type B' world heatmap TIF image to disk. Default value of 6000. Minimum value of 500.",
-		section = typeB
-	)
-	default int typeBImageAutosaveFrequency()
-	{
-		return 6000;
-	}
-
-	@ConfigItem(
-		keyName = "typeBAutosaveOnOff",
-		name = "Autosave Image to Disk",
-		position = 1,
-		description = "Should the 'Type B' internal heatmap matrix be automatically saved at the frequency specified above?",
-		section = typeB
-	)
-	default boolean typeBImageAutosaveOnOff()
-	{
-		return true;
-	}
-
-	@Range(
-		min = 100
-	)
-	@ConfigItem(
-		keyName = "typeBHeatmapBackupFrequency",
-		name = "Type B Backup Frequency",
-		position = 2,
-		description = "This determines how often (in number of game ticks) to make a new backup of the 'Type B' heatmap matrix, with the time and date appended to the image file. These files remain in the '~/.runelite/worldheatmap/Heatmap Files/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups), but the size of each file is only about on the order of 100kb ish. Default value of 36000. Minimum value of 100.",
-		section = typeB
-	)
-	default int typeBHeatmapBackupFrequency()
+	default int HeatmapBackupFrequency()
 	{
 		return 36000;
 	}
-
-	@ConfigSection(
-		name = "Other",
-		description = "Other stuff",
-		position = 2
-	)
-	String other = "other";
 
 	@Range(
 		min = 0,
@@ -121,7 +54,7 @@ public interface WorldHeatmapConfig extends Config
 		name = "Heatmap Colour Alpha",
 		position = 0,
 		description = "The opacity of the heatmap colours drawn over the world map image",
-		section = other
+		section = settings
 	)
 	default double heatmapAlpha()
 	{
@@ -135,13 +68,28 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 		keyName = "heatmapSensitivity",
 		name = "Heatmap sensitivity",
-		position = 2,
+		position = 1,
 		description = "Increasing this makes the heatmap's colour gradient more sensitive to step counts.",
-		section = other
+		section = settings
 	)
 	default int heatmapSensitivity()
 	{
 		return 4;
+	}
+
+	@Range(
+		max = 6
+	)
+	@ConfigItem(
+		keyName = "speedMemoryTradeoff",
+		name = "Speed-memory tradeoff",
+		position = 2,
+		description = "Corresponds to the vertical size of chunks used in writing the heatmap image. Increasing this will increase the speed of writing the image, but will also increase the memory usage. Lower this value if you are running out of memory when writing the image.",
+		section = settings
+	)
+	default int speedMemoryTradeoff()
+	{
+		return 3;
 	}
 
 }
