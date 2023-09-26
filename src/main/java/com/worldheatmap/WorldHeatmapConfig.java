@@ -1,6 +1,5 @@
 package com.worldheatmap;
 
-import javax.inject.Inject;
 import net.runelite.client.config.*;
 
 @ConfigGroup(WorldHeatmapConfig.GROUP)
@@ -40,7 +39,7 @@ public interface WorldHeatmapConfig extends Config
 		description = "This determines how often (in ticks of game time) to make a new backup of the heatmap data, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups). Default value 36000 ticks (6 hours). Minimum value 50.",
 		section = settings
 	)
-	default int HeatmapBackupFrequency()
+	default int heatmapBackupFrequency()
 	{
 		return 36000;
 	}

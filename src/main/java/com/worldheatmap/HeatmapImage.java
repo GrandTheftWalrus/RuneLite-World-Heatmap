@@ -21,6 +21,7 @@ import java.util.Vector;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Constants;
 
 /**
  * Class which calculates osrs heatmap image data on demand
@@ -106,6 +107,47 @@ public class HeatmapImage implements RenderedImage
 		{
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Calculates the min and max values of the heatmap within the overworld
+	 * @param heatmap The heatmap
+	 * @return An array of length 2, where the first element is the max value and the second element is the min value
+	 */
+	private int[] calculateMinMaxValuesWithinOverworld(HeatmapNew heatmap)
+	{
+		int maxVal = 0;
+		int minVal = Integer.MAX_VALUE;
+		if (heatmap.getEntrySet().isEmpty())
+		{
+			throw new IllegalArgumentException("Heatmap is empty");
+		}
+		for (Map.Entry<Point, Integer> tile : heatmap.getEntrySet())
+		{
+			if (isGameTileInImageBounds(tile.getKey()))
+			{
+				if (tile.getValue() > maxVal)
+				{
+					maxVal = tile.getValue();
+				}
+				if (tile.getValue() < minVal)
+				{
+					minVal = tile.getValue();
+				}
+			}
+		}
+		return new int[]{maxVal, minVal};
+	}
+
+	public boolean isGameTileInImageBounds(Point point)
+	{
+		Point pixelLocation = gameCoordsToImageCoords(point);
+		return pixelLocation.x > 0 && pixelLocation.x < getWidth() && pixelLocation.y > 0 && pixelLocation.y < getHeight();
+	}
+
+	public boolean isInOverworld(Point point)
+	{
+		return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500;
 	}
 
 	@Override
@@ -235,7 +277,7 @@ public class HeatmapImage implements RenderedImage
 			Map.Entry<Point, Integer> tile = sortedHeatmapTiles.poll();
 			Point coords = tile.getKey();
 			coords = gameCoordsToImageCoords(coords);
-			boolean isInImageBounds = (coords.x > 0 && coords.y > 0);
+			boolean isInImageBounds = (coords.x > 0 && coords.y > 0 && coords.x < getWidth() && coords.y < getHeight());
 			int tileValue = tile.getValue();
 
 			int comparison1 = compareNaturalReadingOrder(coords.x, coords.y, region.x, region.y);
@@ -312,8 +354,11 @@ public class HeatmapImage implements RenderedImage
 	private void initializeProcessingVariables(HeatmapNew heatmap)
 	{
 		// Create sorted heatmap tiles array (sorted left-to-right top-to-bottom)
+		//int[] minMaxVals = calculateMinMaxValuesWithinOverworld(heatmap);
+		//TODO: make it so the following two lines use the above instead of what they're currently using.
+		//	I did it earlier but it caused a bug so I undid it so that future me can fix it
 		heatmapMaxVal = heatmap.getMaxVal()[0];
-		heatmapMinVal = heatmap.getMinVal()[0];
+		heatmapMinVal = heatmap.getMinVal()[1];
 		sortedHeatmapTiles = new LinkedList<>(heatmap.getEntrySet());
 		sortedHeatmapTiles.sort((tile1, tile2) -> {
 			Point coords1 = tile1.getKey();

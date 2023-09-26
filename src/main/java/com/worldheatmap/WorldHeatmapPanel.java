@@ -88,7 +88,7 @@ public class WorldHeatmapPanel extends PluginPanel
 			clearHeatmapButton.setFont(buttonFont);
 			clearHeatmapButton.addActionListener(e -> {
 				final int result = JOptionPane.showOptionDialog(heatmapPanel,
-					"<html>Art thou sure you want to restart your " + heatmapType + " heatmap? Both the file and .TIF image will be restarted.</html>",
+					"<html>Art thou sure you want to restart your " + heatmapType + " heatmap? The data will be lost.</html>",
 					"Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
 					null, new String[]{"Yes", "No"}, "No");
 
@@ -149,8 +149,6 @@ public class WorldHeatmapPanel extends PluginPanel
 		plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID));
 		// Rewrite the heatmap data file
 		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsFile(plugin.heatmaps, new File(plugin.mostRecentLocalUserID + ".heatmaps")));
-		// Rewrite the heatmap image (it will be blank)
-		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapImage(plugin.heatmaps.get(heatmapType), new File(plugin.mostRecentLocalUserID + "_" + heatmapType.toString() + ".tif")));
 	}
 
 	private void openHeatmapsFolder() throws IOException

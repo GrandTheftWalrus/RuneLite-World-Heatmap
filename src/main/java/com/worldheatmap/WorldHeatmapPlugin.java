@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.NPC;
 import net.runelite.api.NpcID;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
@@ -229,8 +230,6 @@ public class WorldHeatmapPlugin extends Plugin
 		{
 			shouldLoadHeatmaps = true;
 			loadHeatmapsFuture = null;
-			//TODO: Why not schedule the heatmaps for loading here instead of waiting for the first game tick?
-			//client id is known at this point.
 		}
 
 		// If you're at the login screen and heatmaps have been loaded (implying that you've been logged in, but now you're logged out)
@@ -323,32 +322,27 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 
 		// TELEPORT_PATHS
-		if (diagDistance > 15 && lastY < Constants.OVERWORLD_MAX_Y && currentY < Constants.OVERWORLD_MAX_Y) //we don't draw lines between the overworld and caves etc.
+		if (diagDistance > 15 && isInOverworld(new Point(lastX, lastY)) && isInOverworld(new Point(currentX, currentY))) //we don't draw lines between the overworld and caves etc.
 		{
-			for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY)))
+			if (heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS) != null)
 			{
-				if (heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS) != null){
+				for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY)))
+				{
 					heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS).increment(tile.x, tile.y);
-				}
-				else {
-					log.error("TELEPORT_PATHS heatmap is null");
 				}
 			}
 		}
 
 		// TELEPORTED_TO and TELEPORTED_FROM
-		if (diagDistance > 15)
+		if (diagDistance > 15 && isInOverworld(new Point(lastX, lastY)) && isInOverworld(new Point(currentX, currentY))) //we only track teleports between overworld tiles
 		{
 			heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO).increment(currentX, currentY);
 			heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM).increment(lastX, lastY);
 		}
 
 		// Backup/autosave routines
-		File heatmapsFile = Paths.get(mostRecentLocalUserID + ".heatmaps").toFile();
-		File[] heatmapImageFileNames = new File[]{new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif"), new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif")};
-		File heatmapsBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now() + ".heatmaps").toFile();
-		autosaveRoutine(heatmaps, heatmapsFile, heatmapImageFileNames);
-		backupRoutine(heatmaps, heatmapsBackupFile, config.HeatmapBackupFrequency());
+		autosaveRoutine();
+		backupRoutine();
 
 		// Update panel step counter
 		SwingUtilities.invokeLater(panel::updateCounts);
@@ -359,26 +353,52 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onActorDeath(ActorDeath actorDeath){
-		if (actorDeath.getActor() instanceof Player){
+	public void onActorDeath(ActorDeath actorDeath)
+	{
+		if (actorDeath.getActor() instanceof Player)
+		{
 			Player actor = (Player) actorDeath.getActor();
-			if (actor.getId() == client.getLocalPlayer().getId()){
+			if (actor.getId() == client.getLocalPlayer().getId())
+			{
 				// DEATHS
 				heatmaps.get(HeatmapNew.HeatmapType.DEATHS).increment(actor.getWorldLocation().getX(), actor.getWorldLocation().getY());
+			}
+		}
+		else if (actorDeath.getActor() instanceof NPC)
+		{
+			if (heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS) != null)
+			{
+				// NPC_DEATHS
+				heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS).increment(actorDeath.getActor().getWorldLocation().getX(), actorDeath.getActor().getWorldLocation().getY());
+			}
+		}
+	}
+
+	public boolean isInOverworld(Point point)
+	{
+		return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500;
+	}
+
+	@Subscribe
+	public void onChatMessage(ChatMessage chatMessage)
+	{
+		if (client.getLocalPlayer().getName() == null)
+		{
+			return;
+		}
+		if (chatMessage.getType() == ChatMessageType.PUBLICCHAT && chatMessage.getName().contains(client.getLocalPlayer().getName()))
+		{
+			// PLACES_SPOKEN_AT
+			if (heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT) != null)
+			{
+				heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT).increment(client.getLocalPlayer().getWorldLocation().getX(), client.getLocalPlayer().getWorldLocation().getY());
 			}
 		}
 	}
 
 	@Subscribe
-	public void onChatMessage(ChatMessage chatMessage){
-		if (chatMessage.getType() == ChatMessageType.PUBLICCHAT && chatMessage.getName().equals(client.getLocalPlayer().getName())){
-			// PLACES_SPOKEN_AT
-			heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT).increment(client.getLocalPlayer().getWorldLocation().getX(), client.getLocalPlayer().getWorldLocation().getY());
-		}
-	}
-
-	@Subscribe
-	public void onStatChanged(StatChanged statChanged){
+	public void onStatChanged(StatChanged statChanged)
+	{
 		// NOTE: this happens 23 times when you log in, and at such time, the heatmaps haven't been loaded in, so you can't call .get() on them
 		// Get difference between previous and current XP
 		int skillIndex = statChanged.getSkill().ordinal();
@@ -388,76 +408,65 @@ public class WorldHeatmapPlugin extends Plugin
 		previousXP[skillIndex] = client.getSkillExperience(statChanged.getSkill());
 
 		// XP_GAINED
-		if (heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED) != null){
+		if (heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED) != null)
+		{
 			heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED).increment(client.getLocalPlayer().getWorldLocation().getX(), client.getLocalPlayer().getWorldLocation().getY(), xpDifference);
 		}
 	}
 
 	@Subscribe
-	public void onNpcSpawned(final NpcSpawned npcSpawned){
-		if (loadHeatmapsFuture != null && !loadHeatmapsFuture.isDone())
-		{
-			log.debug("NPC " + npcSpawned.getNpc().getName() + " spawned whilst heatmaps were still loading. Scheduling NpcId checks with the executor (so that they happen after heatmaps are loaded)...");
-			worldHeatmapPluginExecutor.execute(() -> handleNpcSpawned(npcSpawned));
-		}
-		else if (loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()){
-			handleNpcSpawned(npcSpawned);
-		}
-		else if (loadHeatmapsFuture == null)
-		{
-			log.debug("NPC " + npcSpawned.getNpc().getName() + " spawned whilst heatmap loading wasn't even scheduled yet. Scheduling NpcId checks with the executor 10 seconds from now (so that they happen after heatmaps are loaded)...");
-			worldHeatmapPluginExecutor.schedule(() -> handleNpcSpawned(npcSpawned), 10, TimeUnit.SECONDS);
-			//TODO: it would be best if the plugin could detect when the heatmaps are done loading, and then run the scheduled tasks
-			//	or if the heatmap loading could be done sooner
-		}
-	}
-
-	public void handleNpcSpawned(final NpcSpawned npcSpawned){
+	public void onNpcSpawned(final NpcSpawned npcSpawned)
+	{
 		// Currently it counts all random event spawns, not just random events meant for the local player
-		if (randomEventNPCIDs.contains(npcSpawned.getNpc().getId())){
+		if (randomEventNPCIDs.contains(npcSpawned.getNpc().getId()))
+		{
 			// RANDOM_EVENT_SPAWNS
-			heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS).increment(npcSpawned.getNpc().getWorldLocation().getX(), npcSpawned.getNpc().getWorldLocation().getY());
+			if (heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS) != null)
+			{
+				heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS).increment(npcSpawned.getNpc().getWorldLocation().getX(), npcSpawned.getNpc().getWorldLocation().getY());
+			}
 		}
 
 		// BOB_THE_CAT_SIGHTING
 		if (npcSpawned.getNpc().getId() == NpcID.BOB_8034)
 		{
-			log.debug("Bob spotted.");
-			log.debug("Info: loadHeamtaps future is " + (loadHeatmapsFuture == null ? "null" : "not null") + ", and is done: " + (loadHeatmapsFuture == null ? "null" : loadHeatmapsFuture.isDone()));
 			// Only count Bob the Cat sightings once per hour at most
 			if (timeLastSeenBobTheCatPerWorld.get(client.getWorld()) == null || Instant.now().isAfter(timeLastSeenBobTheCatPerWorld.get(client.getWorld()).plusSeconds(3600)))
 			{
-				log.debug("Bob's timer on world " + client.getWorld() + " has expired. Logging sighting.");
-				heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING).increment(npcSpawned.getNpc().getWorldLocation().getX(), npcSpawned.getNpc().getWorldLocation().getY());
-				timeLastSeenBobTheCatPerWorld.put(client.getWorld(), Instant.now());
+				if (heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING) != null)
+				{
+					heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING).increment(npcSpawned.getNpc().getWorldLocation().getX(), npcSpawned.getNpc().getWorldLocation().getY());
+					timeLastSeenBobTheCatPerWorld.put(client.getWorld(), Instant.now());
+				}
 			}
 		}
 	}
 
 	@Subscribe
-	public void onItemSpawned(ItemSpawned itemSpawned){
-		// NOTE: this happens many times when you log in (once for each item on the ground), and at such time, the heatmaps haven't been loaded in, so you can't call .get() on them
+	public void onItemSpawned(ItemSpawned itemSpawned)
+	{
 		Tile tile = itemSpawned.getTile();
 		TileItem tileItem = itemSpawned.getItem();
 		// NOTE: it doesn't keep track of where items came from. You could drop the same item repeatedly, and it would count as a new item each time
 		// LOOT_VALUE
-		if (heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE) != null){
+		if (heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE) != null)
+		{
 			heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(tile.getWorldLocation().getX(), tile.getWorldLocation().getY(), tileItem.getQuantity() * itemManager.getItemPrice(tileItem.getId()));
 		}
-		else {
+		else
+		{
 			log.error("LOOT_VALUE heatmap is null");
 		}
 	}
 
 	/**
 	 * Autosave the heatmap file/write the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do each respective thing according to their frequencies
-	 *
-	 * @param heatmaps          The HeatmapNew object
-	 * @param heatmapFile       .heatmap file to save
-	 * @param heatmapImageFiles Heatmap image files to write (usually Type A and Type B)
 	 */
-	private void autosaveRoutine(Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps, File heatmapFile, File[] heatmapImageFiles)
+	private void autosaveRoutine()
 	{
+		File heatmapsFile = Paths.get(mostRecentLocalUserID + ".heatmaps").toFile();
+		File typeAImageFile = new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif");
+		File typeBImageFile = new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
 		// If it's time to autosave the image, then save heatmap file (so file is in sync with image) and write image file
 		int highestGameTimeTicks = 0;
 		// Find the largest game time ticks of all the heatmaps
@@ -470,27 +479,24 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 		if (highestGameTimeTicks % WorldHeatmapPlugin.IMAGE_AUTOSAVE_FREQUENCY == 0)
 		{
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapFile));
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), heatmapImageFiles[0]));
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), heatmapImageFiles[1]));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapsFile));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), typeBImageFile));
 		}
 
 		// if it wasn't the time to autosave an image (and therefore save the .heatmap), then check if it's time to autosave just the .heatmap file
 		else if (highestGameTimeTicks % WorldHeatmapPlugin.HEATMAP_AUTOSAVE_FREQUENCY == 0)
 		{
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapFile));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapsFile));
 		}
 	}
 
 	/**
 	 * Backs up the heatmap file if it is the correct time to do so according to the backup frequency
-	 *
-	 * @param heatmaps          The HeatmapNew object
-	 * @param heatmapBackupFile The backup file
-	 * @param backupFrequency   How often to back up the heatmap file (in ticks)
 	 */
-	private void backupRoutine(Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps, File heatmapBackupFile, int backupFrequency)
+	private void backupRoutine()
 	{
+		File heatmapsBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now() + ".heatmaps").toFile();
 		int highestGameTimeTicks = 0;
 		for (HeatmapNew.HeatmapType type : heatmaps.keySet())
 		{
@@ -499,9 +505,9 @@ public class WorldHeatmapPlugin extends Plugin
 				highestGameTimeTicks = heatmaps.get(type).getGameTimeTicks();
 			}
 		}
-		if (highestGameTimeTicks % backupFrequency == 0)
+		if (highestGameTimeTicks % config.heatmapBackupFrequency() == 0)
 		{
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapBackupFile));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapsBackupFile));
 		}
 	}
 
