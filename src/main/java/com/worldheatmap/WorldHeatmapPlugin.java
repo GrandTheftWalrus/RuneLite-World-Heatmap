@@ -16,6 +16,7 @@ import java.io.ObjectInputStream;
 import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -500,11 +501,8 @@ public class WorldHeatmapPlugin extends Plugin
 	 */
 	private void backupRoutine()
 	{
-		File heatmapsBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now().toString().replace(":", "-") + ".heatmaps").toFile();
-		if (!heatmapsBackupFile.mkdirs()){
-			log.error("Failed to create backup directory");
-			return;
-		}
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		File heatmapsBackupFile = new File("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now().format(formatter) + ".heatmaps");
 		int highestGameTimeTicks = 0;
 		for (HeatmapNew.HeatmapType type : heatmaps.keySet())
 		{
