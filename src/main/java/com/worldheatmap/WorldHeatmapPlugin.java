@@ -172,21 +172,25 @@ public class WorldHeatmapPlugin extends Plugin
 			{
 				HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmapHashMapTemp = readHeatmapsFile(filepathTypeAUsername);
 				// If it was a username file then there should only be one heatmap, and it would be of type UNKNOWN
-				System.out.println("Type A as unknown:" + heatmapHashMapTemp.get(HeatmapNew.HeatmapType.UNKNOWN).getTotalValue());
 				heatmapHashMapTemp.put(HeatmapNew.HeatmapType.TYPE_A, heatmapHashMapTemp.get(HeatmapNew.HeatmapType.UNKNOWN));
 				heatmapHashMapTemp.get(HeatmapNew.HeatmapType.TYPE_A).setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
 				// Put it in the heatmaps hashmap
 				heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, heatmapHashMapTemp.get(HeatmapNew.HeatmapType.TYPE_A));
 			}
+			else{
+				log.info("File '" + filepathTypeAUsername + "' did not exist.");
+			}
 			if (filepathTypeBUsername.exists())
 			{
 				HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmapHashMapTemp = readHeatmapsFile(filepathTypeBUsername);
 				// If it was a username file then there should only be one heatmap, and it would be of type UNKNOWN
-				System.out.println("Type B as unknown:" + heatmapHashMapTemp.get(HeatmapNew.HeatmapType.UNKNOWN).getTotalValue());
 				heatmapHashMapTemp.put(HeatmapNew.HeatmapType.TYPE_B, heatmapHashMapTemp.get(HeatmapNew.HeatmapType.UNKNOWN));
 				heatmapHashMapTemp.get(HeatmapNew.HeatmapType.TYPE_B).setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
 				// Put it in the heatmaps hashmap
 				heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, heatmapHashMapTemp.get(HeatmapNew.HeatmapType.TYPE_B));
+			}
+			else {
+				log.info("File '" + filepathTypeBUsername + "' did not exist.");
 			}
 		}
 
@@ -496,7 +500,11 @@ public class WorldHeatmapPlugin extends Plugin
 	 */
 	private void backupRoutine()
 	{
-		File heatmapsBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now() + ".heatmaps").toFile();
+		File heatmapsBackupFile = Paths.get("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now().toString().replace(":", "-") + ".heatmaps").toFile();
+		if (!heatmapsBackupFile.mkdirs()){
+			log.error("Failed to create backup directory");
+			return;
+		}
 		int highestGameTimeTicks = 0;
 		for (HeatmapNew.HeatmapType type : heatmaps.keySet())
 		{
