@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,25 +41,18 @@ import javax.swing.SwingUtilities;
 import joptsimple.internal.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.NPC;
-import net.runelite.api.NpcID;
-import net.runelite.api.Player;
-import net.runelite.api.Skill;
-import net.runelite.api.Tile;
-import net.runelite.api.TileItem;
+import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ActorDeath;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.events.ItemSpawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.NpcLootReceived;
+import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
@@ -71,7 +63,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.*;
-import net.runelite.api.Constants;
+
 import net.runelite.client.game.ItemManager;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
@@ -445,15 +437,18 @@ public class WorldHeatmapPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onItemSpawned(ItemSpawned itemSpawned)
+	public void onNpcLootReceived(final NpcLootReceived npcLootReceived)
 	{
-		Tile tile = itemSpawned.getTile();
-		TileItem tileItem = itemSpawned.getItem();
-		// NOTE: it doesn't keep track of where items came from. You could drop the same item repeatedly, and it would count as a new item each time
 		// LOOT_VALUE
-		if (heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE) != null)
-		{
-			heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(tile.getWorldLocation().getX(), tile.getWorldLocation().getY(), tileItem.getQuantity() * itemManager.getItemPrice(tileItem.getId()));
+		for (ItemStack itemStack : npcLootReceived.getItems()){
+			int localX = itemStack.getLocation().getX();
+			int localY = itemStack.getLocation().getY();
+			WorldPoint worldPoint = WorldPoint.fromLocal(client, localX, localY, client.getPlane());
+			int totalValue = itemStack.getQuantity() * itemManager.getItemPrice(itemStack.getId());
+			if (heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE) != null)
+			{
+				heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(worldPoint.getX(), worldPoint.getY(), totalValue);
+			}
 		}
 	}
 
