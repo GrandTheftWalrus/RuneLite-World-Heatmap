@@ -1,11 +1,13 @@
 package com.worldheatmap;
 
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
+import org.w3c.dom.css.Rect;
 
 public class HeatmapNew
 {
@@ -110,6 +112,12 @@ public class HeatmapNew
 	 */
 	protected void set(int x, int y, int newValue)
 	{
+		try{
+
+		}
+		catch (OutOfMemoryError e){
+
+		}
 		//We don't keep track of unstepped-on tiles
 		if (newValue < 0)
 		{
@@ -192,6 +200,45 @@ public class HeatmapNew
 	protected int[] getMaxVal()
 	{
 		return maxVal;
+	}
+
+	/**
+	 * @return int array holding {maxVal, maxX, maxY} where the latter two are the coordinate at which the max value exists.
+	 */
+	protected int[] getMaxValInRegion(Rectangle region){
+		// Get highest value in region
+		int[] maxValInRegion = {0, region.x, region.y};
+		for (int x = region.x; x < region.x + region.width; x++)
+		{
+			for (int y = region.y; y < region.y + region.height; y++)
+			{
+				if (get(x, y) > maxValInRegion[0])
+				{
+					maxValInRegion[0] = get(x, y);
+					maxValInRegion[1] = x;
+					maxValInRegion[2] = y;
+				}
+			}
+		}
+		return maxValInRegion;
+	}
+
+	protected int[] getMinValInRegion(Rectangle region){
+		// Get lowest value in region
+		int[] minValInRegion = {Integer.MAX_VALUE, region.x, region.y};
+		for (int x = region.x; x < region.x + region.width; x++)
+		{
+			for (int y = region.y; y < region.y + region.height; y++)
+			{
+				if (get(x, y) < minValInRegion[0])
+				{
+					minValInRegion[0] = get(x, y);
+					minValInRegion[1] = x;
+					minValInRegion[2] = y;
+				}
+			}
+		}
+		return minValInRegion;
 	}
 
 	/**

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -81,8 +82,7 @@ import static net.runelite.client.RuneLite.RUNELITE_DIR;
 )
 public class WorldHeatmapPlugin extends Plugin
 {
-	private static final int HEATMAP_AUTOSAVE_FREQUENCY = 500; // How often to autosave the .heatmap file (in ticks)
-	private static final int IMAGE_AUTOSAVE_FREQUENCY = 500; // How often to autosave the heatmap image (in ticks)
+	private static final int HEATMAP_AUTOSAVE_FREQUENCY = 3000; // How often to autosave the .heatmap file (in ticks)
 	private int lastX = 0;
 	private int lastY = 0;
 	protected long mostRecentLocalUserID;
@@ -178,7 +178,8 @@ public class WorldHeatmapPlugin extends Plugin
 				// Put it in the heatmaps hashmap
 				heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, heatmapHashMapTemp.get(HeatmapNew.HeatmapType.TYPE_A));
 			}
-			else{
+			else
+			{
 				log.info("File '" + filepathTypeAUsername + "' did not exist.");
 			}
 			if (filepathTypeBUsername.exists())
@@ -190,7 +191,8 @@ public class WorldHeatmapPlugin extends Plugin
 				// Put it in the heatmaps hashmap
 				heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, heatmapHashMapTemp.get(HeatmapNew.HeatmapType.TYPE_B));
 			}
-			else {
+			else
+			{
 				log.info("File '" + filepathTypeBUsername + "' did not exist.");
 			}
 		}
@@ -379,11 +381,6 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 	}
 
-	public boolean isInOverworld(Point point)
-	{
-		return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500;
-	}
-
 	@Subscribe
 	public void onChatMessage(ChatMessage chatMessage)
 	{
@@ -458,10 +455,6 @@ public class WorldHeatmapPlugin extends Plugin
 		{
 			heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(tile.getWorldLocation().getX(), tile.getWorldLocation().getY(), tileItem.getQuantity() * itemManager.getItemPrice(tileItem.getId()));
 		}
-		else
-		{
-			log.error("LOOT_VALUE heatmap is null");
-		}
 	}
 
 	/**
@@ -472,9 +465,9 @@ public class WorldHeatmapPlugin extends Plugin
 		File heatmapsFile = Paths.get(mostRecentLocalUserID + ".heatmaps").toFile();
 		File typeAImageFile = new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif");
 		File typeBImageFile = new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
-		// If it's time to autosave the image, then save heatmap file (so file is in sync with image) and write image file
-		int highestGameTimeTicks = 0;
+
 		// Find the largest game time ticks of all the heatmaps
+		int highestGameTimeTicks = 0;
 		for (HeatmapNew.HeatmapType type : heatmaps.keySet())
 		{
 			if (heatmaps.get(type).getGameTimeTicks() > highestGameTimeTicks)
@@ -482,13 +475,14 @@ public class WorldHeatmapPlugin extends Plugin
 				highestGameTimeTicks = heatmaps.get(type).getGameTimeTicks();
 			}
 		}
-		if (highestGameTimeTicks % WorldHeatmapPlugin.IMAGE_AUTOSAVE_FREQUENCY == 0)
+
+		// If it's time to autosave the image, then save heatmap file (so file is in sync with image) and write image file
+		if (config.typeABImageAutosave() && highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0)
 		{
 			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapsFile));
 			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile));
 			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), typeBImageFile));
 		}
-
 		// if it wasn't the time to autosave an image (and therefore save the .heatmap), then check if it's time to autosave just the .heatmap file
 		else if (highestGameTimeTicks % WorldHeatmapPlugin.HEATMAP_AUTOSAVE_FREQUENCY == 0)
 		{
@@ -593,6 +587,11 @@ public class WorldHeatmapPlugin extends Plugin
 		return p0 + (p1 - p0) * t;
 	}
 
+	public boolean isInOverworld(Point point)
+	{
+		return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500;
+	}
+
 	/**
 	 * Loads heatmap from local storage. For each heatmap type that is not found, a new one is NOT created.
 	 * Call initializeMissingHeatmaps() to create any missing heatmaps (it's a separate function so that you can
@@ -646,7 +645,7 @@ public class WorldHeatmapPlugin extends Plugin
 				String[] fieldNames = reader.readLine().split(",");
 				String[] fieldValues = reader.readLine().split(",");
 				long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
-				HeatmapNew.HeatmapType heatmapType = (fieldValues[2].isEmpty() ? HeatmapNew.HeatmapType.UNKNOWN : HeatmapNew.HeatmapType.valueOf(fieldValues[2]));
+				String heatmapTypeString = fieldValues[2];
 				int totalValue = (fieldValues[3].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
 				int numTilesVisited = (fieldValues[4].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
 				int maxVal = (fieldValues[5].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
@@ -656,6 +655,25 @@ public class WorldHeatmapPlugin extends Plugin
 				int minValX = (fieldValues[9].isEmpty() ? -1 : Integer.parseInt(fieldValues[9]));
 				int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
 				int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
+
+				//Validate HeatmapType
+				HeatmapNew.HeatmapType heatmapType = null;
+				for (HeatmapNew.HeatmapType type : HeatmapNew.HeatmapType.values())
+				{
+					if (type.toString().equals(heatmapTypeString))
+					{
+						heatmapType = type;
+						break;
+					}
+				}
+				if (heatmapType == null)
+				{
+					log.warn("Heatmap type '" + heatmapTypeString + "' from ZipEntry '" + curZipEntry.getName() + "' is not a valid Heatmap type (at least in this program version). Beware that the .heatmaps file will be overwritten without this heatmap data. Ignoring...");
+					reader.lines().forEach(s -> {
+						// Do nothing, just read the lines
+					});
+					continue;
+				}
 
 				// Make ze Heatmap
 				HeatmapNew heatmap = new HeatmapNew(heatmapType, userID);
@@ -862,7 +880,8 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 		catch (Exception e)
 		{
-			log.error("Exception thrown whilst creating and/or writing image file: " + e.getMessage());
+			e.printStackTrace();
+			log.error("Exception thrown whilst creating and/or writing image file");
 		}
 	}
 

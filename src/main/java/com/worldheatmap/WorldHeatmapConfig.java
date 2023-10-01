@@ -24,9 +24,21 @@ public interface WorldHeatmapConfig extends Config
 		description = "This determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 2000 ticks (20 minutes). Minimum value of 50.",
 		section = settings
 	)
-	default int typeAImageAutosaveFrequency()
+	default int typeABImageAutosaveFrequency()
 	{
 		return 2000;
+	}
+
+	@ConfigItem(
+		keyName = "ImageAutosave",
+		name = "Type A&B Image Autosave",
+		position = 1,
+		description = "This determines whether to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of false.",
+		section = settings
+	)
+	default boolean typeABImageAutosave()
+	{
+		return false;
 	}
 
 	@Range(
@@ -34,9 +46,9 @@ public interface WorldHeatmapConfig extends Config
 	)
 	@ConfigItem(
 		keyName = "HeatmapBackupFrequency",
-		name = "Heatmap Backup Frequency",
+		name = "Backup Frequency",
 		position = 2,
-		description = "This determines how often (in ticks of game time) to make a new backup of the heatmap data, with the time and date appended to the image file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups). Default value 36000 ticks (6 hours). Minimum value 50.",
+		description = "This determines how often (in ticks of game time) to make a new backup of the heatmap data, with the time and date appended to the file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups). Default value 36000 ticks (6 hours). Minimum value 50.",
 		section = settings
 	)
 	default int heatmapBackupFrequency()
@@ -51,7 +63,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 		keyName = "HeatmapAlpha",
 		name = "Heatmap Colour Alpha",
-		position = 0,
+		position = 3,
 		description = "The opacity of the heatmap colours drawn over the world map image",
 		section = settings
 	)
@@ -67,7 +79,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 		keyName = "heatmapSensitivity",
 		name = "Heatmap sensitivity",
-		position = 1,
+		position = 4,
 		description = "Increasing this makes the heatmap's colour gradient more sensitive to step counts.",
 		section = settings
 	)
@@ -82,7 +94,7 @@ public interface WorldHeatmapConfig extends Config
 	@ConfigItem(
 		keyName = "speedMemoryTradeoff",
 		name = "Speed-memory tradeoff",
-		position = 2,
+		position = 5,
 		description = "Corresponds to the vertical size of chunks used in writing the heatmap image. Increasing this will increase the speed of writing the image, but will also increase the memory usage. Lower this value if you are running out of memory when writing the image.",
 		section = settings
 	)
