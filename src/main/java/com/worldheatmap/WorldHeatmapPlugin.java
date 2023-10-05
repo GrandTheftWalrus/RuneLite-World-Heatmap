@@ -651,27 +651,28 @@ public class WorldHeatmapPlugin extends Plugin
 				int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
 				int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
 
-				//Validate HeatmapType
-				HeatmapNew.HeatmapType heatmapType = null;
+				// Check if HeatmapType is legit
+				HeatmapNew.HeatmapType recognizedHeatmapType = null;
 				for (HeatmapNew.HeatmapType type : HeatmapNew.HeatmapType.values())
 				{
 					if (type.toString().equals(heatmapTypeString))
 					{
-						heatmapType = type;
+						recognizedHeatmapType = type;
 						break;
 					}
 				}
-				if (heatmapType == null)
+				if (recognizedHeatmapType == null)
 				{
 					log.warn("Heatmap type '" + heatmapTypeString + "' from ZipEntry '" + curZipEntry.getName() + "' is not a valid Heatmap type (at least in this program version). Beware that the .heatmaps file will be overwritten without this heatmap data. Ignoring...");
 					reader.lines().forEach(s -> {
-						// Do nothing, just read the lines
+						// Do nothing, just skip through all the lines
 					});
+					// Then continue to the next ZipEntry
 					continue;
 				}
 
 				// Make ze Heatmap
-				HeatmapNew heatmap = new HeatmapNew(heatmapType, userID);
+				HeatmapNew heatmap = new HeatmapNew(recognizedHeatmapType, userID);
 
 				// Read the tile values
 				final int[] errorCount = {0}; // Number of parsing errors occurred during read
@@ -688,10 +689,10 @@ public class WorldHeatmapPlugin extends Plugin
 				});
 				if (errorCount[0] != 0)
 				{
-					log.error(errorCount[0] + " errors occurred during " + heatmapType + " heatmap file read.");
+					log.error(errorCount[0] + " errors occurred during " + recognizedHeatmapType + " heatmap file read.");
 				}
-				loggingOutput.append(heatmapType + " (" + numTilesVisited + " tiles), ");
-				hashmapsRead.put(heatmapType, heatmap);
+				loggingOutput.append(recognizedHeatmapType + " (" + numTilesVisited + " tiles), ");
+				hashmapsRead.put(recognizedHeatmapType, heatmap);
 			}
 			log.info(loggingOutput.toString());
 
@@ -842,7 +843,7 @@ public class WorldHeatmapPlugin extends Plugin
 			{
 				ImageWriter writer = ImageIO.getImageWritersByFormatName("tif").next();
 				writer.setOutput(ios);
-				final int tileWidth = 8800;
+				final int tileWidth = 11520;
 				final int tileHeight = calculateTileHeight(config.speedMemoryTradeoff());
 				final int N = reader.getHeight(0) / tileHeight;
 
@@ -889,7 +890,8 @@ public class WorldHeatmapPlugin extends Plugin
 	private int calculateTileHeight(int configSetting)
 	{
 		// NOTE: these will have to be recalculated if the world map image's size is ever changed
-		return new int[]{16, 32, 80, 496, 992, 2480, 4960}[configSetting];
+		// They must be multiples of 16 and evenly divide the image height
+		return new int[]{16, 32, 64, 128, 256, 640, 800, 1600, 3200, 6400}[configSetting];
 	}
 
 	private class HeatmapProgressListener implements IIOWriteProgressListener

@@ -142,7 +142,7 @@ public class HeatmapImage implements RenderedImage
 	public boolean isGameTileInImageBounds(Point point)
 	{
 		Point pixelLocation = gameCoordsToImageCoords(point);
-		return pixelLocation.x > 0 && pixelLocation.x < getWidth() && pixelLocation.y > 0 && pixelLocation.y < getHeight();
+		return pixelLocation.x >= 0 && pixelLocation.x < getWidth() && pixelLocation.y >= 0 && pixelLocation.y < getHeight();
 	}
 
 	@Override
@@ -270,13 +270,14 @@ public class HeatmapImage implements RenderedImage
 		while (!sortedHeatmapTiles.isEmpty())
 		{
 			Map.Entry<Point, Integer> tile = sortedHeatmapTiles.poll();
-			Point coords = tile.getKey();
-			coords = gameCoordsToImageCoords(coords);
-			boolean isInImageBounds = (coords.x > 0 && coords.y > 0 && coords.x < getWidth() && coords.y < getHeight());
+			// tilePixel is the upper-left coordinate of the 4x4 pixel square that this tile covers
+			Point tilePixel = tile.getKey();
+			tilePixel = gameCoordsToImageCoords(tilePixel);
+			boolean isInImageBounds = (tilePixel.x >= 0 && tilePixel.y >= 0 && tilePixel.x < getWidth() && tilePixel.y < getHeight());
 			int tileValue = tile.getValue();
 
-			int comparison1 = compareNaturalReadingOrder(coords.x, coords.y, region.x, region.y);
-			int comparison2 = compareNaturalReadingOrder(coords.x, coords.y, region.x + region.width, region.y + region.height);
+			int comparison1 = compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x, region.y);
+			int comparison2 = compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x + region.width, region.y + region.height);
 			// If current tile is after bottom right edge of current image region in reading order
 			if (comparison2 > 0)
 			{
@@ -295,12 +296,12 @@ public class HeatmapImage implements RenderedImage
 			double currHue = calculateHue(tileValue, heatmapSensitivity, heatmapMinVal, heatmapMaxVal);
 
 			// Reassign the new RGB values to the corresponding 9 pixels (each tile covers 3x3 image pixels)
-			for (int x_offset = 0; x_offset <= 2; x_offset++)
+			for (int x_offset = 0; x_offset < 4; x_offset++)
 			{
-				for (int y_offset = 0; y_offset <= 2; y_offset++)
+				for (int y_offset = 0; y_offset < 4; y_offset++)
 				{
-					int curX = coords.x - region.x + x_offset;
-					int curY = coords.y - region.y + y_offset;
+					int curX = tilePixel.x - region.x + x_offset;
+					int curY = tilePixel.y - region.y + y_offset;
 					if (curX >= imageRegion.getWidth() || curY >= imageRegion.getHeight())
 					{
 						continue;
@@ -368,19 +369,19 @@ public class HeatmapImage implements RenderedImage
 	}
 
 	/**
-	 * @param point True gameworld coordinate
+	 * @param gameCoord True gameworld coordinate
 	 * @return The upper-left of the 9-pixel square location on the image osrs_world_map.png that this game coordinate responds to (1 game coordinate = 3x3 pixels). If it is out of bounds, then (-1, -1) is returned
 	 */
-	public static Point gameCoordsToImageCoords(Point point)
+	public static Point gameCoordsToImageCoords(Point gameCoord)
 	{
-		int IMAGE_WIDTH = 8800;
-		int IMAGE_HEIGHT = 4960;
-		int PIXEL_OFFSET_X = -3109;
-		int PIXEL_OFFSET_Y = 7462;
+		int IMAGE_WIDTH = 11520;
+		int IMAGE_HEIGHT = 6400;
+		int PIXEL_OFFSET_X = -4147;
+		int PIXEL_OFFSET_Y = 10160;
 
-		point = remapGameTiles(point);
+		gameCoord = remapGameTiles(gameCoord);
 
-		Point pixelLocation = new Point(3 * point.x + PIXEL_OFFSET_X, IMAGE_HEIGHT - (3 * point.y) + PIXEL_OFFSET_Y);
+		Point pixelLocation = new Point(4 * gameCoord.x + PIXEL_OFFSET_X, IMAGE_HEIGHT - (4 * gameCoord.y) + PIXEL_OFFSET_Y);
 		if (pixelLocation.x < 0 || pixelLocation.y < 0 || pixelLocation.x > IMAGE_WIDTH || pixelLocation.y > IMAGE_HEIGHT)
 		{
 			return new Point(-1, -1);
@@ -394,10 +395,10 @@ public class HeatmapImage implements RenderedImage
 	public static Point imageCoordsToGameCoords(Point imageCoords)
 	{
 		//I haven't checked if this code works
-		int IMAGE_WIDTH = 8800;
+		int IMAGE_WIDTH = 11520;
 		int IMAGE_HEIGHT = 4960;
-		int PIXEL_OFFSET_X = -3109;
-		int PIXEL_OFFSET_Y = 7462;
+		int PIXEL_OFFSET_X = -932;
+		int PIXEL_OFFSET_Y = 6941;
 		if (imageCoords.x < 0 || imageCoords.y < 0 || imageCoords.x > IMAGE_WIDTH || imageCoords.y > IMAGE_HEIGHT)
 		{
 			return new Point(-1, -1);

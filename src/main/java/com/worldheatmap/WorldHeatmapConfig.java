@@ -89,7 +89,7 @@ public interface WorldHeatmapConfig extends Config
 	}
 
 	@Range(
-		max = 6
+		max = 9
 	)
 	@ConfigItem(
 		keyName = "speedMemoryTradeoff",
@@ -100,7 +100,7 @@ public interface WorldHeatmapConfig extends Config
 	)
 	default int speedMemoryTradeoff()
 	{
-		return 3;
+		return 4;
 	}
 
 }
