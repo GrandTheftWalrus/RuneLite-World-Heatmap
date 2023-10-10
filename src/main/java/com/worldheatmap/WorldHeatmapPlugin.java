@@ -475,8 +475,8 @@ public class WorldHeatmapPlugin extends Plugin
 		if (config.typeABImageAutosave() && highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0)
 		{
 			worldHeatmapPluginExecutor.execute(() -> writeHeatmapsFile(heatmaps, heatmapsFile));
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile));
-			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), typeBImageFile));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile, false));
+			worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), typeBImageFile, false));
 		}
 		// if it wasn't the time to autosave an image (and therefore save the .heatmap), then check if it's time to autosave just the .heatmap file
 		else if (highestGameTimeTicks % WorldHeatmapPlugin.HEATMAP_AUTOSAVE_FREQUENCY == 0)
@@ -805,7 +805,7 @@ public class WorldHeatmapPlugin extends Plugin
 		log.info("Finished writing " + fileOut.getName() + " heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
 	}
 
-	protected void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut)
+	protected void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage)
 	{
 		log.info("Saving " + imageFileOut + " image to disk...");
 		long startTime = System.nanoTime();
@@ -829,9 +829,17 @@ public class WorldHeatmapPlugin extends Plugin
 			heatmapTransparency = 1;
 		}
 
+		String worldMapImageURL;
+		if (isFullMapImage){
+			worldMapImageURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map_full.png";
+		}
+		else {
+			worldMapImageURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map.png";
+		}
+
 		// Prepare the image reader
-		try (InputStream inputStream = new URL("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map.png").openStream();
-			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource osrs_world_map.png didn't exist")))
+		try (InputStream inputStream = new URL(worldMapImageURL).openStream();
+			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource didn't exist: '" + worldMapImageURL + "'")))
 		{
 			ImageReader reader = ImageIO.getImageReadersByFormatName("PNG").next();
 			reader.setInput(worldMapImageInputStream, true);
@@ -843,8 +851,14 @@ public class WorldHeatmapPlugin extends Plugin
 			{
 				ImageWriter writer = ImageIO.getImageWritersByFormatName("tif").next();
 				writer.setOutput(ios);
-				final int tileWidth = 11520;
-				final int tileHeight = calculateTileHeight(config.speedMemoryTradeoff());
+				final int tileWidth = reader.getWidth(0);
+				final int tileHeight;
+				if (isFullMapImage){
+					tileHeight = calculateTileHeightFullMap(config.speedMemoryTradeoff());
+				}
+				else {
+					tileHeight = calculateTileHeight(config.speedMemoryTradeoff());
+				}
 				final int N = reader.getHeight(0) / tileHeight;
 
 				// Make progress listener majigger
@@ -860,6 +874,7 @@ public class WorldHeatmapPlugin extends Plugin
 				writeParam.setCompressionQuality(0);
 
 				// Write heatmap image
+				// TODO: Make the heatmap image instantiation involve functional programming that tells it how to handle the offsets
 				RenderedImage heatmapImage = new HeatmapImage(heatmap, reader, N, heatmapTransparency, config.heatmapSensitivity());
 				writer.write(null, new IIOImage(heatmapImage, null, null), writeParam);
 				reader.dispose();
@@ -869,6 +884,7 @@ public class WorldHeatmapPlugin extends Plugin
 		}
 		catch (OutOfMemoryError e)
 		{
+			e.printStackTrace();
 			log.error("OutOfMemoryError thrown whilst creating and/or writing image file. " +
 				"If you're not able to fix the issue by lowering the memory usage settings " +
 				"(if they exist in this version of the plugin) then perhaps consider submitting" +
@@ -889,9 +905,22 @@ public class WorldHeatmapPlugin extends Plugin
 	 */
 	private int calculateTileHeight(int configSetting)
 	{
-		// NOTE: these will have to be recalculated if the world map image's size is ever changed
-		// They must be multiples of 16 and evenly divide the image height
-		return new int[]{16, 32, 64, 128, 256, 640, 800, 1600, 3200, 6400}[configSetting];
+		// NOTE: these should be adjusted if the world map image's size is ever changed
+		// They should evenly divide the image height or else the image will be cut off
+		return new int[]{16, 32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
+	}
+
+	/**
+	 * Calculates the tile height based on the config setting
+	 *
+	 * @param configSetting The config setting
+	 * @return The tile height
+	 */
+	private int calculateTileHeightFullMap(int configSetting)
+	{
+		// NOTE: these should be adjusted if the world map image's size is ever changed
+		// They should evenly divide the image height or else the image will be cut off
+		return new int[]{16, 32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
 	}
 
 	private class HeatmapProgressListener implements IIOWriteProgressListener
@@ -919,7 +948,7 @@ public class WorldHeatmapPlugin extends Plugin
 		@Override
 		public void imageProgress(ImageWriter source, float percentageDone)
 		{
-			panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.0f%%", percentageDone));
+			panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.2f%%", percentageDone));
 		}
 
 		@Override

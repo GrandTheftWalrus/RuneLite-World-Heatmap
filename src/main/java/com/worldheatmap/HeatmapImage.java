@@ -270,23 +270,22 @@ public class HeatmapImage implements RenderedImage
 		while (!sortedHeatmapTiles.isEmpty())
 		{
 			Map.Entry<Point, Integer> tile = sortedHeatmapTiles.poll();
-			// tilePixel is the upper-left coordinate of the 4x4 pixel square that this tile covers
-			Point tilePixel = tile.getKey();
+			Point tilePixel = tile.getKey(); // tilePixel is the upper-left coordinate of the 4x4 pixel square that this tile covers
 			tilePixel = gameCoordsToImageCoords(tilePixel);
 			boolean isInImageBounds = (tilePixel.x >= 0 && tilePixel.y >= 0 && tilePixel.x < getWidth() && tilePixel.y < getHeight());
 			int tileValue = tile.getValue();
 
-			int comparison1 = compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x, region.y);
-			int comparison2 = compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x + region.width, region.y + region.height);
+			boolean pixelIsBeforeRegion = (compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x, region.y) < 0);
+			boolean pixelIsAfterRegion = (compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x + region.width, region.y + region.height) > 0);
 			// If current tile is after bottom right edge of current image region in reading order
-			if (comparison2 > 0)
+			if (pixelIsAfterRegion)
 			{
 				// put it back in the front of the queue and return
 				sortedHeatmapTiles.addFirst(tile);
-				break;
+				return;
 			}
-			// If current tile is before upper left edge of current image region, or is out of bounds of the overworld, or hasn't been stepped on, skip
-			if (comparison1 < 0 || !isInImageBounds || tileValue == 0)
+			// If current tile is before upper left edge of current image region, or is out of bounds of the overworld, or hasn't been stepped on, skip this tile
+			if (pixelIsBeforeRegion || !isInImageBounds || tileValue == 0)
 			{
 				continue;
 			}
@@ -304,7 +303,9 @@ public class HeatmapImage implements RenderedImage
 					int curY = tilePixel.y - region.y + y_offset;
 					if (curX >= imageRegion.getWidth() || curY >= imageRegion.getHeight())
 					{
-						continue;
+						// put it back in the front of the queue and return
+						sortedHeatmapTiles.addFirst(tile);
+						return;
 					}
 					int srcRGB = imageRegion.getRGB(curX, curY);
 					int r = (srcRGB >> 16) & 0xFF;
@@ -331,20 +332,25 @@ public class HeatmapImage implements RenderedImage
 		return currHue;
 	}
 
-	private static int compareNaturalReadingOrder(int x1, int y1, int x2, int y2)
+	private int compareNaturalReadingOrder(int x1, int y1, int x2, int y2)
 	{
-		if (y1 < y2)
-		{
-			return -1;
-		}
-		if (y1 > y2)
-		{
-			return 1;
-		}
-		else
-		{
-			return x1 - x2;
-		}
+		// This should return the difference in the row-major order of the two points
+		int rowMajor1 = y1 * getWidth() + x1;
+		int rowMajor2 = y2 * getWidth() + x2;
+		return rowMajor1 - rowMajor2;
+
+//		if (y1 < y2)
+//		{
+//			return -1;
+//		}
+//		if (y1 > y2)
+//		{
+//			return 1;
+//		}
+//		else
+//		{
+//			return x1 - x2;
+//		}
 	}
 
 	private void initializeProcessingVariables(HeatmapNew heatmap)
@@ -389,25 +395,6 @@ public class HeatmapImage implements RenderedImage
 		else
 		{
 			return pixelLocation;
-		}
-	}
-
-	public static Point imageCoordsToGameCoords(Point imageCoords)
-	{
-		//I haven't checked if this code works
-		int IMAGE_WIDTH = 11520;
-		int IMAGE_HEIGHT = 4960;
-		int PIXEL_OFFSET_X = -932;
-		int PIXEL_OFFSET_Y = 6941;
-		if (imageCoords.x < 0 || imageCoords.y < 0 || imageCoords.x > IMAGE_WIDTH || imageCoords.y > IMAGE_HEIGHT)
-		{
-			return new Point(-1, -1);
-		}
-		else
-		{
-			int x = (PIXEL_OFFSET_X - imageCoords.x) / 3;
-			int y = (IMAGE_HEIGHT + PIXEL_OFFSET_Y - imageCoords.y) / 3;
-			return new Point(x, y);
 		}
 	}
 
