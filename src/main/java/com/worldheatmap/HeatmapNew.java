@@ -7,7 +7,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
-import org.w3c.dom.css.Rect;
 
 public class HeatmapNew
 {
@@ -31,7 +30,7 @@ public class HeatmapNew
 	private long userID = -1;
 
 	public enum HeatmapType
-	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, MELEE_FIGHTING, RANGED_FIGHTING, MAGE_FIGHTING, DRAGON_IMPLING_CATCHES, UNKNOWN}
+		{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
 	@Getter @Setter
 	private HeatmapType heatmapType;
 
@@ -112,12 +111,6 @@ public class HeatmapNew
 	 */
 	protected void set(int x, int y, int newValue)
 	{
-		try{
-
-		}
-		catch (OutOfMemoryError e){
-
-		}
 		//We don't keep track of unstepped-on tiles
 		if (newValue < 0)
 		{
@@ -181,6 +174,23 @@ public class HeatmapNew
 		{
 			minVal = new int[]{newValue, x, y};
 		}
+	}
+
+	/**
+	 * Returns the estimated total memory usage of the heatmap, in bytes, assuming 64 bit JVM and 8-byte alignment. Relatively expensive to run because it has to iterate through the entire hashmap.
+	 * @return size in bytes
+	 */
+	public static int estimateSize(HeatmapNew heatmap){
+		int estSize = 0;
+		// Get count of values above and below 128
+		for (Entry<Point, Integer> e : heatmap.getEntrySet())
+		{
+			int nodeSize = 16 + 8 + 8 + 4 + 4; //16 bytes for Node  object, 8 and 8 for the key and value references, 4 for the hash value, then extra 4 for 8-byte alignment
+			int pointSize = 16 + 4 + 4; //16 bytes for Point object header, then 8 for each of the two int coords
+			int integerSize = (e.getValue() < 128 ? 8 : 16 + 4 + 4); //8 bytes for just header of pooled Integer, or 12 bytes for non-pooled Integer header plus inner int plus 4 bytes for 8-byte alignment
+			estSize += nodeSize + pointSize + integerSize;
+		}
+		return estSize;
 	}
 
 	/**

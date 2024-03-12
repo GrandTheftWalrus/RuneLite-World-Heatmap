@@ -40,17 +40,21 @@ public class HeatmapImage implements RenderedImage
 	private final int numYTiles;
 	private int heatmapMinVal;
 	private int heatmapMaxVal;
+	int PIXEL_OFFSET_X;
+	int PIXEL_OFFSET_Y;
 
 	/**
 	 * @param worldMapImageReader osrs_world_map.png
 	 * @param numYTiles           Image width must be evenly divisible by numYTiles
 	 */
-	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency, int sensitivity)
+	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency, int sensitivity, int pixelOffsetX, int pixelOffsetY)
 	{
 		this.worldMapImageReader = worldMapImageReader;
 		this.numYTiles = numYTiles;
 		this.heatmapTransparency = transparency;
 		this.heatmapSensitivity = sensitivity;
+		this.PIXEL_OFFSET_X = pixelOffsetX;
+		this.PIXEL_OFFSET_Y = pixelOffsetY;
 		initializeProcessingVariables(heatmap);
 		try
 		{
@@ -114,7 +118,7 @@ public class HeatmapImage implements RenderedImage
 	 * @param heatmap The heatmap
 	 * @return An array of length 2, where the first element is the max value and the second element is the min value
 	 */
-	private int[] calculateMaxMinValuesWithinOverworld(HeatmapNew heatmap)
+	private int[] calculateMaxMinValues(HeatmapNew heatmap)
 	{
 		int maxVal = 0;
 		int minVal = Integer.MAX_VALUE;
@@ -338,34 +342,15 @@ public class HeatmapImage implements RenderedImage
 		int rowMajor1 = y1 * getWidth() + x1;
 		int rowMajor2 = y2 * getWidth() + x2;
 		return rowMajor1 - rowMajor2;
-
-//		if (y1 < y2)
-//		{
-//			return -1;
-//		}
-//		if (y1 > y2)
-//		{
-//			return 1;
-//		}
-//		else
-//		{
-//			return x1 - x2;
-//		}
 	}
 
 	private void initializeProcessingVariables(HeatmapNew heatmap)
 	{
-		// Create sorted heatmap tiles array (sorted left-to-right top-to-bottom)
-		//int[] minMaxVals = calculateMinMaxValuesWithinOverworld(heatmap);
-		//TODO: make it so the following two lines use the above instead of what they're currently using.
-		//	I did it earlier but it caused a bug so I undid it so that future me can fix it
-		int[] maxMin = calculateMaxMinValuesWithinOverworld(heatmap);
+		// Get min/max values within writeable region to be written
+		int[] maxMin = calculateMaxMinValues(heatmap);
 		heatmapMaxVal = maxMin[0];
 		heatmapMinVal = maxMin[1];
-		// TODO: remove these prints when I fix the stuff
-		log.debug("Max Tile: " + heatmapMaxVal);
-		log.debug("Min Tile: " + heatmapMinVal);
-		log.debug("MAX VAL:");
+		// Create sorted heatmap tiles array (sorted left-to-right top-to-bottom)
 		sortedHeatmapTiles = new LinkedList<>(heatmap.getEntrySet());
 		sortedHeatmapTiles.sort((tile1, tile2) -> {
 			Point coords1 = tile1.getKey();
@@ -378,15 +363,11 @@ public class HeatmapImage implements RenderedImage
 	 * @param gameCoord True gameworld coordinate
 	 * @return The upper-left of the 9-pixel square location on the image osrs_world_map.png that this game coordinate responds to (1 game coordinate = 3x3 pixels). If it is out of bounds, then (-1, -1) is returned
 	 */
-	public static Point gameCoordsToImageCoords(Point gameCoord)
+	public Point gameCoordsToImageCoords(Point gameCoord)
 	{
-		int IMAGE_WIDTH = 11520;
-		int IMAGE_HEIGHT = 6400;
-		int PIXEL_OFFSET_X = -4147;
-		int PIXEL_OFFSET_Y = 10160;
-
+		final int IMAGE_WIDTH = getWidth();
+		final int IMAGE_HEIGHT = getHeight();
 		gameCoord = remapGameTiles(gameCoord);
-
 		Point pixelLocation = new Point(4 * gameCoord.x + PIXEL_OFFSET_X, IMAGE_HEIGHT - (4 * gameCoord.y) + PIXEL_OFFSET_Y);
 		if (pixelLocation.x < 0 || pixelLocation.y < 0 || pixelLocation.x > IMAGE_WIDTH || pixelLocation.y > IMAGE_HEIGHT)
 		{

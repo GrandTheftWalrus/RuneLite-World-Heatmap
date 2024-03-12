@@ -18,6 +18,7 @@ public class WorldHeatmapPanel extends PluginPanel
 	private final WorldHeatmapPlugin plugin;
 	private JLabel playerIDLabel;
 	Map<HeatmapNew.HeatmapType, JLabel> heatmapTotalValueLabels = new HashMap<>();
+	Map<HeatmapNew.HeatmapType, JLabel> heatmapMemoryUsageLabels = new HashMap<>();
 	Map<HeatmapNew.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
 	Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
 	protected long mostRecentLocalUserID;
@@ -62,8 +63,12 @@ public class WorldHeatmapPanel extends PluginPanel
 		mainPanel.add(openHeatmapFolderButton);
 		add(mainPanel);
 
-		// Create the buttons for each loaded Heatmap type
+		// Create the panels/buttons for each loaded Heatmap type
 		for (HeatmapNew.HeatmapType heatmapType : HeatmapNew.HeatmapType.values()){
+			// Do not create panels for disabled heatmaps
+			if (!plugin.isHeatmapEnabled(heatmapType)){
+				continue;
+			}
 			//Panel
 			JPanel heatmapPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
 			heatmapPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
@@ -79,7 +84,7 @@ public class WorldHeatmapPanel extends PluginPanel
 			//'Write Heatmap Image' button
 			JButton writeHeatmapImageButton = new JButton("Write Heatmap Image");
 			writeHeatmapImageButton.setFont(buttonFont);
-			writeHeatmapImageButton.addActionListener(e -> writeHeatmapImage(heatmapType));
+			writeHeatmapImageButton.addActionListener(e -> writeHeatmapImage(heatmapType, plugin.config.isWriteFullImageEnabled()));
 			writeHeatmapImageButtons.put(heatmapType, writeHeatmapImageButton);
 			heatmapPanel.add(writeHeatmapImageButton);
 
@@ -105,6 +110,13 @@ public class WorldHeatmapPanel extends PluginPanel
 			heatmapTotalValueLabel.setHorizontalAlignment(SwingConstants.CENTER);
 			heatmapTotalValueLabels.put(heatmapType, heatmapTotalValueLabel);
 			heatmapPanel.add(heatmapTotalValueLabel);
+
+			// Estimated memory usage label
+			JLabel heatmapMemoryUsageLabel = new JLabel("Mem: 0");
+			heatmapMemoryUsageLabel.setToolTipText("Estimated memory usage of the heatmap");
+			heatmapMemoryUsageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+			heatmapMemoryUsageLabels.put(heatmapType, heatmapMemoryUsageLabel);
+			heatmapPanel.add(heatmapMemoryUsageLabel);
 
 			add(heatmapPanel);
 		}
@@ -135,12 +147,23 @@ public class WorldHeatmapPanel extends PluginPanel
 		updateUI();
 	}
 
-	private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType)
+	protected void updateMemoryUsages()
+	{
+		for (HeatmapNew.HeatmapType heatmapType : plugin.heatmaps.keySet())
+		{
+			if (heatmapMemoryUsageLabels.get(heatmapType) != null){
+				heatmapMemoryUsageLabels.get(heatmapType).setText(String.format("Mem: %.2fMB", (float) HeatmapNew.estimateSize(plugin.heatmaps.get(heatmapType)) / 1024 / 1024));
+			}
+		}
+		updateUI();
+	}
+
+	private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage)
 	{
 		// Save all heatmap data
-		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsFile(plugin.heatmaps, new File(plugin.mostRecentLocalUserID + ".heatmaps")));
+		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsToFile(plugin.heatmaps.values(), new File(plugin.mostRecentLocalUserID + ".heatmaps")));
 		// Write the specified heatmap image
-		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapImage(plugin.heatmaps.get(heatmapType), new File(plugin.mostRecentLocalUserID + "_" + heatmapType.toString() + ".tif"), false));
+		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapImage(plugin.heatmaps.get(heatmapType), new File(plugin.mostRecentLocalUserID + "_" + heatmapType.toString() + ".tif"), isFullMapImage));
 	}
 
 	private void clearHeatmap(HeatmapNew.HeatmapType heatmapType)
@@ -148,7 +171,7 @@ public class WorldHeatmapPanel extends PluginPanel
 		// Replace the heatmap with a new one
 		plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID));
 		// Rewrite the heatmap data file
-		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsFile(plugin.heatmaps, new File(plugin.mostRecentLocalUserID + ".heatmaps")));
+		plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsToFile(plugin.heatmaps.values(), new File(plugin.mostRecentLocalUserID + ".heatmaps")));
 	}
 
 	private void openHeatmapsFolder() throws IOException

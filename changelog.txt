@@ -1,0 +1,168 @@
+-Fixed serialization issues by storing data in compressed .CSVs (called a .heatmap file) instead of using compressed serialized Java Heatmap objects, which was causing horrible serialization issues. The plugin is backwards compatible with the old Heatmap style, but not the unreleased HeatmapNew style (which only I used)
+
+-Implemented primitive hashmap (IntIntHashMap from eclipse-collections) which should drastically reduce memory usage compared to the original HashMap<Point, Integer>
+Reasoning as follows:
+{{{
+Reconsidering for the millionth time the most efficient way to hold heatmap data in memory
+
+Option 1:	HashMap<Point, Integer>
+Problems:	Each tile requires a Point object (24 bytes) and an Integer object (16 bytes), plus the usual hashmap overhead (possibly including Entry objects?)
+
+Option 2:	Some sort of bitmap
+Problems:	So much wasted space.
+	Bitmap size = 2752*1664 * 4 byte int = 18,317,312 bytes (17.46 MB)
+	For hashmap: each visited tile size * number of tiles visited = (24+16) * X = 18,317,312 = 40X.
+	X = 457933 visited tiles before it becomes the size of the bitmap. That is 10% of the overworld map.
+	The number of tiles that I have stepped on in my thoroughly tested heatmap is 81694 (1.8% of overworld map)
+	Also, bitmap wouldn't allow for storage of tiles underground (yet to implement)
+
+Option 3:	primitive hashmap by eclipse-collections: IntInthashmap. I estimate it should use only 20% of the memory that the HashMap<Point, Integer> uses
+(because IntIntHashMap should use just two 4-byte primitive ints (8  bytes) instead of a 24 byte Point and a 16 byte Integer (40 bytes) for each tile)
+}}}
+
+
+2023-09-18: After some analysis I've discovered that using IntIntHashMap is totally unnecessary. It reduces the hashmap from like 4mb (hardly anything to begin with) to half a megabyte. Also, it appears that my PNG one-chunk-at-a-time reader and writer is working and actually reduces memory by 10x. At least the reading part of it does. I still need to figure out the chunk by chunk writing part.
+	Result 2023-09-18: Magically figured out ImageIO TIFF tiling. The west is saved and the plugin can now use as little as 12MB to create world heatmap images (if you're willing to wait a long time, but it's adjustable)
+
+2023-09-18: Made it so that tiles outside of the overworld range are kept track of too (previously, they were not.) They are currently not (and will probably never be) displayed in the local world heatmap image, because the underground areas are thousands of tiles north of the overworld and it would use way too much memory for clients to render the large image without some complicated solution. Also, the image would be too large and mostly empty and just be ugly. I'll save the underground stuff for the global world heatmap, perhaps. Or maybe I'll include a java program that can render the big image offline (i.e, outside of RuneLite) so that it doesn't totally vore the allocated memory
+
+2023-09-18: Put PiecewiseImageReaderWriter functionality into the plugin (aww yee)
+
+2023-09-18: Removed system.out.println()s
+
+2023-09-18: The minimum  tiles stepped on field of HeatmapNew never seems to be updated from 1 at (0, 0)
+	Solution: It happens when loading in an already made heatmap because it does setFast() instead of set(), so I made it so it does .set() instead of .setFast() (and got rid of setFast)
+
+2023-09-18: Updated osrs_world_map.png and update the image boundary/offset constants. Q: will stepping into the new area crash the plugins of users using the old style and will the data have been stored so that it can be included in their upcoming HeatmapNew? Answer: Users of the outdated plugin version shouldn't crash, but their steps there won't be stored. Once they use the new version, their steps there will begin to be kept track of
+
+2023-09-18: Fixed heatmap transparency for HeatmapImage
+
+2023-09-18: Made it so that osrs_world_map.png is an online file so that I can update it on the fly when the world map is changed (and for christmas lul)
+
+2023-09-18: Made it so that off-world priffdinas steps are mapped onto priffdinas in the output image, on image write
+
+2023-09-18: Made it so that the write heatmap button is greyed out whilst it's already writing one, and changed the text to "Writing... 10%" etc
+
+2023-09-18: Made progress bar/percentage thing for image writing
+
+2023-09-18: Made an option to change the speed-memory tradeoff
+
+2023-09-18: Made it so you can't spam click the write image button
+
+2023-09-23: Changed structure of .heatmap file (now called .heatmaps). It's a zip folder containing a .CSV file for each heatmap type
+
+2023-09-23: Heatmap types added: 
+	-Non-PK Deaths
+	-PK deaths
+	-All deaths
+	-dragon impling catches
+	-things said out loud
+	-value of dropped loot per where you were standing
+	-random event spawns
+	-places teleported to
+	-places teleported from
+	-direct lines of teleportation lul (like a flight map)
+	-evil bob sightings
+	-weighted melee/range/mage strength/accuracy per kill at location
+	-xp gained at each tile
+NOTE: Will need to include a warning and an opt-in checkbox for global heatmap data when zee website comes along
+
+2023-09-23: Made it so that heatmap images are always written like mostRecentUserID + "_" + heatmapType.toString() + ".tif"
+
+2023-09-23: Got rid of Write CSV button, since you can access all of the CSVs by just unzipping the .heatmaps file
+
+2023-09-23: Made an entry for each heatmap type in the panel
+
+2023-09-23: Made it so that heatmap sensitivity works again
+
+2023-09-23: Implemented direct lines of teleportation lul (like a flight map)
+
+2023-09-23: Implemented places teleported to
+
+2023-09-23: Implemented places teleported from
+
+2023-09-23: Implemented Deaths (untested)
+
+2023-09-23: Implemented placed spoken at (untested)
+
+2023-09-23: Implement xp gained at each tile
+
+2023-09-23: Made it so that totalValue is a long
+
+2023-09-23: Implemented random event spawns (currently counts all random events and not just ones meant for the local player)
+
+2023-09-23: Implemented value of dropped loot per where you were standing (untested) (note: the program doesn't intuit where the item came from. It just knows that it was dropped at that tile. So if you repeatedly drop and pick up and item, it will be counted each time)
+
+2023-09-24: Made it so the evil bob sighting timer is per-world
+
+2023-09-24: Implemented bob the cat sightings
+
+2023-09-24: Implemented NPC_DEATHS (untested)
+
+2023-09-24: Investigated why TELEPORT_PATHS has so many tiles written and why its CSV takes up so much space on disk
+           	Result: might have been because it was tracking teleports to/from the coordinate (1, 1). might've had something to do with logging in. Supposedly fixed by making an isInOverworld() method
+
+2023-09-24: Made it so that the restart heatmap button doesn't rewrite the image
+
+2023-09-26: Fixed how for some reason on windows, a file was being created in F:\Code\Java\RuneLite-World-Heatmap\Backups every single tick. The folder named "backups/[CURRENT TIME]" was being created every tick, when instead, each tick, the program should just check if a heatmap backup file should be created in .runelite/worldheatmap/Backups. I might have created the error only a few minutes before.
+
+2023-09-27: Note to self: On windows at least, it seems backups are being made not exactly when I presume they should be (not on the 800th step per se, when the backup frequency is 200, but some time later?) will have to shrek it out
+			Result: Just remembered that it autosaves based on heatmap age, not step count.
+
+2023-09-27: Disabled image autosaving by default, but make it so that the user can enable it if they want to
+
+2023-09-27: Made it so the program ignores unexpected ZipEntries in the .heatmaps file and doesn't crash, but gives a warning
+
+2023-09-27: Fixed "LOOT_VALUE heatmap is null" error
+
+2023-09-27: UNVERIFIED: Made it so that the min/max tile values used to calculate the heatmap colors are calculated only from tiles to be drawn (aka overworld tiles)
+
+2023-10-01: Made it so that LOOT_VALUE works properly, and doesn't count ground items when a chunk has just been loaded or include anything other than loot from an NPC that the player has just killed (turns out there's an Event for that, which doesn't seem to be listed on the runelite API Events page)
+
+2023-10-04: Changed Number of levels for speed-memory tradeoff from 7 to 10
+
+2023-10-05: Before I could implement the entire osrs world map image writing, I made it so osrs_world_map.png uses 4x4 pixel tiles instead of 3x3. A new osrs_world_map.png had to be made (cut out from Explv's world map image)
+
+2023-10-05: Changed the HeatmapImage offsets/gameCoordsToImageCoords to fit the new osrs_world_map.png
+
+2023-10-05: Made sure that processImageRegion can write images with 4x4 px per tile
+
+2023-10-07: Fixed how tiles that fall on the edges of TIFF tiles are not written. I fixed it by making processImageRegion return if a pixel that is currently attempting to be written is outside the image bounds and re-add the pixel to the queue, instead of just skipping the pixel
+
+2023-10-07: Saw what happens if I don't use multiples of 16 for tile height. UPDATE: it works fine
+
+2023-10-10: Enable plugin users to write their own full-map images in-game, which include non-overworld areas
+
+2023-10-12: Make the loading text on the heatmap panel red to make it more noticeable
+
+2023-10-12: Made each heatmap type toggleable. Note: The disabled heatmaps are still loaded into memory or initialized, but they are not incremented.
+            NOTE: This was done by keeping the reading and writing of supported heatmaps enabled, but will just make the incrementing of each heatmap type dependent on whether or not it is enabled
+
+2024-03-11:	Made a `config.isHeatmapEnabled(heatmapType)` function instead of having a bunch of different functions
+2024-03-11:	Make new method that writes one heatmap type at a time to the .heatmaps ZIP instead of all at once
+2024-03-11:	Modify writeHeatmapsFile to use the above function to write all enabled heatmaps (do not perform it on disabled/unloaded ones or they'll be restarted or null pointer exceptions will be thrown)
+2024-03-11:	Made it so that during writing, if a heatmap is disabled or not loaded, leave it untouched in the .heatmaps ZIP
+2024-03-11:	Made it so that when disabled, a heatmap type is not loaded on startup
+2024-03-11:	Added the condition to initializeMissingHeatmaps() that they're not initialized if disabled
+2024-03-11:	Changed the readHeatmapsFile method to use FileSystem instead of ZipInputStream
+2024-03-11:	Made it so that a heatmap being disabled makes it not show up in the panel
+2024-03-11:	Separated readHeatmapFromFile into `readHeatmap(HeatmapType, HeatmapsFile)` and `readHeatmapOld(HeatmapsFile)`
+2024-03-11:	Made it so that on enabled, a heatmap type is read from disk and loaded
+2024-03-11:	Made it so that on disabled, a heatmap type is saved to disk
+2024-03-11:	Made it so that panels don't appear for disabled heatmaps
+2024-03-11:	Make it so that when disabled, heatmap types are not incremented
+2024-03-11:	tl;dr made it so that disabling heatmaps writes them to disk, and enabling loads them.
+
+2024-03-11:	Implemented memory usage estimation for each beatbap type, based on number of Entry<Point, Integer> objects, Point objects, and pooled/unpooled Integer objects
+2024-03-11:	Asked chatGPT if there is a less retarded workaround for the old serialization issue.
+	Result: Seems like I screwed myself by previously using ObjectOutputStream to write Heatmap objects without serialVersionUID fields. There's not really a way to deserialize these files to Heatmap objects without having the unmodified Heatmap class in the program, so I'm stuck having Heatmap and HeatmapNew
+2024-03-11: See if RuneLite occasionally not wanting to terminate has something to do with the plugin
+	Result: it doesn't seem to happen anymore so perhaps it was not related to the plugin
+2024-03-11:	Implemented damage taken
+2024-03-11:	Implemented damage given
+
+----You are Here----
+
+TODO: test the update by posting a shadowjar on grithib
+
+TODO: release the update
