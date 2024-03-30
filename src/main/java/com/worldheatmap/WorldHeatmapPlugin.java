@@ -2,25 +2,18 @@ package com.worldheatmap;
 
 import com.google.inject.Provides;
 
-import java.awt.Color;
+import java.awt.*;
 import java.awt.Point;
-import java.awt.image.RenderedImage;
 import java.io.*;
-import java.net.URI;
-import java.net.URL;
 import java.nio.file.*;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.InflaterInputStream;
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.event.IIOWriteProgressListener;
-import javax.imageio.stream.ImageInputStream;
-import javax.imageio.stream.ImageOutputStream;
 import javax.inject.Inject;
 import javax.swing.*;
 
@@ -42,7 +35,6 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
 
 import java.awt.image.BufferedImage;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.*;
 
 import net.runelite.client.game.ItemManager;
@@ -59,12 +51,12 @@ public class WorldHeatmapPlugin extends Plugin {
     private int lastY = 0;
     protected long mostRecentLocalUserID;
     private boolean shouldLoadHeatmaps;
-    protected final File WORLDHEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
-    protected final File HEATMAP_FILES_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Files").toFile();
-    protected final File HEATMAP_IMAGE_DIR = Paths.get(WORLDHEATMAP_DIR.toString(), "Heatmap Images").toFile();
+    protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
+    protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
+    protected final File HEATMAP_IMAGE_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Images").toFile();
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
     private NavigationButton toolbarButton;
-    private WorldHeatmapPanel panel;
+    protected WorldHeatmapPanel panel;
     private final ArrayList<Integer> randomEventNPCIDs = new ArrayList<>(Arrays.asList(NpcID.BEE_KEEPER_6747,
             NpcID.CAPT_ARNAV,
             NpcID.DRUNKEN_DWARF,
@@ -133,7 +125,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
         if (filepathUserID.exists()) {
             // Load all heatmaps from the file
-            heatmaps = readHeatmapsFromFile(filepathUserID);
+            heatmaps = HeatmapNew.readHeatmapsFromFile(filepathUserID, getEnabledHeatmapTypes());
         } else // If the file doesn't exist, then check for the old username files
         {
             log.info("File '" + filepathUserID.getName() + "' did not exist. Checking for old version files '" + filepathTypeAUsername.getName() + "' and '" + filepathTypeBUsername.getName() + "'...");
@@ -177,8 +169,9 @@ public class WorldHeatmapPlugin extends Plugin {
     @Override
     protected void shutDown() {
         if (loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()) {
-            String filepath = Paths.get(mostRecentLocalUserID + ".heatmaps").toString();
-            worldHeatmapPluginExecutor.execute(() -> writeHeatmapsToFile(heatmaps.values(), new File(filepath)));
+            String filepath = Paths.get(HEATMAP_FILES_DIR.getPath(), mostRecentLocalUserID + ".heatmaps").toString();
+            log.debug("WRITING HEATMAPS TO FILE " + filepath);
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), new File(filepath)));
         }
         clientToolbar.removeNavigation(toolbarButton);
     }
@@ -192,8 +185,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // If you're at the login screen and heatmaps have been loaded (implying that you were previously logged in, but now you're logged out)
         if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN && loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()) {
-            String filepath = Paths.get(mostRecentLocalUserID + ".heatmaps").toString();
-            worldHeatmapPluginExecutor.execute(() -> writeHeatmapsToFile(heatmaps.values(), new File(filepath)));
+            String filepath = Paths.get(HEATMAP_FILES_DIR.getPath(), mostRecentLocalUserID + ".heatmaps").toString();
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), new File(filepath)));
             loadHeatmapsFuture = null;
         }
         if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
@@ -419,9 +412,9 @@ public class WorldHeatmapPlugin extends Plugin {
      * Autosave the heatmap file/write the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do each respective thing according to their frequencies
      */
     private void autosaveRoutine() {
-        File heatmapsFile = Paths.get(mostRecentLocalUserID + ".heatmaps").toFile();
-        File typeAImageFile = new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif");
-        File typeBImageFile = new File(mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
+        File heatmapsFile = new File(HEATMAP_FILES_DIR, mostRecentLocalUserID + ".heatmaps");
+        File typeAImageFile = new File(HEATMAP_IMAGE_DIR, mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif");
+        File typeBImageFile = new File(HEATMAP_IMAGE_DIR,mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
 
         // Find the largest game time ticks of all the heatmaps
         int highestGameTimeTicks = 0;
@@ -433,17 +426,17 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // If it's time to autosave the image, then save heatmap file (so file is in sync with image) and write image file
         if (config.typeABImageAutosave() && highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0) {
-            worldHeatmapPluginExecutor.execute(() -> writeHeatmapsToFile(heatmaps.values(), heatmapsFile));
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsFile));
             if (config.isHeatmapTypeAEnabled()) {
-                worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile, false));
+                worldHeatmapPluginExecutor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile, false, config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, HeatmapNew.HeatmapType.TYPE_A)));
             }
             if (config.isHeatmapTypeBEnabled()) {
-                worldHeatmapPluginExecutor.execute(() -> writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), typeBImageFile, false));
+                worldHeatmapPluginExecutor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), typeBImageFile, false, config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, HeatmapNew.HeatmapType.TYPE_B)));
             }
         }
         // if it wasn't the time to autosave an image (and therefore save the .heatmap), then check if it's time to autosave just the .heatmap file
         else if (highestGameTimeTicks % WorldHeatmapPlugin.HEATMAP_AUTOSAVE_FREQUENCY == 0) {
-            worldHeatmapPluginExecutor.execute(() -> writeHeatmapsToFile(heatmaps.values(), heatmapsFile));
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsFile));
         }
     }
 
@@ -452,7 +445,7 @@ public class WorldHeatmapPlugin extends Plugin {
      */
     private void backupRoutine() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-        File heatmapsBackupFile = new File("Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now().format(formatter) + ".heatmaps");
+        File heatmapsBackupFile = Paths.get(HEATMAP_FILES_DIR.getPath(), "Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now().format(formatter) + ".heatmaps").toFile();
         int highestGameTimeTicks = 0;
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
             if (heatmaps.get(type).getGameTimeTicks() > highestGameTimeTicks) {
@@ -460,7 +453,7 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         }
         if (highestGameTimeTicks % config.heatmapBackupFrequency() == 0) {
-            worldHeatmapPluginExecutor.execute(() -> writeHeatmapsToFile(heatmaps.values(), heatmapsBackupFile));
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsBackupFile));
         }
     }
 
@@ -560,94 +553,6 @@ public class WorldHeatmapPlugin extends Plugin {
         }
     }
 
-    private HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, List<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
-        Map<String, String> env = new HashMap<>();
-        env.put("create", "true");
-        URI uri = URI.create("jar:" + heatmapsFile.toURI());
-        try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
-            HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmapsRead = new HashMap<>();
-            StringBuilder loggingOutput = new StringBuilder();
-            loggingOutput.append("Heatmap types loaded: ");
-
-            for (HeatmapNew.HeatmapType curType : types) {
-                Path curHeatmapPath = fs.getPath("/" + curType.toString() + "_HEATMAP.csv");
-                if (!Files.exists(curHeatmapPath)) {
-                    continue;
-                }
-                try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
-                     BufferedReader reader = new BufferedReader(isr)) {
-                    // Read them field variables
-                    String[] fieldNames = reader.readLine().split(",");
-                    String[] fieldValues = reader.readLine().split(",");
-                    long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
-                    String heatmapTypeString = fieldValues[2];
-                    int totalValue = (fieldValues[3].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
-                    int numTilesVisited = (fieldValues[4].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
-                    int maxVal = (fieldValues[5].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
-                    int maxValX = (fieldValues[6].isEmpty() ? -1 : Integer.parseInt(fieldValues[6]));
-                    int maxValY = (fieldValues[7].isEmpty() ? -1 : Integer.parseInt(fieldValues[7]));
-                    int minVal = (fieldValues[8].isEmpty() ? -1 : Integer.parseInt(fieldValues[8]));
-                    int minValX = (fieldValues[9].isEmpty() ? -1 : Integer.parseInt(fieldValues[9]));
-                    int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
-                    int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
-
-                    // Get HeatmapType from field value if legit
-                    HeatmapNew.HeatmapType recognizedHeatmapType;
-                    if (Arrays.stream(HeatmapNew.HeatmapType.values()).noneMatch(type -> type.toString().equals(heatmapTypeString))) {
-                        log.warn("Heatmap type '" + heatmapTypeString + "' from ZipEntry '" + curHeatmapPath + "' is not a valid Heatmap type (at least in this program version). Ignoring...");
-                        // Stop reading and go to next Heatmap type
-                        continue;
-                    } else {
-                        recognizedHeatmapType = HeatmapNew.HeatmapType.valueOf(heatmapTypeString);
-                    }
-
-                    if (!isHeatmapEnabled(recognizedHeatmapType) && recognizedHeatmapType != HeatmapNew.HeatmapType.UNKNOWN) {
-                        log.info("Heatmap type '" + recognizedHeatmapType + "' is disabled. Ignoring and not loading...");
-                        continue;
-                    }
-
-                    // Make ze Heatmap
-                    HeatmapNew heatmap = new HeatmapNew(recognizedHeatmapType, userID);
-
-                    // Read and load the tile values
-                    final int[] errorCount = {0}; // Number of parsing errors occurred during read
-                    reader.lines().forEach(s -> {
-                        String[] tile = s.split(",");
-                        try {
-                            heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
-                        } catch (NumberFormatException e) {
-                            errorCount[0]++;
-                        }
-                    });
-                    if (errorCount[0] != 0) {
-                        log.error(errorCount[0] + " errors occurred during " + recognizedHeatmapType + " heatmap file read.");
-                    }
-                    loggingOutput.append(recognizedHeatmapType + " (" + numTilesVisited + " tiles), ");
-                    heatmapsRead.put(recognizedHeatmapType, heatmap);
-                } catch (IOException e) {
-                    log.error("Error reading " + curType + " heatmap from .heatmaps entry '" + curHeatmapPath + "'");
-                }
-            }
-            log.info(loggingOutput.toString());
-            return heatmapsRead;
-        } catch (FileNotFoundException e) {
-            throw e;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Loads all heatmap types from the given .heatmaps file.
-     *
-     * @param heatmapFile The .heatmaps file
-     * @return HashMap of HeatmapNew objects
-     * @throws FileNotFoundException If the file does not exist
-     */
-    private HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapFile) throws FileNotFoundException {
-        return readHeatmapsFromFile(heatmapFile, Arrays.asList(HeatmapNew.HeatmapType.values()));
-    }
-
     /**
      * Initializes any enabled Heatmap types in the given Map of Heatmaps that weren't loaded
      *
@@ -675,263 +580,22 @@ public class WorldHeatmapPlugin extends Plugin {
         }
     }
 
-    /**
-     * Saves a specified heatmap to the specified .heatmaps file within the 'Heatmap Files' folder. Forces overwrite of disabled heatmaps.
-     */
-    protected void writeHeatmapsToFile(HeatmapNew heatmap, File fileOut) {
-        writeHeatmapsToFile(Collections.singletonList(heatmap), fileOut, true);
+    Collection<HeatmapNew> getEnabledHeatmaps() {
+        return heatmaps.values().stream().filter(heatmap -> isHeatmapEnabled(heatmap.getHeatmapType())).collect(Collectors.toList());
     }
 
-    /**
-     * Saves provided heatmaps to specified file in 'Heatmap Files' folder. Disabled heatmaps are left unchanged in the file.
-     */
-    protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
-        writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, false);
-    }
-
-    /**
-     * Saves provided heatmaps to specified file in 'Heatmap Files' folder. Disabled heatmaps are left unchanged in the file.
-     */
-    protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, boolean forceOverwrite) {
-        if (!heatmapsFile.isAbsolute()) {
-            heatmapsFile = new File(HEATMAP_FILES_DIR, heatmapsFile.toString());
-        }
-        // Make the directory path if it doesn't exist
-        if (!Files.exists(Paths.get(heatmapsFile.getParent()))) {
-            if (!new File(heatmapsFile.getParent()).mkdirs()) {
-                log.error("World Heatmap was not able to create the directory for the heatmap file");
+    Collection<HeatmapNew.HeatmapType> getEnabledHeatmapTypes() {
+        List<HeatmapNew.HeatmapType> enabledTypes = new ArrayList<>();
+        for (HeatmapNew.HeatmapType type : HeatmapNew.HeatmapType.values()) {
+            if (isHeatmapEnabled(type)) {
+                enabledTypes.add(type);
             }
         }
-
-        // Creates the zip file if it doesn't exist
-        Map<String, String> env = new HashMap<>();
-        env.put("create", "true");
-        URI uri = URI.create("jar:" + heatmapsFile.toURI());
-
-        log.info("Saving heatmaps to file '" + heatmapsFile.getName() + "'...");
-        long startTime = System.nanoTime();
-        StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
-        for (HeatmapNew heatmap : heatmapsToWrite) {
-            if (isHeatmapEnabled(heatmap.getHeatmapType()) || forceOverwrite) {
-                // Write the heatmap file
-                try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
-                    Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
-                    try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
-                        // Write them field variables
-                        osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
-                        osw.write(heatmap.getUserID() +
-                                "," + HeatmapNew.getHeatmapVersion() +
-                                "," + heatmap.getHeatmapType() +
-                                "," + heatmap.getTotalValue() +
-                                "," + heatmap.getNumTilesVisited() +
-                                "," + heatmap.getMaxVal()[0] +
-                                "," + heatmap.getMaxVal()[1] +
-                                "," + heatmap.getMaxVal()[2] +
-                                "," + heatmap.getMinVal()[0] +
-                                "," + heatmap.getMinVal()[1] +
-                                "," + heatmap.getMinVal()[2] +
-                                "," + heatmap.getGameTimeTicks() + "\n");
-                        // Write the tile values
-                        for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()) {
-                            int x = e.getKey().x;
-                            int y = e.getKey().y;
-                            int stepVal = e.getValue();
-                            osw.write(x + "," + y + "," + stepVal + "\n");
-                        }
-                        osw.flush();
-                    }
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    log.error("World Heatmap was not able to save heatmap type '" + heatmap.getHeatmapType() + "' to file '" + heatmapsFile.getName() + "'");
-                }
-                loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
-            }
-        }
-        log.info(loggingOutput.toString());
-        log.info("Finished writing '" + heatmapsFile.getName() + "' heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
-    }
-
-    protected void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage) {
-        log.info("Saving " + imageFileOut + " image to disk...");
-        long startTime = System.nanoTime();
-        if (!imageFileOut.getName().endsWith(".tif")) {
-            imageFileOut = new File(imageFileOut.getName() + ".tif");
-        }
-
-        if (!imageFileOut.isAbsolute()) {
-            imageFileOut = new File(HEATMAP_IMAGE_DIR, imageFileOut.getName());
-        }
-
-        float heatmapTransparency = (float) config.heatmapAlpha();
-        if (heatmapTransparency < 0) {
-            heatmapTransparency = 0;
-        } else if (heatmapTransparency > 1) {
-            heatmapTransparency = 1;
-        }
-
-        String worldMapImageURL;
-        if (isFullMapImage) {
-            worldMapImageURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map_full.png";
-        } else {
-            worldMapImageURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map.png";
-        }
-
-        // Prepare the image reader
-        try (InputStream inputStream = new URL(worldMapImageURL).openStream();
-             ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource didn't exist: '" + worldMapImageURL + "'"))) {
-            ImageReader reader = ImageIO.getImageReadersByFormatName("PNG").next();
-            reader.setInput(worldMapImageInputStream, true);
-
-            // Prepare the image writer
-            try (FileOutputStream fos = new FileOutputStream(imageFileOut);
-                 BufferedOutputStream bos = new BufferedOutputStream(fos);
-                 ImageOutputStream ios = ImageIO.createImageOutputStream(bos)) {
-                ImageWriter writer = ImageIO.getImageWritersByFormatName("tif").next();
-                writer.setOutput(ios);
-                final int tileWidth = reader.getWidth(0);
-                final int tileHeight;
-                if (isFullMapImage) {
-                    tileHeight = calculateTileHeightFullMap(config.speedMemoryTradeoff());
-                } else {
-                    tileHeight = calculateTileHeight(config.speedMemoryTradeoff());
-                }
-                final int N = reader.getHeight(0) / tileHeight;
-
-                // Make progress listener majigger
-                HeatmapProgressListener progressListener = new HeatmapProgressListener(heatmap.getHeatmapType());
-                writer.addIIOWriteProgressListener(progressListener);
-
-                // Prepare writing parameters
-                ImageWriteParam writeParam = writer.getDefaultWriteParam();
-                writeParam.setTilingMode(ImageWriteParam.MODE_EXPLICIT);
-                writeParam.setTiling(tileWidth, tileHeight, 0, 0);
-                writeParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                writeParam.setCompressionType("Deflate");
-                writeParam.setCompressionQuality(0);
-
-                // Write heatmap image
-                RenderedImage heatmapImage;
-                // Get latest offset values from git repo
-                URL offsetsURL = new URL("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/offsets.csv");
-                Scanner scanner = new Scanner(offsetsURL.openStream());
-                scanner.next(); // Skip the headers
-                scanner.useDelimiter(",");
-                int fullMapOffsetX = Integer.parseInt(scanner.next().trim());
-                int fullMapOffsetY = Integer.parseInt(scanner.next().trim());
-                int overworldMapOffsetX = Integer.parseInt(scanner.next().trim());
-                int overworldMapOffsetY = Integer.parseInt(scanner.next().trim());
-                scanner.close();
-
-                if (isFullMapImage) {
-                    heatmapImage = new HeatmapImage(heatmap, reader, N, heatmapTransparency, config.heatmapSensitivity(), fullMapOffsetX, fullMapOffsetY);
-                } else {
-                    heatmapImage = new HeatmapImage(heatmap, reader, N, heatmapTransparency, config.heatmapSensitivity(), overworldMapOffsetX, overworldMapOffsetY);
-                }
-                writer.write(null, new IIOImage(heatmapImage, null, null), writeParam);
-                reader.dispose();
-                writer.dispose();
-            }
-            log.info("Finished writing " + imageFileOut + " image to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
-        } catch (OutOfMemoryError e) {
-            log.error("OutOfMemoryError thrown whilst creating and/or writing image file. " +
-                    "If you're not able to fix the issue by lowering the memory usage settings " +
-                    "(if they exist in this version of the plugin) then perhaps consider submitting" +
-                    "an Issue on the GitHub");
-        } catch (Exception e) {
-            e.printStackTrace();
-            log.error("Exception thrown whilst creating and/or writing image file");
-        }
-    }
-
-    /**
-     * Calculates the tile height based on the config setting
-     *
-     * @param configSetting The config setting
-     * @return The tile height
-     */
-    private int calculateTileHeight(int configSetting) {
-        // NOTE: these should be adjusted if the world map image's size is ever changed
-        // They should evenly divide the image height or else the image will be cut off
-        // Also I think they have to be multiples of 16 or something for the TIF format?
-        // old: return new int[]{16, 32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
-        return new int[]{32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
-    }
-
-    /**
-     * Calculates the tile height based on the config setting
-     *
-     * @param configSetting The config setting
-     * @return The tile height
-     */
-    private int calculateTileHeightFullMap(int configSetting) {
-        // NOTE: these should be adjusted if the world map image's size is ever changed
-        // They should evenly divide the image height or else the image will be cut off
-        // Also I think they have to be multiples of 16 or something for the TIF format?
-        // old: return new int[]{16, 32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
-        return new int[]{32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
-    }
-
-    private class HeatmapProgressListener implements IIOWriteProgressListener {
-        Color originalColor;
-        HeatmapNew.HeatmapType heatmapType;
-
-        public HeatmapProgressListener(HeatmapNew.HeatmapType heatmapType) {
-            super();
-            this.heatmapType = heatmapType;
-            if (panel.writeHeatmapImageButtons.get(heatmapType) != null) {
-                originalColor = panel.writeHeatmapImageButtons.get(heatmapType).getForeground();
-            }
-        }
-
-        public void setHeatmapType(HeatmapNew.HeatmapType type) {
-            this.heatmapType = type;
-        }
-
-        @Override
-        public void imageStarted(ImageWriter source, int imageIndex) {
-            panel.setEnabledHeatmapButtons(false);
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
-            panel.writeHeatmapImageButtons.get(heatmapType).setText("Writing... 0%");
-        }
-
-        @Override
-        public void imageProgress(ImageWriter source, float percentageDone) {
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
-            panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.2f%%", percentageDone));
-        }
-
-        @Override
-        public void imageComplete(ImageWriter source) {
-            panel.writeHeatmapImageButtons.get(heatmapType).setText("Done");
-            worldHeatmapPluginExecutor.schedule(() -> {
-                panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
-                panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
-                panel.writeHeatmapImageButtons.get(heatmapType).revalidate();
-                panel.writeHeatmapImageButtons.get(heatmapType).repaint();
-                panel.setEnabledHeatmapButtons(true);
-            }, 2L, TimeUnit.SECONDS);
-        }
-
-        @Override
-        public void thumbnailStarted(ImageWriter source, int imageIndex, int thumbnailIndex) {
-        }
-
-        @Override
-        public void thumbnailProgress(ImageWriter source, float percentageDone) {
-        }
-
-        @Override
-        public void thumbnailComplete(ImageWriter source) {
-        }
-
-        @Override
-        public void writeAborted(ImageWriter source) {
-        }
+        return enabledTypes;
     }
 
     boolean isHeatmapEnabled(HeatmapNew.HeatmapType type) {
-        // Kinda ugly but seemed like the most logical way to make this function
+        // Kinda hideous but seemed like the only way to do this
         switch (type) {
             case TYPE_A:
                 return config.isHeatmapTypeAEnabled();
@@ -968,190 +632,191 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onConfigChanged(ConfigChanged event) {
-        File filepathUserID = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserID + ".heatmaps");
+        // The following code is even uglier but I couldn't think of a better way to do it
+        File filepathUserID = new File(HEATMAP_FILES_DIR, mostRecentLocalUserID + ".heatmaps");
         if (event.getGroup().equals("worldheatmap")) {
             try {
                 switch (event.getKey()) {
                     case "isHeatmapTypeAEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.TYPE_A + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TYPE_A)).get(HeatmapNew.HeatmapType.TYPE_A);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TYPE_A)).get(HeatmapNew.HeatmapType.TYPE_A);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.TYPE_A + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.TYPE_A);
                         }
                         break;
                     case "isHeatmapTypeBEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.TYPE_B + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TYPE_B)).get(HeatmapNew.HeatmapType.TYPE_B);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TYPE_B)).get(HeatmapNew.HeatmapType.TYPE_B);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.TYPE_B + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.TYPE_B);
                         }
                         break;
                     case "isHeatmapXPGainedEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.XP_GAINED + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.XP_GAINED)).get(HeatmapNew.HeatmapType.XP_GAINED);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.XP_GAINED)).get(HeatmapNew.HeatmapType.XP_GAINED);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.XP_GAINED, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.XP_GAINED + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.XP_GAINED);
                         }
                         break;
                     case "isHeatmapTeleportPathsEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.TELEPORT_PATHS + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORT_PATHS)).get(HeatmapNew.HeatmapType.TELEPORT_PATHS);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORT_PATHS)).get(HeatmapNew.HeatmapType.TELEPORT_PATHS);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.TELEPORT_PATHS, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.TELEPORT_PATHS + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.TELEPORT_PATHS);
                         }
                         break;
                     case "isHeatmapTeleportedToEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.TELEPORTED_TO + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORTED_TO)).get(HeatmapNew.HeatmapType.TELEPORTED_TO);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORTED_TO)).get(HeatmapNew.HeatmapType.TELEPORTED_TO);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.TELEPORTED_TO, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.TELEPORTED_TO + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.TELEPORTED_TO);
                         }
                         break;
                     case "isHeatmapTeleportedFromEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.TELEPORTED_FROM + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORTED_FROM)).get(HeatmapNew.HeatmapType.TELEPORTED_FROM);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORTED_FROM)).get(HeatmapNew.HeatmapType.TELEPORTED_FROM);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.TELEPORTED_FROM, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.TELEPORTED_FROM + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.TELEPORTED_FROM);
                         }
                         break;
                     case "isHeatmapLootValueEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.LOOT_VALUE + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.LOOT_VALUE)).get(HeatmapNew.HeatmapType.LOOT_VALUE);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.LOOT_VALUE)).get(HeatmapNew.HeatmapType.LOOT_VALUE);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.LOOT_VALUE, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.LOOT_VALUE + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.LOOT_VALUE);
                         }
                         break;
                     case "isHeatmapPlacesSpokenAtEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.PLACES_SPOKEN_AT + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT)).get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT)).get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.PLACES_SPOKEN_AT + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT);
                         }
                         break;
                     case "isHeatmapRandomEventSpawnsEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS)).get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS)).get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS);
                         }
                         break;
                     case "isHeatmapDeathsEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.DEATHS + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DEATHS)).get(HeatmapNew.HeatmapType.DEATHS);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DEATHS)).get(HeatmapNew.HeatmapType.DEATHS);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.DEATHS, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.DEATHS + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DEATHS), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DEATHS), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.DEATHS);
                         }
                         break;
                     case "isHeatmapNPCDeathsEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.NPC_DEATHS + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.NPC_DEATHS)).get(HeatmapNew.HeatmapType.NPC_DEATHS);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.NPC_DEATHS)).get(HeatmapNew.HeatmapType.NPC_DEATHS);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.NPC_DEATHS, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.NPC_DEATHS + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.NPC_DEATHS);
                         }
                         break;
                     case "isHeatmapBobTheCatSightingEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING)).get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING)).get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING, hmap);
                             }
 
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
                         }
                         break;
                     case "isHeatmapDamageTakenEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.DAMAGE_TAKEN + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DAMAGE_TAKEN)).get(HeatmapNew.HeatmapType.DAMAGE_TAKEN);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DAMAGE_TAKEN)).get(HeatmapNew.HeatmapType.DAMAGE_TAKEN);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.DAMAGE_TAKEN, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.DAMAGE_TAKEN + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.DAMAGE_TAKEN);
                         }
                         break;
                     case "isHeatmapDamageGivenEnabled":
                         if (event.getNewValue().equals("true")) {
                             log.info("Enabling " + HeatmapNew.HeatmapType.DAMAGE_GIVEN + " heatmap...");
-                            HeatmapNew hmap = readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DAMAGE_GIVEN)).get(HeatmapNew.HeatmapType.DAMAGE_GIVEN);
+                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DAMAGE_GIVEN)).get(HeatmapNew.HeatmapType.DAMAGE_GIVEN);
                             if (hmap != null) {
                                 heatmaps.put(HeatmapNew.HeatmapType.DAMAGE_GIVEN, hmap);
                             }
                         } else {
                             log.info("Disabling " + HeatmapNew.HeatmapType.DAMAGE_GIVEN + " heatmap...");
-                            writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN), filepathUserID);
+                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN), filepathUserID);
                             heatmaps.remove(HeatmapNew.HeatmapType.DAMAGE_GIVEN);
                         }
                         break;
@@ -1163,6 +828,65 @@ public class WorldHeatmapPlugin extends Plugin {
                 panel.rebuild();
             }
 
+        }
+    }
+
+    static class HeatmapProgressListener implements IIOWriteProgressListener {
+        private final WorldHeatmapPlugin worldHeatmapPlugin;
+        Color originalColor;
+        HeatmapNew.HeatmapType heatmapType;
+
+        WorldHeatmapPanel panel;
+
+        public HeatmapProgressListener(WorldHeatmapPlugin worldHeatmapPlugin, HeatmapNew.HeatmapType heatmapType) {
+            super();
+            this.worldHeatmapPlugin = worldHeatmapPlugin;
+            this.heatmapType = heatmapType;
+            this.panel = worldHeatmapPlugin.panel;
+            if (panel.writeHeatmapImageButtons.get(heatmapType) != null) {
+                originalColor = panel.writeHeatmapImageButtons.get(heatmapType).getForeground();
+            }
+        }
+
+        @Override
+        public void imageStarted(ImageWriter source, int imageIndex) {
+            panel.setEnabledHeatmapButtons(false);
+            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
+            panel.writeHeatmapImageButtons.get(heatmapType).setText("Writing... 0%");
+        }
+
+        @Override
+        public void imageProgress(ImageWriter source, float percentageDone) {
+            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
+            panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.2f%%", percentageDone));
+        }
+
+        @Override
+        public void imageComplete(ImageWriter source) {
+            panel.writeHeatmapImageButtons.get(heatmapType).setText("Done");
+            worldHeatmapPlugin.worldHeatmapPluginExecutor.schedule(() -> {
+                panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
+                panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
+                panel.writeHeatmapImageButtons.get(heatmapType).revalidate();
+                panel.writeHeatmapImageButtons.get(heatmapType).repaint();
+                panel.setEnabledHeatmapButtons(true);
+            }, 2L, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public void thumbnailStarted(ImageWriter source, int imageIndex, int thumbnailIndex) {
+        }
+
+        @Override
+        public void thumbnailProgress(ImageWriter source, float percentageDone) {
+        }
+
+        @Override
+        public void thumbnailComplete(ImageWriter source) {
+        }
+
+        @Override
+        public void writeAborted(ImageWriter source) {
         }
     }
 }

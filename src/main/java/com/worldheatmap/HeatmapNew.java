@@ -2,12 +2,18 @@ package com.worldheatmap;
 
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.util.HashMap;
+import java.io.*;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
+
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class HeatmapNew
 {
 	@Getter
@@ -29,6 +35,153 @@ public class HeatmapNew
 	@Getter
 	private long userID = -1;
 
+	/**
+	 * Saves a specified heatmap to the specified .heatmaps file. Forces overwrite of disabled heatmaps.
+	 */
+	protected static boolean writeHeatmapsToFile(HeatmapNew heatmap, File heatmapsFile) {
+		return writeHeatmapsToFile(Collections.singletonList(heatmap), heatmapsFile);
+	}
+
+	/**
+	 * Saves provided heatmaps to specified .heatmaps file. Disabled heatmaps are left unchanged in the file.
+	 */
+	protected static boolean writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
+		// Make the directory path if it doesn't exist
+		if (!Files.exists(Paths.get(heatmapsFile.getParent()))) {
+			if (!new File(heatmapsFile.getParent()).mkdirs()) {
+				log.error("Could not create the directory for the heatmap file");
+			}
+		}
+
+		// Creates the zip file if it doesn't exist
+		Map<String, String> env = new HashMap<>();
+		env.put("create", "true");
+		URI uri = URI.create("jar:" + heatmapsFile.toURI());
+
+		log.info("Saving heatmaps to file '" + heatmapsFile.getName() + "'...");
+		long startTime = System.nanoTime();
+		StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
+		for (HeatmapNew heatmap : heatmapsToWrite) {
+			// Write the heatmap file
+			try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
+				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
+				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
+					// Write them field variables
+					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
+					osw.write(heatmap.getUserID() +
+							"," + getHeatmapVersion() +
+							"," + heatmap.getHeatmapType() +
+							"," + heatmap.getTotalValue() +
+							"," + heatmap.getNumTilesVisited() +
+							"," + heatmap.getMaxVal()[0] +
+							"," + heatmap.getMaxVal()[1] +
+							"," + heatmap.getMaxVal()[2] +
+							"," + heatmap.getMinVal()[0] +
+							"," + heatmap.getMinVal()[1] +
+							"," + heatmap.getMinVal()[2] +
+							"," + heatmap.getGameTimeTicks() + "\n");
+					// Write the tile values
+					for (Entry<Point, Integer> e : heatmap.getEntrySet()) {
+						int x = e.getKey().x;
+						int y = e.getKey().y;
+						int stepVal = e.getValue();
+						osw.write(x + "," + y + "," + stepVal + "\n");
+					}
+					osw.flush();
+				}
+
+			} catch (IOException e) {
+				e.printStackTrace();
+				log.error("World Heatmap was not able to save heatmap type '" + heatmap.getHeatmapType() + "' to file '" + heatmapsFile.getName() + "'");
+				return false;
+			}
+			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
+		}
+		log.info(loggingOutput.toString());
+		log.info("Finished writing '" + heatmapsFile.getName() + "' heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
+		return true;
+	}
+
+	/**
+	 * Loads the specified heatmap types from the given .heatmaps file.
+	 *
+	 * @param heatmapsFile The .heatmaps file
+	 * @param types        The heatmap types to load
+	 * @return HashMap of HeatmapNew objects
+	 * @throws FileNotFoundException If the file does not exist
+	 */
+	static HashMap<HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapType> types) throws FileNotFoundException {
+		Map<String, String> env = new HashMap<>();
+		env.put("create", "true");
+		URI uri = URI.create("jar:" + heatmapsFile.toURI());
+		try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
+			HashMap<HeatmapType, HeatmapNew> heatmapsRead = new HashMap<>();
+			StringBuilder loggingOutput = new StringBuilder();
+			loggingOutput.append("Heatmap types loaded: ");
+
+			for (HeatmapType curType : types) {
+				Path curHeatmapPath = fs.getPath("/" + curType.toString() + "_HEATMAP.csv");
+				if (!Files.exists(curHeatmapPath)) {
+					continue;
+				}
+				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
+					 BufferedReader reader = new BufferedReader(isr)) {
+					// Read them field variables
+					String[] fieldNames = reader.readLine().split(",");
+					String[] fieldValues = reader.readLine().split(",");
+					long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
+					String heatmapTypeString = fieldValues[2];
+					int totalValue = (fieldValues[3].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
+					int numTilesVisited = (fieldValues[4].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
+					int maxVal = (fieldValues[5].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
+					int maxValX = (fieldValues[6].isEmpty() ? -1 : Integer.parseInt(fieldValues[6]));
+					int maxValY = (fieldValues[7].isEmpty() ? -1 : Integer.parseInt(fieldValues[7]));
+					int minVal = (fieldValues[8].isEmpty() ? -1 : Integer.parseInt(fieldValues[8]));
+					int minValX = (fieldValues[9].isEmpty() ? -1 : Integer.parseInt(fieldValues[9]));
+					int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
+					int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
+
+					// Get HeatmapType from field value if legit
+					HeatmapType recognizedHeatmapType;
+					if (Arrays.stream(HeatmapType.values()).noneMatch(type -> type.toString().equals(heatmapTypeString))) {
+						log.warn("Heatmap type '" + heatmapTypeString + "' from ZipEntry '" + curHeatmapPath + "' is not a valid Heatmap type (at least in this program version). Ignoring...");
+						// Stop reading and go to next Heatmap type
+						continue;
+					} else {
+						recognizedHeatmapType = HeatmapType.valueOf(heatmapTypeString);
+					}
+
+					// Make ze Heatmap
+					HeatmapNew heatmap = new HeatmapNew(recognizedHeatmapType, userID);
+
+					// Read and load the tile values
+					final int[] errorCount = {0}; // Number of parsing errors occurred during read
+					reader.lines().forEach(s -> {
+						String[] tile = s.split(",");
+						try {
+							heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
+						} catch (NumberFormatException e) {
+							errorCount[0]++;
+						}
+					});
+					if (errorCount[0] != 0) {
+						log.error(errorCount[0] + " errors occurred during " + recognizedHeatmapType + " heatmap file read.");
+					}
+					loggingOutput.append(recognizedHeatmapType + " (" + numTilesVisited + " tiles), ");
+					heatmapsRead.put(recognizedHeatmapType, heatmap);
+				} catch (IOException e) {
+					log.error("Error reading " + curType + " heatmap from .heatmaps entry '" + curHeatmapPath + "'");
+				}
+			}
+			log.info(loggingOutput.toString());
+			return heatmapsRead;
+		} catch (FileNotFoundException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	public enum HeatmapType
 		{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
 	@Getter @Setter
@@ -47,6 +200,11 @@ public class HeatmapNew
 		this.heatmapType = heatmapType;
 	}
 
+	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle, long userId)
+	{
+		return convertOldHeatmapToNew(oldStyle, HeatmapType.UNKNOWN, userId);
+	}
+
 	// The following horse shit is for backwards compatibility with the old, retarded method of storing heatmap data
 	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle, HeatmapType type, long userId)
 	{
@@ -62,11 +220,6 @@ public class HeatmapNew
 			}
 		}
 		return newStyle;
-	}
-
-	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle, long userId)
-	{
-		return convertOldHeatmapToNew(oldStyle, HeatmapType.UNKNOWN, userId);
 	}
 
 	protected Set<Entry<Point, Integer>> getEntrySet()

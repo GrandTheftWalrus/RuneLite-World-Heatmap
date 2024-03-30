@@ -182,11 +182,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2023-03-30:	Added a check for min/max X coordinates when checking if coordinates are in bounds when incrementing heatmaps such as TELEPORT_PATHs to help reduce likelihood of login/logout causing weird teleportation paths way off-screen and stuff
 
+2023-03-30:	refactored a pissload of code so that all the main reading/writing heatmap data stuff is inside HeatmapNew and HeatmapImage (and not WorldHeatmapPlugin) so that they can be tested /debugged/profiled with some standalone test program rather than only being able to be run in runelite.
+
 ----You are Here----
-
-TODO:	refactor the code so that all reading/writing heatmap data stuff are inside HeatmapNew, Heatmap, and HeatmapImage (and NOT WorldHeatmapPlugin) so that in the future they can be tested /debugged/profiled with some standalone test program rather than only being able to run in runelite.
-
-TODO:	comment out the shadowjar code in build.gradle
 
 TODO: release the update
 

@@ -170,25 +170,27 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage) {
         // Save all heatmap data
-        plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsToFile(plugin.heatmaps.values(), new File(plugin.mostRecentLocalUserID + ".heatmaps")));
+        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), new File(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserID + ".heatmaps")));
         // Write the specified heatmap image
-        plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapImage(plugin.heatmaps.get(heatmapType), new File(plugin.mostRecentLocalUserID + "_" + heatmapType.toString() + ".tif"), isFullMapImage));
+        File imageFile = new File(plugin.HEATMAP_IMAGE_DIR, plugin.mostRecentLocalUserID + "_" + heatmapType.toString() + ".tif");
+        HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
+        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
         // Replace the heatmap with a new one
         plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID));
         // Rewrite the heatmap data file
-        plugin.worldHeatmapPluginExecutor.execute(() -> plugin.writeHeatmapsToFile(plugin.heatmaps.values(), new File(plugin.mostRecentLocalUserID + ".heatmaps")));
+        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.heatmaps.get(heatmapType), new File(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserID + ".heatmaps")));
     }
 
     private void openHeatmapsFolder() throws IOException {
-        if (!plugin.WORLDHEATMAP_DIR.exists()) {
-            if (!plugin.WORLDHEATMAP_DIR.mkdirs()) {
+        if (!plugin.WORLD_HEATMAP_DIR.exists()) {
+            if (!plugin.WORLD_HEATMAP_DIR.mkdirs()) {
                 log.error("Error: was not able to create worldheatmap folder");
             }
         }
-        Desktop.getDesktop().open(plugin.WORLDHEATMAP_DIR);
+        Desktop.getDesktop().open(plugin.WORLD_HEATMAP_DIR);
     }
 
     void setEnabledHeatmapButtons(boolean onOff) {
