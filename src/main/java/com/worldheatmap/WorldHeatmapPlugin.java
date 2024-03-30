@@ -17,7 +17,6 @@ import javax.imageio.event.IIOWriteProgressListener;
 import javax.inject.Inject;
 import javax.swing.*;
 
-import joptsimple.internal.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -414,7 +413,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private void autosaveRoutine() {
         File heatmapsFile = new File(HEATMAP_FILES_DIR, mostRecentLocalUserID + ".heatmaps");
         File typeAImageFile = new File(HEATMAP_IMAGE_DIR, mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif");
-        File typeBImageFile = new File(HEATMAP_IMAGE_DIR,mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
+        File typeBImageFile = new File(HEATMAP_IMAGE_DIR, mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
 
         // Find the largest game time ticks of all the heatmaps
         int highestGameTimeTicks = 0;
@@ -574,7 +573,7 @@ public class WorldHeatmapPlugin extends Plugin {
         for (HeatmapNew.HeatmapType type : missingTypes) {
             missingTypesNames.add(type.toString());
         }
-        log.info("Initializing the following types: " + Strings.join(missingTypesNames, ", "));
+        log.info("Initializing the following types: " + String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
             heatmaps.put(type, new HeatmapNew(type, userID));
         }
