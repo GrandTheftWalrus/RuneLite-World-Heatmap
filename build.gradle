@@ -1,6 +1,15 @@
 plugins {
 	id 'java'
+	//id "com.github.johnrengelman.shadow" version "6.1.0"
 }
+
+//shadowJar {
+//	from sourceSets.test.output
+//	configurations = [project.configurations.testRuntimeClasspath]
+//	manifest {
+//		attributes "Main-Class": "com.worldheatmap.WorldHeatmapTest"
+//	}
+//}
 
 repositories {
 	mavenLocal()
@@ -10,7 +19,8 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = 'latest.release'
+//def runeLiteVersion = 'latest.release'
+def runeLiteVersion = '1.10.26'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion

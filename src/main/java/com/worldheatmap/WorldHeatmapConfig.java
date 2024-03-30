@@ -45,7 +45,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "HeatmapBackupFrequency",
             name = "Data backup frequency",
             position = 2,
-            description = "This determines how often (in ticks of game time) to make a new backup of the heatmap data, with the time and date appended to the file. These files remain in the Heatmap 'Results/Backups' folder until deleted by the user (so don't set this field too low or there will be way too many backups). Default value 36000 ticks (6 hours). Minimum value 50.",
+            description = "Determines how often (in ticks of game time) to make a new backup of the heatmap data, in the Heatmap 'Results/Backups' folder (don't set this field too low or there will be too many backups piling up). Default value 36000 ticks (6 hours). Minimum value 50.",
             section = settings
     )
     default int heatmapBackupFrequency() {
@@ -83,7 +83,7 @@ public interface WorldHeatmapConfig extends Config {
     }
 
     @Range(
-            max = 9
+            max = 8
     )
     @ConfigItem(
             keyName = "speedMemoryTradeoff",
@@ -99,7 +99,7 @@ public interface WorldHeatmapConfig extends Config {
     @ConfigItem(
             keyName = "writeFullMapImage",
             name = "Write full world map image (SLOW)",
-            position = 6,
+            position = 7,
             description = "Warning: This takes much longer than writing just the overworld image. If checked, this will write the full world map image (including underground/non-overworld areas). If unchecked, this will write just the overworld image. Does not apply to image autosaves. Default value of false.",
             section = settings
     )
@@ -118,7 +118,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapTypeAEnabled",
             name = "TYPE_A",
             position = 0,
-            description = "Enable/disable the 'Type A' heatmap",
+            description = "Increments a tile each time you walk over it",
             section = heatmapsOnOff
     )
     default boolean isHeatmapTypeAEnabled() {
@@ -129,7 +129,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapTypeBEnabled",
             name = "TYPE_B",
             position = 1,
-            description = "Enable/disable the 'Type B' heatmap",
+            description = "Increments a tile each tick you stand on it",
             section = heatmapsOnOff
     )
     default boolean isHeatmapTypeBEnabled() {
@@ -140,7 +140,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapXPGainedEnabled",
             name = "XP_GAINED",
             position = 2,
-            description = "Enable/disable the 'XP_GAINED' heatmap",
+            description = "Records the total number of XP gained in each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapXPGainedEnabled() {
@@ -151,7 +151,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapTeleportPathsEnabled",
             name = "TELEPORT_PATHS",
             position = 3,
-            description = "Enable/disable the 'XP_HOUR' heatmap",
+            description = "Records the paths taken when teleporting",
             section = heatmapsOnOff
     )
     default boolean isHeatmapTeleportPathsEnabled() {
@@ -162,7 +162,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapTelportedToEnabled",
             name = "TELEPORTED_TO",
             position = 4,
-            description = "Enable/disable the 'TELEPORTED_TO' heatmap",
+            description = "Records the locations teleported to",
             section = heatmapsOnOff
     )
     default boolean isHeatmapTeleportedToEnabled() {
@@ -173,7 +173,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapTeleportedFromEnabled",
             name = "TELEPORTED_FROM",
             position = 5,
-            description = "Enable/disable the 'TELEPORTED_FROM' heatmap",
+            description = "Records the locations teleported from",
             section = heatmapsOnOff
     )
     default boolean isHeatmapTeleportedFromEnabled() {
@@ -184,7 +184,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapLootValueEnabled",
             name = "LOOT_VALUE",
             position = 6,
-            description = "Enable/disable the 'LOOT_VALUE' heatmap",
+            description = "Records the total value of loot spawned on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapLootValueEnabled() {
@@ -195,7 +195,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapPlacesSpokenAtEnabled",
             name = "PLACES_SPOKEN_AT",
             position = 7,
-            description = "Enable/disable the 'PLACES_SPOKEN_AT' heatmap",
+            description = "Records the number of times you've spoken in public chat at each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapPlacesSpokenAtEnabled() {
@@ -206,7 +206,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapRandomEventSpawnsEnabled",
             name = "RANDOM_EVENT_SPAWNS",
             position = 8,
-            description = "Enable/disable the 'RANDOM_EVENT_SPAWNS' heatmap",
+            description = "Records the number of witnessed random event spawns on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapRandomEventSpawnsEnabled() {
@@ -217,7 +217,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapDeathsEnabled",
             name = "DEATHS",
             position = 9,
-            description = "Enable/disable the 'DEATHS' heatmap",
+            description = "Records the number of times you've died on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapDeathsEnabled() {
@@ -228,7 +228,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapNPCDeathsEnabled",
             name = "NPC_DEATHS",
             position = 10,
-            description = "Enable/disable the 'NPC_DEATHS' heatmap",
+            description = "Records the number of NPC deaths you've witnesssed on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapNPCDeathsEnabled() {
@@ -239,7 +239,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapBobTheCatSightingEnabled",
             name = "BOB_THE_CAT_SIGHTING",
             position = 11,
-            description = "Enable/disable the 'BOB_THE_CAT_SIGHTING' heatmap",
+            description = "Records the tiles on which you've found Bob the Cat (this is regular bob, not evil bob)",
             section = heatmapsOnOff
     )
     default boolean isHeatmapBobTheCatSightingEnabled() {
@@ -250,7 +250,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapDamageTakenEnabled",
             name = "DAMAGE_TAKEN",
             position = 12,
-            description = "Enable/disable the 'DAMAGE_TAKEN' heatmap",
+            description = "Records the total you've damage taken on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapDamageTakenEnabled() {
@@ -261,7 +261,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "isHeatmapDamageGivenEnabled",
             name = "DAMAGE_GIVEN",
             position = 13,
-            description = "Enable/disable the 'DAMAGE_GIVEN' heatmap",
+            description = "Records the total damage you've dealt whilst standing on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapDamageGivenEnabled() {

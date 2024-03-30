@@ -6,6 +6,7 @@ import java.awt.Color;
 import java.awt.Point;
 import java.awt.image.RenderedImage;
 import java.io.*;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.*;
 import java.time.Instant;
@@ -21,7 +22,7 @@ import javax.imageio.event.IIOWriteProgressListener;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 import javax.inject.Inject;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 
 import joptsimple.internal.Strings;
 import lombok.SneakyThrows;
@@ -135,16 +136,20 @@ public class WorldHeatmapPlugin extends Plugin {
             heatmaps = readHeatmapsFromFile(filepathUserID);
         } else // If the file doesn't exist, then check for the old username files
         {
-            log.info("File '" + filepathUserID + "' did not exist. Checking for old version files '" + filepathTypeAUsername + "' and '" + filepathTypeBUsername + "'...");
+            log.info("File '" + filepathUserID.getName() + "' did not exist. Checking for old version files '" + filepathTypeAUsername.getName() + "' and '" + filepathTypeBUsername.getName() + "'...");
             if (filepathTypeAUsername.exists()) {
-                heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, readHeatmapOld(filepathTypeAUsername));
+                HeatmapNew heatmapTypeA = readHeatmapOld(filepathTypeAUsername);
+                heatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
+                heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, heatmapTypeA);
             } else {
-                log.info("File '" + filepathTypeAUsername + "' did not exist.");
+                log.info("File '" + filepathTypeAUsername.getName() + "' did not exist.");
             }
             if (filepathTypeBUsername.exists()) {
-                heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, readHeatmapOld(filepathTypeAUsername));
+                HeatmapNew heatmapTypeB = readHeatmapOld(filepathTypeBUsername);
+                heatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
+                heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, heatmapTypeB);
             } else {
-                log.info("File '" + filepathTypeBUsername + "' did not exist.");
+                log.info("File '" + filepathTypeBUsername.getName() + "' did not exist.");
             }
         }
 
@@ -291,7 +296,7 @@ public class WorldHeatmapPlugin extends Plugin {
         // Update panel step counter
         SwingUtilities.invokeLater(panel::updateCounts);
 
-        // Update memory usage labels every 10 ticks
+        // Update memory usage label/tooltips every 10 ticks
         if (client.getTickCount() % 10 == 0) {
             SwingUtilities.invokeLater(panel::updateMemoryUsages);
         }
@@ -321,7 +326,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onHitsplatApplied(HitsplatApplied hitsplatApplied) {
-        if (hitsplatApplied.getHitsplat().getAmount() == 0){
+        if (hitsplatApplied.getHitsplat().getAmount() == 0) {
             return;
         }
         // DAMAGE_GIVEN
@@ -529,7 +534,7 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     public boolean isInOverworld(Point point) {
-        return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500;
+        return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500 && point.x >= 1024 && point.x < 3960;
     }
 
     /**
@@ -555,8 +560,11 @@ public class WorldHeatmapPlugin extends Plugin {
         }
     }
 
-    private HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapFile, List<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
-        try (FileSystem fs = FileSystems.newFileSystem(heatmapFile.toPath(), null)) {
+    private HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, List<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
+        Map<String, String> env = new HashMap<>();
+        env.put("create", "true");
+        URI uri = URI.create("jar:" + heatmapsFile.toURI());
+        try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
             HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmapsRead = new HashMap<>();
             StringBuilder loggingOutput = new StringBuilder();
             loggingOutput.append("Heatmap types loaded: ");
@@ -661,7 +669,7 @@ public class WorldHeatmapPlugin extends Plugin {
         for (HeatmapNew.HeatmapType type : missingTypes) {
             missingTypesNames.add(type.toString());
         }
-        log.info("The following Heatmap types were missing: " + Strings.join(missingTypesNames, ", ") + ". Initializing new Heatmaps...");
+        log.info("Initializing the following types: " + Strings.join(missingTypesNames, ", "));
         for (HeatmapNew.HeatmapType type : missingTypes) {
             heatmaps.put(type, new HeatmapNew(type, userID));
         }
@@ -694,40 +702,47 @@ public class WorldHeatmapPlugin extends Plugin {
                 log.error("World Heatmap was not able to create the directory for the heatmap file");
             }
         }
+
+        // Creates the zip file if it doesn't exist
+        Map<String, String> env = new HashMap<>();
+        env.put("create", "true");
+        URI uri = URI.create("jar:" + heatmapsFile.toURI());
+
         log.info("Saving heatmaps to file '" + heatmapsFile.getName() + "'...");
         long startTime = System.nanoTime();
         StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
         for (HeatmapNew heatmap : heatmapsToWrite) {
             if (isHeatmapEnabled(heatmap.getHeatmapType()) || forceOverwrite) {
                 // Write the heatmap file
-                try (FileSystem fs = FileSystems.newFileSystem(heatmapsFile.toPath(), null)) {
+                try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
                     Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
-                    OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8);
-
-                    // Write them field variables
-                    osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
-                    osw.write(heatmap.getUserID() +
-                            "," + HeatmapNew.getHeatmapVersion() +
-                            "," + heatmap.getHeatmapType() +
-                            "," + heatmap.getTotalValue() +
-                            "," + heatmap.getNumTilesVisited() +
-                            "," + heatmap.getMaxVal()[0] +
-                            "," + heatmap.getMaxVal()[1] +
-                            "," + heatmap.getMaxVal()[2] +
-                            "," + heatmap.getMinVal()[0] +
-                            "," + heatmap.getMinVal()[1] +
-                            "," + heatmap.getMinVal()[2] +
-                            "," + heatmap.getGameTimeTicks() + "\n");
-                    // Write the tile values
-                    for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()) {
-                        int x = e.getKey().x;
-                        int y = e.getKey().y;
-                        int stepVal = e.getValue();
-                        osw.write(x + "," + y + "," + stepVal + "\n");
+                    try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
+                        // Write them field variables
+                        osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
+                        osw.write(heatmap.getUserID() +
+                                "," + HeatmapNew.getHeatmapVersion() +
+                                "," + heatmap.getHeatmapType() +
+                                "," + heatmap.getTotalValue() +
+                                "," + heatmap.getNumTilesVisited() +
+                                "," + heatmap.getMaxVal()[0] +
+                                "," + heatmap.getMaxVal()[1] +
+                                "," + heatmap.getMaxVal()[2] +
+                                "," + heatmap.getMinVal()[0] +
+                                "," + heatmap.getMinVal()[1] +
+                                "," + heatmap.getMinVal()[2] +
+                                "," + heatmap.getGameTimeTicks() + "\n");
+                        // Write the tile values
+                        for (Map.Entry<Point, Integer> e : heatmap.getEntrySet()) {
+                            int x = e.getKey().x;
+                            int y = e.getKey().y;
+                            int stepVal = e.getValue();
+                            osw.write(x + "," + y + "," + stepVal + "\n");
+                        }
+                        osw.flush();
                     }
-                    osw.flush();
 
                 } catch (IOException e) {
+                    e.printStackTrace();
                     log.error("World Heatmap was not able to save heatmap type '" + heatmap.getHeatmapType() + "' to file '" + heatmapsFile.getName() + "'");
                 }
                 loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
@@ -797,13 +812,20 @@ public class WorldHeatmapPlugin extends Plugin {
 
                 // Write heatmap image
                 RenderedImage heatmapImage;
+                // Get latest offset values from git repo
+                URL offsetsURL = new URL("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/offsets.csv");
+                Scanner scanner = new Scanner(offsetsURL.openStream());
+                scanner.next(); // Skip the headers
+                scanner.useDelimiter(",");
+                int fullMapOffsetX = Integer.parseInt(scanner.next().trim());
+                int fullMapOffsetY = Integer.parseInt(scanner.next().trim());
+                int overworldMapOffsetX = Integer.parseInt(scanner.next().trim());
+                int overworldMapOffsetY = Integer.parseInt(scanner.next().trim());
+                scanner.close();
+
                 if (isFullMapImage) {
-                    int fullMapOffsetX = -4096;
-                    int fullMapOffsetY = 4860;
                     heatmapImage = new HeatmapImage(heatmap, reader, N, heatmapTransparency, config.heatmapSensitivity(), fullMapOffsetX, fullMapOffsetY);
                 } else {
-                    int overworldMapOffsetX = -4147;
-                    int overworldMapOffsetY = 10160;
                     heatmapImage = new HeatmapImage(heatmap, reader, N, heatmapTransparency, config.heatmapSensitivity(), overworldMapOffsetX, overworldMapOffsetY);
                 }
                 writer.write(null, new IIOImage(heatmapImage, null, null), writeParam);
@@ -817,6 +839,7 @@ public class WorldHeatmapPlugin extends Plugin {
                     "(if they exist in this version of the plugin) then perhaps consider submitting" +
                     "an Issue on the GitHub");
         } catch (Exception e) {
+            e.printStackTrace();
             log.error("Exception thrown whilst creating and/or writing image file");
         }
     }
@@ -830,7 +853,9 @@ public class WorldHeatmapPlugin extends Plugin {
     private int calculateTileHeight(int configSetting) {
         // NOTE: these should be adjusted if the world map image's size is ever changed
         // They should evenly divide the image height or else the image will be cut off
-        return new int[]{16, 32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
+        // Also I think they have to be multiples of 16 or something for the TIF format?
+        // old: return new int[]{16, 32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
+        return new int[]{32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
     }
 
     /**
@@ -842,7 +867,9 @@ public class WorldHeatmapPlugin extends Plugin {
     private int calculateTileHeightFullMap(int configSetting) {
         // NOTE: these should be adjusted if the world map image's size is ever changed
         // They should evenly divide the image height or else the image will be cut off
-        return new int[]{16, 32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
+        // Also I think they have to be multiples of 16 or something for the TIF format?
+        // old: return new int[]{16, 32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
+        return new int[]{32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
     }
 
     private class HeatmapProgressListener implements IIOWriteProgressListener {
@@ -864,13 +891,13 @@ public class WorldHeatmapPlugin extends Plugin {
         @Override
         public void imageStarted(ImageWriter source, int imageIndex) {
             panel.setEnabledHeatmapButtons(false);
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.RED);
+            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
             panel.writeHeatmapImageButtons.get(heatmapType).setText("Writing... 0%");
         }
 
         @Override
         public void imageProgress(ImageWriter source, float percentageDone) {
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.RED);
+            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
             panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.2f%%", percentageDone));
         }
 
@@ -941,7 +968,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onConfigChanged(ConfigChanged event) {
-        File filepathUserID = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserID + ".heatmaps"); //NOTE: changed from .heatmap to .heatmaps
+        File filepathUserID = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserID + ".heatmaps");
         if (event.getGroup().equals("worldheatmap")) {
             try {
                 switch (event.getKey()) {

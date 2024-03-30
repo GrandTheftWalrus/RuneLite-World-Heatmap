@@ -158,11 +158,36 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 	Result: Seems like I screwed myself by previously using ObjectOutputStream to write Heatmap objects without serialVersionUID fields. There's not really a way to deserialize these files to Heatmap objects without having the unmodified Heatmap class in the program, so I'm stuck having Heatmap and HeatmapNew
 2024-03-11: See if RuneLite occasionally not wanting to terminate has something to do with the plugin
 	Result: it doesn't seem to happen anymore so perhaps it was not related to the plugin
-2024-03-11:	Implemented damage taken
-2024-03-11:	Implemented damage given
+2024-03-11:	Implemented DAMAGE_TAKEN
+2024-03-11:	Implemented DAMAGE_GIVEN
+2024-03-12:	broke, then fixed writing to .heatmaps for shadowjar (fixed it by closing the OutputStreamWriter which had to be moved out of the old try-with-resources)
+2024-03-12:	broke, then fixed how for some reason it couldn't read old .heatmap files because of an InvalidClassException (turns out it was because I had changed the name of a single variable)
+2024-03-12:	broke, then fixed how after reading and converting an old heatmap file, the Type A and Type B are not put into the heatmaps Map (it was because I changed 2 lines of code and caused them to be loaded as UNKNOWN types which are not initialized or something)
+
+2024-03-29:	fixed how for some reason heatmap tiles were missing in horizontal stripes in the image, depending on the speed-memory tradeoff, but only for TELEPORT_PATHS?
+	note: finally figured out the source of the error, which was that heatmap pixels when being written to the image were not being checked for being out of bounds
+	note: actually, it seems that out of boundsness was already being checked for the tile being written, but it was only checking for the upper left corner of the 4x4 coloured pixels being written per game tile, so a game tile whose upper left corner is within the image bounds but not the rest of it was causing le errors le.
+
+2024-03-29:	made it so HeatmapImage gets its offsets from the gtw-runelite-stuff repo
+
+2024-03-29:	Put a total memory usage estimate in the panel
+
+2023-03-29:	fixed how the Player ID was often "unavailable" in the panel
+
+2023-03-30:	tested the update with shadowjar on raptop, seems to be twerking all good
+
+2023-03-30:	Fixed how it was loading the Type A heatmap file instead of Type B when converting old types to new
+
+2023-03-30:	Made it so that writing an image for an empty heatmap doesn't throw an IllegalArgumentException "Heatmap is empty" which was resulting from getting the min/max values of an empty heatmap
+
+2023-03-30:	Added a check for min/max X coordinates when checking if coordinates are in bounds when incrementing heatmaps such as TELEPORT_PATHs to help reduce likelihood of login/logout causing weird teleportation paths way off-screen and stuff
 
 ----You are Here----
 
-TODO: test the update by posting a shadowjar on grithib
+TODO:	refactor the code so that all reading/writing heatmap data stuff are inside HeatmapNew, Heatmap, and HeatmapImage (and NOT WorldHeatmapPlugin) so that in the future they can be tested /debugged/profiled with some standalone test program rather than only being able to run in runelite.
+
+TODO:	comment out the shadowjar code in build.gradle
 
 TODO: release the update
+
+TODO future:	update the world map image for Barlamore (I need to use gimp to superimpose the new varlamore map over top of the current full world map image I have)

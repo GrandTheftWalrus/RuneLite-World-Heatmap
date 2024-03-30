@@ -124,7 +124,7 @@ public class HeatmapImage implements RenderedImage
 		int minVal = Integer.MAX_VALUE;
 		if (heatmap.getEntrySet().isEmpty())
 		{
-			throw new IllegalArgumentException("Heatmap is empty");
+			return new int[]{0, 0};
 		}
 		for (Map.Entry<Point, Integer> tile : heatmap.getEntrySet())
 		{
@@ -273,11 +273,11 @@ public class HeatmapImage implements RenderedImage
 		// For each pixel in current image region
 		while (!sortedHeatmapTiles.isEmpty())
 		{
-			Map.Entry<Point, Integer> tile = sortedHeatmapTiles.poll();
-			Point tilePixel = tile.getKey(); // tilePixel is the upper-left coordinate of the 4x4 pixel square that this tile covers
+			Map.Entry<Point, Integer> gameTile = sortedHeatmapTiles.poll();
+			Point tilePixel = gameTile.getKey(); // tilePixel is the upper-left coordinate of the 4x4 pixel square that this tile covers
 			tilePixel = gameCoordsToImageCoords(tilePixel);
 			boolean isInImageBounds = (tilePixel.x >= 0 && tilePixel.y >= 0 && tilePixel.x < getWidth() && tilePixel.y < getHeight());
-			int tileValue = tile.getValue();
+			int tileValue = gameTile.getValue();
 
 			boolean pixelIsBeforeRegion = (compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x, region.y) < 0);
 			boolean pixelIsAfterRegion = (compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x + region.width, region.y + region.height) > 0);
@@ -285,10 +285,10 @@ public class HeatmapImage implements RenderedImage
 			if (pixelIsAfterRegion)
 			{
 				// put it back in the front of the queue and return
-				sortedHeatmapTiles.addFirst(tile);
+				sortedHeatmapTiles.addFirst(gameTile);
 				return;
 			}
-			// If current tile is before upper left edge of current image region, or is out of bounds of the overworld, or hasn't been stepped on, skip this tile
+			// If current tile is before upper left edge of current image region, or is out of bounds, or hasn't been stepped on, skip this tile
 			if (pixelIsBeforeRegion || !isInImageBounds || tileValue == 0)
 			{
 				continue;
@@ -297,7 +297,6 @@ public class HeatmapImage implements RenderedImage
 
 			// Calculate color
 			double currHue = calculateHue(tileValue, heatmapSensitivity, heatmapMinVal, heatmapMaxVal);
-
 			// Reassign the new RGB values to the corresponding 9 pixels (each tile covers 3x3 image pixels)
 			for (int x_offset = 0; x_offset < 4; x_offset++)
 			{
@@ -305,11 +304,15 @@ public class HeatmapImage implements RenderedImage
 				{
 					int curX = tilePixel.x - region.x + x_offset;
 					int curY = tilePixel.y - region.y + y_offset;
-					if (curX >= imageRegion.getWidth() || curY >= imageRegion.getHeight())
+					if (curY >= imageRegion.getHeight())
 					{
 						// put it back in the front of the queue and return
-						sortedHeatmapTiles.addFirst(tile);
+						sortedHeatmapTiles.addFirst(gameTile);
 						return;
+					}
+					else if (curX >= imageRegion.getWidth()){
+						// Skip this pixel
+						continue;
 					}
 					int srcRGB = imageRegion.getRGB(curX, curY);
 					int r = (srcRGB >> 16) & 0xFF;
@@ -350,6 +353,7 @@ public class HeatmapImage implements RenderedImage
 		int[] maxMin = calculateMaxMinValues(heatmap);
 		heatmapMaxVal = maxMin[0];
 		heatmapMinVal = maxMin[1];
+
 		// Create sorted heatmap tiles array (sorted left-to-right top-to-bottom)
 		sortedHeatmapTiles = new LinkedList<>(heatmap.getEntrySet());
 		sortedHeatmapTiles.sort((tile1, tile2) -> {
