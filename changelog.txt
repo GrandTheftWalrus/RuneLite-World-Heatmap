@@ -184,8 +184,13 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2023-03-30:	refactored a pissload of code so that all the main reading/writing heatmap data stuff is inside HeatmapNew and HeatmapImage (and not WorldHeatmapPlugin) so that they can be tested /debugged/profiled with some standalone test program rather than only being able to be run in runelite.
 
+UPDATE RELEASED
+
+2023-04-01:	Updated map to include Varlamore
+
+2023-04-03:	I wonder if it's possible to just use runelite's MapImageDumper directly from the plugin instead of using my HeatmapImage class, so that the world map is always up to date? Perhaps I can override its methods or something to add the heatmap visualization.
+	result: Just remembered that MapImageDumper uses a somewhat broken version of BigBufferedImage which creates big ass temp files that never get deleted, so it shouldn't be used in a plugin.
+
+2023-04-03:	Changed default speed-memory tradeoff from 4 to 6
+
 ----You are Here----
-
-TODO: release the update
-
-TODO future:	update the world map image for Barlamore (I need to use gimp to superimpose the new varlamore map over top of the current full world map image I have)
