@@ -98,6 +98,10 @@ public class HeatmapImage implements RenderedImage
 			imageFileOut = new File(imageFileOut.getName() + ".tif");
 		}
 
+		if (imageFileOut.getParentFile().mkdirs()){
+			log.info("Created directory for image file: " + imageFileOut.getParentFile());
+		}
+
 		if (heatmapTransparency < 0) {
 			heatmapTransparency = 0;
 		} else if (heatmapTransparency > 1) {

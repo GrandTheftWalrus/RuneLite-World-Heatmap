@@ -93,7 +93,7 @@ public interface WorldHeatmapConfig extends Config {
             section = settings
     )
     default int speedMemoryTradeoff() {
-        return 6;
+        return 4;
     }
 
     @ConfigItem(
