@@ -20,7 +20,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "ImageAutosaveFrequency",
             name = "Type A&B image autosave frequency",
             position = 0,
-            description = "This determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 2000 ticks (20 minutes). Minimum value of 50.",
+            description = "Determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 2000 ticks (20 minutes)",
             section = settings
     )
     default int typeABImageAutosaveFrequency() {
@@ -31,7 +31,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "ImageAutosave",
             name = "Type A&B image autosave",
             position = 1,
-            description = "This determines whether to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of false.",
+            description = "Determines whether to automatically save both the 'Type A' and 'Type B' world heatmap TIF images.",
             section = settings
     )
     default boolean typeABImageAutosave() {
@@ -89,7 +89,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "speedMemoryTradeoff",
             name = "Speed-memory tradeoff",
             position = 5,
-            description = "Corresponds to the vertical size of chunks used in writing the heatmap image. Increasing this will increase the speed of writing the image, but will also increase the memory usage. Lower this value if you are running out of memory when writing the image.",
+            description = "Corresponds to the vertical size of chunks used in writing the heatmap image. Higher values = faster image writing, but increases memory usage. Try lowering this value if the plugin is crashing whilst writing images.",
             section = settings
     )
     default int speedMemoryTradeoff() {
@@ -100,7 +100,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "writeFullMapImage",
             name = "Write full world map image (SLOW)",
             position = 7,
-            description = "Warning: This takes much longer than writing just the overworld image. If checked, this will write the full world map image (including underground/non-overworld areas). If unchecked, this will write just the overworld image. Does not apply to image autosaves. Default value of false.",
+            description = "Warning: This takes much longer than writing just the overworld image. If checked, this will write the full world map image (including underground/non-overworld areas). Does not apply to image autosaves.",
             section = settings
     )
     default boolean isWriteFullImageEnabled() {
