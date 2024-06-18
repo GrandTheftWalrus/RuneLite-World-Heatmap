@@ -7,7 +7,6 @@ import java.awt.Point;
 import java.io.*;
 import java.nio.file.*;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -52,7 +51,6 @@ public class WorldHeatmapPlugin extends Plugin {
     private boolean shouldLoadHeatmaps;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
-    protected final File HEATMAP_IMAGE_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Images").toFile();
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
     private NavigationButton toolbarButton;
     protected WorldHeatmapPanel panel;
@@ -114,15 +112,16 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @SneakyThrows
     protected void loadHeatmaps() {
-        log.debug("Loading heatmaps under user ID " + mostRecentLocalUserID + "...");
+        log.debug("Loading most recent heatmaps under user ID {}...", mostRecentLocalUserID);
 
+
+        File filepathUserID = HeatmapFile.getLastHeatmap(mostRecentLocalUserID);
         // To fix/deal with how previous versions of the plugin used player names
         // (which can change) instead of player IDs, we also do the following check
-        File filepathUserID = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserID + ".heatmaps"); //NOTE: changed from .heatmap to .heatmaps
         File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeA.heatmap");
         File filepathTypeBUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeB.heatmap");
 
-        if (filepathUserID.exists()) {
+        if (filepathUserID != null && filepathUserID.exists()) {
             // Load all heatmaps from the file
             heatmaps = HeatmapNew.readHeatmapsFromFile(filepathUserID, getEnabledHeatmapTypes());
         } else // If the file doesn't exist, then check for the old username files
@@ -168,9 +167,9 @@ public class WorldHeatmapPlugin extends Plugin {
     @Override
     protected void shutDown() {
         if (loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()) {
-            String filepath = Paths.get(HEATMAP_FILES_DIR.getPath(), mostRecentLocalUserID + ".heatmaps").toString();
-            log.debug("WRITING HEATMAPS TO FILE " + filepath);
-            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), new File(filepath)));
+            File file = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
+            log.debug("WRITING HEATMAPS TO FILE " + file);
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), file));
         }
         clientToolbar.removeNavigation(toolbarButton);
     }
@@ -184,8 +183,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // If you're at the login screen and heatmaps have been loaded (implying that you were previously logged in, but now you're logged out)
         if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN && loadHeatmapsFuture != null && loadHeatmapsFuture.isDone()) {
-            String filepath = Paths.get(HEATMAP_FILES_DIR.getPath(), mostRecentLocalUserID + ".heatmaps").toString();
-            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), new File(filepath)));
+            File file = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), file));
             loadHeatmapsFuture = null;
         }
         if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
@@ -411,10 +410,6 @@ public class WorldHeatmapPlugin extends Plugin {
      * Autosave the heatmap file/write the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do each respective thing according to their frequencies
      */
     private void autosaveRoutine() {
-        File heatmapsFile = new File(HEATMAP_FILES_DIR, mostRecentLocalUserID + ".heatmaps");
-        File typeAImageFile = new File(HEATMAP_IMAGE_DIR, mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_A + ".tif");
-        File typeBImageFile = new File(HEATMAP_IMAGE_DIR, mostRecentLocalUserID + "_" + HeatmapNew.HeatmapType.TYPE_B + ".tif");
-
         // Find the largest game time ticks of all the heatmaps
         int highestGameTimeTicks = 0;
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
@@ -425,6 +420,10 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // If it's time to autosave the image, then save heatmap file (so file is in sync with image) and write image file
         if (config.typeABImageAutosave() && highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0) {
+            File heatmapsFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
+            File typeAImageFile = HeatmapFile.getCurrentImageFile(mostRecentLocalUserID, HeatmapNew.HeatmapType.TYPE_A);
+            File typeBImageFile = HeatmapFile.getCurrentImageFile(mostRecentLocalUserID, HeatmapNew.HeatmapType.TYPE_B);
+
             worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsFile));
             if (config.isHeatmapTypeAEnabled()) {
                 worldHeatmapPluginExecutor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), typeAImageFile, false, config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, HeatmapNew.HeatmapType.TYPE_A)));
@@ -435,6 +434,7 @@ public class WorldHeatmapPlugin extends Plugin {
         }
         // if it wasn't the time to autosave an image (and therefore save the .heatmap), then check if it's time to autosave just the .heatmap file
         else if (highestGameTimeTicks % WorldHeatmapPlugin.HEATMAP_AUTOSAVE_FREQUENCY == 0) {
+            File heatmapsFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
             worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsFile));
         }
     }
@@ -443,8 +443,7 @@ public class WorldHeatmapPlugin extends Plugin {
      * Backs up the heatmap file if it is the correct time to do so according to the backup frequency
      */
     private void backupRoutine() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-        File heatmapsBackupFile = Paths.get(HEATMAP_FILES_DIR.getPath(), "Backups", mostRecentLocalUserID + "-" + java.time.LocalDateTime.now().format(formatter) + ".heatmaps").toFile();
+        File heatmapsFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
         int highestGameTimeTicks = 0;
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
             if (heatmaps.get(type).getGameTimeTicks() > highestGameTimeTicks) {
@@ -452,7 +451,7 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         }
         if (highestGameTimeTicks % config.heatmapBackupFrequency() == 0) {
-            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsBackupFile));
+            worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), heatmapsFile));
         }
     }
 
@@ -528,6 +527,8 @@ public class WorldHeatmapPlugin extends Plugin {
     public boolean isInOverworld(Point point) {
         return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500 && point.x >= 1024 && point.x < 3960;
     }
+
+
 
     /**
      * Loads heatmap of old style from local storage.
