@@ -1,7 +1,12 @@
 package com.worldheatmap;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -9,6 +14,7 @@ import java.util.Date;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
 
+@Slf4j
 public class HeatmapFile {
     protected final static String HEATMAP_EXTENSION = ".heatmaps";
     protected final static File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
@@ -41,7 +47,29 @@ public class HeatmapFile {
      */
     public static File getLastHeatmap(long userId) {
         File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId));
-        return getMostRecentFile(userIdDir);
+        File mostRecent = getMostRecentFile(userIdDir);
+
+        // Legacy location
+        if (mostRecent == null) {
+            log.info("Moving old heatmap location");
+
+            mostRecent = new File(HEATMAP_FILES_DIR, userId + HEATMAP_EXTENSION);
+            File destination = getCurrentHeatmapFile(userId);
+            if (!destination.mkdirs()) {
+                log.info("Couldn't make dirs to move the file. Aborting");
+                return mostRecent;
+            }
+            try {
+                Files.move(mostRecent.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                log.info("Moving file failed:");
+                log.info(e.toString());
+                return mostRecent;
+            }
+
+            mostRecent = destination;
+        }
+        return mostRecent;
     }
 
     private static String formatDate(Date date) {
