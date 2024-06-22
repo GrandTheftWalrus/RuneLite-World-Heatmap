@@ -9,6 +9,7 @@ import java.nio.file.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.zip.InflaterInputStream;
 import javax.imageio.ImageWriter;
@@ -632,203 +633,55 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onConfigChanged(ConfigChanged event) {
-        // The following code is even uglier but I couldn't think of a better way to do it
         File filepathUserID = new File(HEATMAP_FILES_DIR, mostRecentLocalUserID + ".heatmaps");
-        if (event.getGroup().equals("worldheatmap")) {
-            try {
-                switch (event.getKey()) {
-                    case "isHeatmapTypeAEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.TYPE_A + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TYPE_A)).get(HeatmapNew.HeatmapType.TYPE_A);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.TYPE_A + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TYPE_A), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.TYPE_A);
-                        }
-                        break;
-                    case "isHeatmapTypeBEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.TYPE_B + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TYPE_B)).get(HeatmapNew.HeatmapType.TYPE_B);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.TYPE_B + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TYPE_B), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.TYPE_B);
-                        }
-                        break;
-                    case "isHeatmapXPGainedEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.XP_GAINED + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.XP_GAINED)).get(HeatmapNew.HeatmapType.XP_GAINED);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.XP_GAINED, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.XP_GAINED + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.XP_GAINED);
-                        }
-                        break;
-                    case "isHeatmapTeleportPathsEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.TELEPORT_PATHS + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORT_PATHS)).get(HeatmapNew.HeatmapType.TELEPORT_PATHS);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.TELEPORT_PATHS, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.TELEPORT_PATHS + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.TELEPORT_PATHS);
-                        }
-                        break;
-                    case "isHeatmapTeleportedToEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.TELEPORTED_TO + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORTED_TO)).get(HeatmapNew.HeatmapType.TELEPORTED_TO);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.TELEPORTED_TO, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.TELEPORTED_TO + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.TELEPORTED_TO);
-                        }
-                        break;
-                    case "isHeatmapTeleportedFromEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.TELEPORTED_FROM + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.TELEPORTED_FROM)).get(HeatmapNew.HeatmapType.TELEPORTED_FROM);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.TELEPORTED_FROM, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.TELEPORTED_FROM + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.TELEPORTED_FROM);
-                        }
-                        break;
-                    case "isHeatmapLootValueEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.LOOT_VALUE + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.LOOT_VALUE)).get(HeatmapNew.HeatmapType.LOOT_VALUE);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.LOOT_VALUE, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.LOOT_VALUE + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.LOOT_VALUE);
-                        }
-                        break;
-                    case "isHeatmapPlacesSpokenAtEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.PLACES_SPOKEN_AT + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT)).get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.PLACES_SPOKEN_AT + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT);
-                        }
-                        break;
-                    case "isHeatmapRandomEventSpawnsEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS)).get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS);
-                        }
-                        break;
-                    case "isHeatmapDeathsEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.DEATHS + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DEATHS)).get(HeatmapNew.HeatmapType.DEATHS);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.DEATHS, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.DEATHS + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DEATHS), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.DEATHS);
-                        }
-                        break;
-                    case "isHeatmapNPCDeathsEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.NPC_DEATHS + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.NPC_DEATHS)).get(HeatmapNew.HeatmapType.NPC_DEATHS);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.NPC_DEATHS, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.NPC_DEATHS + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.NPC_DEATHS);
-                        }
-                        break;
-                    case "isHeatmapBobTheCatSightingEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING)).get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING, hmap);
-                            }
+        if (!event.getGroup().equals("worldheatmap")) {
+            return;
+        }
+        Map<String, HeatmapNew.HeatmapType> configNameToHeatmapType = new HashMap<>();
+        configNameToHeatmapType.put("isHeatmapTypeAEnabled", HeatmapNew.HeatmapType.TYPE_A);
+        configNameToHeatmapType.put("isHeatmapTypeBEnabled", HeatmapNew.HeatmapType.TYPE_B);
+        configNameToHeatmapType.put("isHeatmapXPGainedEnabled", HeatmapNew.HeatmapType.XP_GAINED);
+        configNameToHeatmapType.put("isHeatmapTeleportPathsEnabled", HeatmapNew.HeatmapType.TELEPORT_PATHS);
+        configNameToHeatmapType.put("isHeatmapTeleportedToEnabled", HeatmapNew.HeatmapType.TELEPORTED_TO);
+        configNameToHeatmapType.put("isHeatmapTeleportedFromEnabled", HeatmapNew.HeatmapType.TELEPORTED_FROM);
+        configNameToHeatmapType.put("isHeatmapLootValueEnabled", HeatmapNew.HeatmapType.LOOT_VALUE);
+        configNameToHeatmapType.put("isHeatmapPlacesSpokenAtEnabled", HeatmapNew.HeatmapType.PLACES_SPOKEN_AT);
+        configNameToHeatmapType.put("isHeatmapRandomEventSpawnsEnabled", HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS);
+        configNameToHeatmapType.put("isHeatmapDeathsEnabled", HeatmapNew.HeatmapType.DEATHS);
+        configNameToHeatmapType.put("isHeatmapNPCDeathsEnabled", HeatmapNew.HeatmapType.NPC_DEATHS);
+        configNameToHeatmapType.put("isHeatmapBobTheCatSightingEnabled", HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
+        configNameToHeatmapType.put("isHeatmapDamageTakenEnabled", HeatmapNew.HeatmapType.DAMAGE_TAKEN);
+        configNameToHeatmapType.put("isHeatmapDamageGivenEnabled", HeatmapNew.HeatmapType.DAMAGE_GIVEN);
 
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
-                        }
-                        break;
-                    case "isHeatmapDamageTakenEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.DAMAGE_TAKEN + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DAMAGE_TAKEN)).get(HeatmapNew.HeatmapType.DAMAGE_TAKEN);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.DAMAGE_TAKEN, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.DAMAGE_TAKEN + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.DAMAGE_TAKEN);
-                        }
-                        break;
-                    case "isHeatmapDamageGivenEnabled":
-                        if (event.getNewValue().equals("true")) {
-                            log.debug("Enabling " + HeatmapNew.HeatmapType.DAMAGE_GIVEN + " heatmap...");
-                            HeatmapNew hmap = HeatmapNew.readHeatmapsFromFile(filepathUserID, Collections.singletonList(HeatmapNew.HeatmapType.DAMAGE_GIVEN)).get(HeatmapNew.HeatmapType.DAMAGE_GIVEN);
-                            if (hmap != null) {
-                                heatmaps.put(HeatmapNew.HeatmapType.DAMAGE_GIVEN, hmap);
-                            }
-                        } else {
-                            log.debug("Disabling " + HeatmapNew.HeatmapType.DAMAGE_GIVEN + " heatmap...");
-                            HeatmapNew.writeHeatmapsToFile(heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN), filepathUserID);
-                            heatmaps.remove(HeatmapNew.HeatmapType.DAMAGE_GIVEN);
-                        }
-                        break;
-                }
+        HeatmapNew.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
+        if (toggledHeatmapType != null) {
+            boolean isEnabled = event.getNewValue() != null && event.getNewValue().equals("true");
+            handleHeatmapConfigChanged(isEnabled, toggledHeatmapType, filepathUserID);
+        }
+        else {
+            log.debug("A non-existent heatmap type was enabled/disabled in the config, or something.");
+        }
+    }
+
+    private void handleHeatmapConfigChanged(boolean isEnabled, HeatmapNew.HeatmapType heatmapType, File heatmapsFile){
+        if (isEnabled) {
+            log.debug("Enabling {} heatmap...", heatmapType);
+            HeatmapNew heatmap = null;
+            try {
+                heatmap = HeatmapNew.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
-            } finally {
-                initializeMissingHeatmaps(heatmaps, mostRecentLocalUserID);
-                panel.rebuild();
             }
-
+            if (heatmap != null) {
+                heatmaps.put(heatmapType, heatmap);
+            }
+        } else {
+            log.debug("Disabling {} heatmap...", heatmapType);
+            HeatmapNew.writeHeatmapsToFile(heatmaps.get(heatmapType), heatmapsFile);
+            heatmaps.remove(heatmapType);
         }
+        initializeMissingHeatmaps(heatmaps, mostRecentLocalUserID);
+        panel.rebuild();
     }
 
     static class HeatmapProgressListener implements IIOWriteProgressListener {
