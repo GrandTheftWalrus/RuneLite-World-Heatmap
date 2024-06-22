@@ -596,39 +596,22 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     boolean isHeatmapEnabled(HeatmapNew.HeatmapType type) {
-        // Kinda hideous but seemed like the only way to do this
-        switch (type) {
-            case TYPE_A:
-                return config.isHeatmapTypeAEnabled();
-            case TYPE_B:
-                return config.isHeatmapTypeBEnabled();
-            case XP_GAINED:
-                return config.isHeatmapXPGainedEnabled();
-            case TELEPORT_PATHS:
-                return config.isHeatmapTeleportPathsEnabled();
-            case TELEPORTED_TO:
-                return config.isHeatmapTeleportedToEnabled();
-            case TELEPORTED_FROM:
-                return config.isHeatmapTeleportedFromEnabled();
-            case LOOT_VALUE:
-                return config.isHeatmapLootValueEnabled();
-            case PLACES_SPOKEN_AT:
-                return config.isHeatmapPlacesSpokenAtEnabled();
-            case RANDOM_EVENT_SPAWNS:
-                return config.isHeatmapRandomEventSpawnsEnabled();
-            case DEATHS:
-                return config.isHeatmapDeathsEnabled();
-            case NPC_DEATHS:
-                return config.isHeatmapNPCDeathsEnabled();
-            case BOB_THE_CAT_SIGHTING:
-                return config.isHeatmapBobTheCatSightingEnabled();
-            case DAMAGE_TAKEN:
-                return config.isHeatmapDamageTakenEnabled();
-            case DAMAGE_GIVEN:
-                return config.isHeatmapDamageGivenEnabled();
-            default:
-                return false;
-        }
+        Map<HeatmapNew.HeatmapType, Supplier> heatmapTypeSupplierMap = new HashMap<>();
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.TYPE_A, config::isHeatmapTypeAEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.TYPE_B, config::isHeatmapTypeBEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.XP_GAINED, config::isHeatmapXPGainedEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.TELEPORT_PATHS, config::isHeatmapTeleportPathsEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.TELEPORTED_TO, config::isHeatmapTeleportedToEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.TELEPORTED_FROM, config::isHeatmapTeleportedFromEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.LOOT_VALUE, config::isHeatmapLootValueEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT, config::isHeatmapPlacesSpokenAtEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS, config::isHeatmapRandomEventSpawnsEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DEATHS, config::isHeatmapDeathsEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.NPC_DEATHS, config::isHeatmapNPCDeathsEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING, config::isHeatmapBobTheCatSightingEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_TAKEN, config::isHeatmapDamageTakenEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_GIVEN, config::isHeatmapDamageGivenEnabled);
+        return (boolean) heatmapTypeSupplierMap.getOrDefault(type, () -> false).get();
     }
 
     @Subscribe
