@@ -288,7 +288,7 @@ public class HeatmapNew
 		env.put("create", "true");
 		URI uri = URI.create("jar:" + heatmapsFile.toURI());
 
-		log.info("Saving heatmaps to file '" + heatmapsFile.getName() + "'...");
+		log.debug("Saving heatmaps to file '" + heatmapsFile.getName() + "'...");
 		long startTime = System.nanoTime();
 		StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
 		for (HeatmapNew heatmap : heatmapsToWrite) {
@@ -327,8 +327,8 @@ public class HeatmapNew
 			}
 			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
 		}
-		log.info(loggingOutput.toString());
-		log.info("Finished writing '" + heatmapsFile.getName() + "' heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
+		log.debug(loggingOutput.toString());
+		log.debug("Finished writing '" + heatmapsFile.getName() + "' heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
 		return true;
 	}
 
@@ -403,7 +403,7 @@ public class HeatmapNew
 					log.error("Error reading " + curType + " heatmap from .heatmaps entry '" + curHeatmapPath + "'");
 				}
 			}
-			log.info(loggingOutput.toString());
+			log.debug(loggingOutput.toString());
 			return heatmapsRead;
 		} catch (FileNotFoundException e) {
 			throw e;
