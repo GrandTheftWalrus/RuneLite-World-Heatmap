@@ -114,33 +114,31 @@ public class WorldHeatmapPlugin extends Plugin {
     @SneakyThrows
     protected void loadHeatmaps() {
         log.debug("Loading most recent heatmaps under user ID {}...", mostRecentLocalUserID);
-
-
-        File filepathUserID = HeatmapFile.getLastHeatmap(mostRecentLocalUserID);
+        File latestHeatmapsFile = HeatmapFile.getLatestHeatmap(mostRecentLocalUserID);
         // To fix/deal with how previous versions of the plugin used player names
         // (which can change) instead of player IDs, we also do the following check
         File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeA.heatmap");
         File filepathTypeBUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeB.heatmap");
 
-        if (filepathUserID != null && filepathUserID.exists()) {
+        if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
             // Load all heatmaps from the file
-            heatmaps = HeatmapNew.readHeatmapsFromFile(filepathUserID, getEnabledHeatmapTypes());
+            heatmaps = HeatmapNew.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
         } else // If the file doesn't exist, then check for the old username files
         {
-            log.debug("File '" + filepathUserID.getName() + "' did not exist. Checking for old version files '" + filepathTypeAUsername.getName() + "' and '" + filepathTypeBUsername.getName() + "'...");
+            log.debug("Could not find latest heatmaps file for userID {}. Checking for old version files '{}' and '{}'...", mostRecentLocalUserID, filepathTypeAUsername.getName(), filepathTypeBUsername.getName());
             if (filepathTypeAUsername.exists()) {
-                HeatmapNew heatmapTypeA = readHeatmapOld(filepathTypeAUsername);
+                HeatmapNew heatmapTypeA = readHeatmapOld(filepathTypeAUsername); //TODO: move this function to HeatmapNew probably
                 heatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, heatmapTypeA);
             } else {
-                log.debug("File '" + filepathTypeAUsername.getName() + "' did not exist.");
+                log.debug("File '{}' did not exist.", filepathTypeAUsername.getName());
             }
             if (filepathTypeBUsername.exists()) {
                 HeatmapNew heatmapTypeB = readHeatmapOld(filepathTypeBUsername);
                 heatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, heatmapTypeB);
             } else {
-                log.debug("File '" + filepathTypeBUsername.getName() + "' did not exist.");
+                log.debug("File '{}' did not exist.", filepathTypeBUsername.getName());
             }
         }
 
