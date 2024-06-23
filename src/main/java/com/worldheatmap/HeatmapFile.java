@@ -23,7 +23,7 @@ public class HeatmapFile {
     protected final static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_hh-mm");
     
     /**
-     * Make a File in the correct directory and filename according to userId and time
+     * Return a new File in the correct directory and filename according to userId and time. Doesn't actually create the file, just a File object.
      * @return The new File
      */
     public static File getCurrentHeatmapFile(long userId) {
@@ -35,10 +35,9 @@ public class HeatmapFile {
 
     public static File getCurrentImageFile(long userId, HeatmapNew.HeatmapType type) {
         String name = formatDate(new Date());
-        System.out.println("Date is " + name);
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId));
 
-        return new File(userIdDir, name + type + ".tif");
+        return new File(userIdDir, name + "_" + type + ".tif");
     }
 
     /**
@@ -46,7 +45,7 @@ public class HeatmapFile {
      * Returns null if no such file exists.
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmap(long userId) {
+    public static File getLatestHeatmapFile(long userId) {
         File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId));
         File mostRecent = getMostRecentFile(userIdDir);
 

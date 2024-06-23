@@ -10,9 +10,12 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.zip.InflaterInputStream;
 
+import com.google.common.collect.Sets;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+import javax.annotation.Nullable;
 
 @Slf4j
 public class HeatmapNew
@@ -42,7 +45,7 @@ public class HeatmapNew
 	 * @param heatmapFile The .heatmap file
 	 * @return HeatmapNew object
 	 */
-	static HeatmapNew readLegacyHeatmapFile(File heatmapFile, long mostRecentLocalUserID) {
+	static HeatmapNew readLegacyV1HeatmapFile(File heatmapFile, long mostRecentLocalUserID) {
         log.debug("Loading heatmap file '{}'", heatmapFile.getName());
 		try (FileInputStream fis = new FileInputStream(heatmapFile);
 			 InflaterInputStream iis = new InflaterInputStream(fis);
@@ -290,16 +293,14 @@ public class HeatmapNew
 	}
 
 	/**
-	 * Saves a specified heatmap to the specified .heatmaps file. Forces overwrite of disabled heatmaps.
+	 * Writes the provided heatmap data to the specified .heatmaps file. Unprovided heatmaps are carried over from the file previousHeatmapsFile, if it has them.
 	 */
-	protected static boolean writeHeatmapsToFile(HeatmapNew heatmap, File heatmapsFile) {
-		return writeHeatmapsToFile(Collections.singletonList(heatmap), heatmapsFile);
-	}
+	protected static boolean writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
+		// Preamble
+		log.debug("Saving heatmaps to file '{}'...", heatmapsFile.getName());
+		long startTime = System.nanoTime();
+		StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
 
-	/**
-	 * Saves provided heatmaps to specified .heatmaps file. Disabled heatmaps are left unchanged in the file.
-	 */
-	protected static boolean writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
 		// Make the directory path if it doesn't exist
 		if (!Files.exists(Paths.get(heatmapsFile.getParent()))) {
 			if (!new File(heatmapsFile.getParent()).mkdirs()) {
@@ -307,18 +308,30 @@ public class HeatmapNew
 			}
 		}
 
-		// Creates the zip file if it doesn't exist
+		// Copy previousHeatmapsFile to heatmapsFile (if it exists)
+		// in order to carry over unprovided heatmaps before updating
+		if (previousHeatmapsFile != null && previousHeatmapsFile.exists()) {
+			try {
+				Files.copy(previousHeatmapsFile.toPath(), heatmapsFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			} catch (IOException e) {
+				log.error("Error copying latest heatmaps file to new location");
+				return false;
+			}
+		}
+
+		// Zip reading params
 		Map<String, String> env = new HashMap<>();
 		env.put("create", "true");
 		URI uri = URI.create("jar:" + heatmapsFile.toURI());
 
-		log.debug("Saving heatmaps to file '" + heatmapsFile.getName() + "'...");
-		long startTime = System.nanoTime();
-		StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
+		// Get zip entries in the zip file to compare before and after writing
+		Set<String> zipEntriesUpdated = new HashSet<>();
+
 		for (HeatmapNew heatmap : heatmapsToWrite) {
 			// Write the heatmap file
 			try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
+				zipEntriesUpdated.add(zipEntryFile.toString());
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
 					// Write them field variables
 					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
@@ -346,14 +359,41 @@ public class HeatmapNew
 
 			} catch (IOException e) {
 				e.printStackTrace();
-				log.error("World Heatmap was not able to save heatmap type '" + heatmap.getHeatmapType() + "' to file '" + heatmapsFile.getName() + "'");
+                log.error("World Heatmap was not able to save heatmap type '{}' to file '{}'", heatmap.getHeatmapType(), heatmapsFile.getName());
 				return false;
 			}
 			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
 		}
+
+		// Get zip entries in the zip file to compare before and after writing
+		Set<String> zipEntriesAfter = GetZipEntries(env, uri);
+
+		log.debug("Zip entries carried over: {}", Sets.difference(zipEntriesAfter, zipEntriesUpdated));
+
 		log.debug(loggingOutput.toString());
-		log.debug("Finished writing '" + heatmapsFile.getName() + "' heatmap file to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
+        log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
 		return true;
+	}
+
+	/**
+	 * Get the names of the entries (files) in a zip folder
+	 * @param env
+	 * @param uri
+	 * @return Set of file/subfolder names
+	 */
+	private static Set<String> GetZipEntries(Map<String, String> env, URI uri) {
+		Set<String> zipEntries = new HashSet<>();
+		try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
+			for (Path p : fs.getRootDirectories()) {
+				Files.walk(p).forEach(path -> {
+					zipEntries.add(path.toString());
+				});
+			}
+		} catch (IOException e) {
+			log.error("Error reading zip entries in .heatmaps file");
+		}
+		zipEntries.remove("/"); // Remove the root directory
+		return zipEntries;
 	}
 
 	/**
@@ -398,7 +438,7 @@ public class HeatmapNew
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;
 					if (Arrays.stream(HeatmapType.values()).noneMatch(type -> type.toString().equals(heatmapTypeString))) {
-						log.warn("Heatmap type '" + heatmapTypeString + "' from ZipEntry '" + curHeatmapPath + "' is not a valid Heatmap type (at least in this program version). Ignoring...");
+                        log.debug("Heatmap type '{}' from ZipEntry '{}' is not a valid Heatmap type (at least in this program version). Ignoring...", heatmapTypeString, curHeatmapPath);
 						// Stop reading and go to next Heatmap type
 						continue;
 					} else {
@@ -407,6 +447,8 @@ public class HeatmapNew
 
 					// Make ze Heatmap
 					HeatmapNew heatmap = new HeatmapNew(recognizedHeatmapType, userID);
+					// Add le metadata to it
+					heatmap.setGameTimeTicks(gameTimeTicks);
 
 					// Read and load the tile values
 					final int[] errorCount = {0}; // Number of parsing errors occurred during read
@@ -419,12 +461,12 @@ public class HeatmapNew
 						}
 					});
 					if (errorCount[0] != 0) {
-						log.error(errorCount[0] + " errors occurred during " + recognizedHeatmapType + " heatmap file read.");
+                        log.error("{} errors occurred during {} heatmap file read.", errorCount[0], recognizedHeatmapType);
 					}
 					loggingOutput.append(recognizedHeatmapType + " (" + numTilesVisited + " tiles), ");
 					heatmapsRead.put(recognizedHeatmapType, heatmap);
 				} catch (IOException e) {
-					log.error("Error reading " + curType + " heatmap from .heatmaps entry '" + curHeatmapPath + "'");
+                    log.error("Error reading {} heatmap from .heatmaps entry '{}'", curType, curHeatmapPath);
 				}
 			}
 			log.debug(loggingOutput.toString());
