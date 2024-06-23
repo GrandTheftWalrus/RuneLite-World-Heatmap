@@ -51,11 +51,9 @@ public class HeatmapFile {
 
         // Check legacy location if latest file not found
         if (mostRecent == null) {
-            log.debug("Latest heatmaps file not found. Checking legacy (V2) heatmap file location.");
 
             File legacyHeatmapsFile = new File(HEATMAP_FILES_DIR, userId + HEATMAP_EXTENSION);
             if (!legacyHeatmapsFile.exists()) {
-                log.debug("No heatmaps file found in legacy (V2) location either.");
                 return null;
             }
 
@@ -86,7 +84,7 @@ public class HeatmapFile {
     /**
      * Returns the file in the given directory whose filename is the most recent parseable date string.
      * If no such file is found, returns null.
-     * @param path
+     * @param path the directory to search
      * @return the file with the most recent date in its filename, or null if no such file exists
      */
     private static File getMostRecentFile(File path) {

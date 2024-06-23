@@ -63,7 +63,7 @@ public class HeatmapImage implements RenderedImage
 		{
 			if (worldMapImageReader.getHeight(0) % numYTiles != 0)
 			{
-				log.warn("WARNING: Image height " + worldMapImageReader.getHeight(0) + " is not evenly divisible by the number of Y tiles, " + numYTiles + ".");
+                log.warn("WARNING: Image height {} is not evenly divisible by the number of Y tiles, {}.", worldMapImageReader.getHeight(0), numYTiles);
 			}
 		}
 		catch (IOException e)
@@ -92,14 +92,14 @@ public class HeatmapImage implements RenderedImage
 	}
 
 	protected static void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener) {
-		log.debug("Saving " + imageFileOut + " image to disk...");
+        log.debug("Saving {} image to disk...", imageFileOut);
 		long startTime = System.nanoTime();
 		if (!imageFileOut.getName().endsWith(".tif")) {
 			imageFileOut = new File(imageFileOut.getName() + ".tif");
 		}
 
 		if (imageFileOut.getParentFile().mkdirs()){
-			log.debug("Created directory for image file: " + imageFileOut.getParentFile());
+            log.debug("Created directory for image file: {}", imageFileOut.getParentFile());
 		}
 
 		if (heatmapTransparency < 0) {
@@ -166,7 +166,7 @@ public class HeatmapImage implements RenderedImage
 				reader.dispose();
 				writer.dispose();
 			}
-			log.debug("Finished writing " + imageFileOut + " image to disk after " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
+            log.debug("Finished writing {} image to disk after {} ms", imageFileOut, (System.nanoTime() - startTime) / 1_000_000);
 		} catch (OutOfMemoryError e) {
 			log.error("OutOfMemoryError thrown whilst creating and/or writing image file. " +
 					"If you're not able to fix the issue by lowering the memory usage settings " +

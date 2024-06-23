@@ -1,7 +1,6 @@
 package com.worldheatmap;
 
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -10,7 +9,6 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.zip.InflaterInputStream;
 
-import com.google.common.collect.Sets;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -46,15 +44,12 @@ public class HeatmapNew
 	 * @return HeatmapNew object
 	 */
 	static HeatmapNew readLegacyV1HeatmapFile(File heatmapFile, long mostRecentLocalUserID) {
-        log.debug("Loading heatmap file '{}'", heatmapFile.getName());
 		try (FileInputStream fis = new FileInputStream(heatmapFile);
 			 InflaterInputStream iis = new InflaterInputStream(fis);
 			 ObjectInputStream ois = new ObjectInputStream(iis)) {
 			Heatmap heatmap = (Heatmap) ois.readObject();
-			log.debug("Attempting to convert legacy-style heatmap file to new style...");
 			long startTime = System.nanoTime();
 			HeatmapNew result = convertOldHeatmapToNew(heatmap, mostRecentLocalUserID);
-			log.debug("Finished converting legacy-style heatmap to new style in {} ms", (System.nanoTime() - startTime) / 1_000_000);
 			return result;
 		} catch (Exception e) {
 			log.error("Exception occurred while reading legacy heatmap file '{}'", heatmapFile.getName());
@@ -246,45 +241,6 @@ public class HeatmapNew
 	}
 
 	/**
-	 * @return int array holding {maxVal, maxX, maxY} where the latter two are the coordinate at which the max value exists.
-	 */
-	protected int[] getMaxValInRegion(Rectangle region){
-		// Get highest value in region
-		int[] maxValInRegion = {0, region.x, region.y};
-		for (int x = region.x; x < region.x + region.width; x++)
-		{
-			for (int y = region.y; y < region.y + region.height; y++)
-			{
-				if (get(x, y) > maxValInRegion[0])
-				{
-					maxValInRegion[0] = get(x, y);
-					maxValInRegion[1] = x;
-					maxValInRegion[2] = y;
-				}
-			}
-		}
-		return maxValInRegion;
-	}
-
-	protected int[] getMinValInRegion(Rectangle region){
-		// Get lowest value in region
-		int[] minValInRegion = {Integer.MAX_VALUE, region.x, region.y};
-		for (int x = region.x; x < region.x + region.width; x++)
-		{
-			for (int y = region.y; y < region.y + region.height; y++)
-			{
-				if (get(x, y) < minValInRegion[0])
-				{
-					minValInRegion[0] = get(x, y);
-					minValInRegion[1] = x;
-					minValInRegion[2] = y;
-				}
-			}
-		}
-		return minValInRegion;
-	}
-
-	/**
 	 * @return int array holding {minVal, minX, minY} where the latter two are the coordinate at which the minimum NON-ZERO value exists
 	 */
 	protected int[] getMinVal()
@@ -295,7 +251,7 @@ public class HeatmapNew
 	/**
 	 * Writes the provided heatmap data to the specified .heatmaps file. Unprovided heatmaps are carried over from the file previousHeatmapsFile, if it has them.
 	 */
-	protected static boolean writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
+	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
 		// Preamble
 		log.debug("Saving heatmaps to file '{}'...", heatmapsFile.getName());
 		long startTime = System.nanoTime();
@@ -315,7 +271,7 @@ public class HeatmapNew
 				Files.copy(previousHeatmapsFile.toPath(), heatmapsFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			} catch (IOException e) {
 				log.error("Error copying latest heatmaps file to new location");
-				return false;
+				return;
 			}
 		}
 
@@ -324,14 +280,10 @@ public class HeatmapNew
 		env.put("create", "true");
 		URI uri = URI.create("jar:" + heatmapsFile.toURI());
 
-		// Get zip entries in the zip file to compare before and after writing
-		Set<String> zipEntriesUpdated = new HashSet<>();
-
 		for (HeatmapNew heatmap : heatmapsToWrite) {
 			// Write the heatmap file
 			try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
-				zipEntriesUpdated.add(zipEntryFile.toString());
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
 					// Write them field variables
 					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
@@ -358,42 +310,15 @@ public class HeatmapNew
 				}
 
 			} catch (IOException e) {
-				e.printStackTrace();
                 log.error("World Heatmap was not able to save heatmap type '{}' to file '{}'", heatmap.getHeatmapType(), heatmapsFile.getName());
-				return false;
+				e.printStackTrace();
+				return;
 			}
 			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
 		}
 
-		// Get zip entries in the zip file to compare before and after writing
-		Set<String> zipEntriesAfter = GetZipEntries(env, uri);
-
-		log.debug("Zip entries carried over: {}", Sets.difference(zipEntriesAfter, zipEntriesUpdated));
-
 		log.debug(loggingOutput.toString());
         log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
-		return true;
-	}
-
-	/**
-	 * Get the names of the entries (files) in a zip folder
-	 * @param env
-	 * @param uri
-	 * @return Set of file/subfolder names
-	 */
-	private static Set<String> GetZipEntries(Map<String, String> env, URI uri) {
-		Set<String> zipEntries = new HashSet<>();
-		try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
-			for (Path p : fs.getRootDirectories()) {
-				Files.walk(p).forEach(path -> {
-					zipEntries.add(path.toString());
-				});
-			}
-		} catch (IOException e) {
-			log.error("Error reading zip entries in .heatmaps file");
-		}
-		zipEntries.remove("/"); // Remove the root directory
-		return zipEntries;
 	}
 
 	/**
