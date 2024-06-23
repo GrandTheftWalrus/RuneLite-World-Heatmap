@@ -11,7 +11,6 @@ import java.util.*;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.zip.InflaterInputStream;
 import javax.imageio.ImageWriter;
 import javax.imageio.event.IIOWriteProgressListener;
 import javax.inject.Inject;
@@ -125,16 +124,16 @@ public class WorldHeatmapPlugin extends Plugin {
             heatmaps = HeatmapNew.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
         } else // If the file doesn't exist, then check for the old username files
         {
-            log.debug("Could not find latest heatmaps file for userID {}. Checking for old version files '{}' and '{}'...", mostRecentLocalUserID, filepathTypeAUsername.getName(), filepathTypeBUsername.getName());
+            log.debug("Could not find latest heatmaps file for userID {}. Checking for legacy (V1) version files '{}' and '{}'...", mostRecentLocalUserID, filepathTypeAUsername.getName(), filepathTypeBUsername.getName());
             if (filepathTypeAUsername.exists()) {
-                HeatmapNew heatmapTypeA = readHeatmapOld(filepathTypeAUsername); //TODO: move this function to HeatmapNew probably
+                HeatmapNew heatmapTypeA = HeatmapNew.readLegacyHeatmapFile(filepathTypeAUsername, mostRecentLocalUserID);
                 heatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, heatmapTypeA);
             } else {
                 log.debug("File '{}' did not exist.", filepathTypeAUsername.getName());
             }
             if (filepathTypeBUsername.exists()) {
-                HeatmapNew heatmapTypeB = readHeatmapOld(filepathTypeBUsername);
+                HeatmapNew heatmapTypeB = HeatmapNew.readLegacyHeatmapFile(filepathTypeBUsername, mostRecentLocalUserID);
                 heatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, heatmapTypeB);
             } else {
@@ -525,31 +524,6 @@ public class WorldHeatmapPlugin extends Plugin {
 
     public boolean isInOverworld(Point point) {
         return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500 && point.x >= 1024 && point.x < 3960;
-    }
-
-
-
-    /**
-     * Loads heatmap of old style from local storage.
-     *
-     * @param heatmapFile The heatmap file
-     * @return HeatmapNew object
-     */
-    private HeatmapNew readHeatmapOld(File heatmapFile) {
-        log.debug("Loading heatmap file '" + heatmapFile.getName() + "'");
-        try (FileInputStream fis = new FileInputStream(heatmapFile);
-             InflaterInputStream iis = new InflaterInputStream(fis);
-             ObjectInputStream ois = new ObjectInputStream(iis)) {
-            Heatmap heatmap = (Heatmap) ois.readObject();
-            log.debug("Attempting to convert old-style heatmap file to new style...");
-            long startTime = System.nanoTime();
-            HeatmapNew result = HeatmapNew.convertOldHeatmapToNew(heatmap, mostRecentLocalUserID);
-            log.debug("Finished converting old-style heatmap to new style in " + (System.nanoTime() - startTime) / 1_000_000 + " ms");
-            return result;
-        } catch (Exception e) {
-            log.error("Exception occurred while reading heatmap file '" + heatmapFile.getName() + "'");
-            throw new RuntimeException(e);
-        }
     }
 
     /**

@@ -52,24 +52,25 @@ public class HeatmapFile {
 
         // Check legacy location if latest file not found
         if (mostRecent == null) {
-            log.debug("Latest heatmaps file not found. Checking old heatmap file location.");
+            log.debug("Latest heatmaps file not found. Checking legacy (V2) heatmap file location.");
 
             File legacyHeatmapsFile = new File(HEATMAP_FILES_DIR, userId + HEATMAP_EXTENSION);
             if (!legacyHeatmapsFile.exists()) {
-                log.debug("No heatmaps file found in old location either.");
+                log.debug("No heatmaps file found in legacy (V2) location either.");
                 return null;
             }
 
             // Move the old file to the new location
             File destination = getCurrentHeatmapFile(userId);
             if (!destination.mkdirs()) {
-                log.info("Couldn't make dirs to move heatmaps file from legacy location. Aborting move operation, but returning the file.");
+                log.info("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
                 return legacyHeatmapsFile;
             }
             try {
+                log.info("Moving heatmaps file from legacy (V2) location {} to new location {}", legacyHeatmapsFile, destination);
                 Files.move(legacyHeatmapsFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                log.info("Moving heatmaps file from legacy location failed:");
+                log.info("Moving heatmaps file from legacy (V2) location failed:");
                 log.info(e.toString());
                 return legacyHeatmapsFile;
             }

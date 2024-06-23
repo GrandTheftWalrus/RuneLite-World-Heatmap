@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.zip.InflaterInputStream;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -34,6 +35,29 @@ public class HeatmapNew
 		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
 	@Getter
 	private long userID = -1;
+
+	/**
+	 * Loads, converts, and returns .heatmap file of legacy style as a HeatmapNew.
+	 * If the file isn't actually a legacy .heatmap file, throws an exception.
+	 * @param heatmapFile The .heatmap file
+	 * @return HeatmapNew object
+	 */
+	static HeatmapNew readLegacyHeatmapFile(File heatmapFile, long mostRecentLocalUserID) {
+        log.debug("Loading heatmap file '{}'", heatmapFile.getName());
+		try (FileInputStream fis = new FileInputStream(heatmapFile);
+			 InflaterInputStream iis = new InflaterInputStream(fis);
+			 ObjectInputStream ois = new ObjectInputStream(iis)) {
+			Heatmap heatmap = (Heatmap) ois.readObject();
+			log.debug("Attempting to convert legacy-style heatmap file to new style...");
+			long startTime = System.nanoTime();
+			HeatmapNew result = convertOldHeatmapToNew(heatmap, mostRecentLocalUserID);
+			log.debug("Finished converting legacy-style heatmap to new style in {} ms", (System.nanoTime() - startTime) / 1_000_000);
+			return result;
+		} catch (Exception e) {
+			log.error("Exception occurred while reading legacy heatmap file '{}'", heatmapFile.getName());
+			throw new RuntimeException(e);
+		}
+	}
 
 	public enum HeatmapType
 		{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
