@@ -1,7 +1,9 @@
 package com.worldheatmap;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
@@ -9,7 +11,6 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 
@@ -170,9 +171,10 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage) {
         // Save all heatmap data
-        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), new File(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserID + ".heatmaps")));
+        File heatmapFile = HeatmapFile.getLatestHeatmapFile(mostRecentLocalUserID);
+        File imageFile = HeatmapFile.getCurrentImageFile(mostRecentLocalUserID, heatmapType);
+        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), heatmapFile, null));
         // Write the specified heatmap image
-        File imageFile = new File(plugin.HEATMAP_IMAGE_DIR, plugin.mostRecentLocalUserID + "_" + heatmapType.toString() + ".tif");
         HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
         plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
@@ -180,8 +182,12 @@ public class WorldHeatmapPanel extends PluginPanel {
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
         // Replace the heatmap with a new one
         plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID));
-        // Rewrite the heatmap data file
-        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.heatmaps.get(heatmapType), new File(plugin.HEATMAP_FILES_DIR, plugin.mostRecentLocalUserID + ".heatmaps")));
+        List<HeatmapNew> heatmap = List.of(plugin.heatmaps.get(heatmapType));
+
+        // Write new .heatmaps data file, so the current (now old) one can be kept as a backup
+        File latestHeatmapFile = HeatmapFile.getLatestHeatmapFile(mostRecentLocalUserID);
+        File newHeatmapFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
+        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(heatmap, newHeatmapFile, latestHeatmapFile));
     }
 
     private void openHeatmapsFolder() throws IOException {
