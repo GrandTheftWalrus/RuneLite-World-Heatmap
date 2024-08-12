@@ -172,25 +172,31 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-03-29:	Put a total memory usage estimate in the panel
 
-2023-03-29:	fixed how the Player ID was often "unavailable" in the panel
+2024-03-29:	fixed how the Player ID was often "unavailable" in the panel
 
-2023-03-30:	tested the update with shadowjar on raptop, seems to be twerking all good
+2024-03-30:	tested the update with shadowjar on raptop, seems to be twerking all good
 
-2023-03-30:	Fixed how it was loading the Type A heatmap file instead of Type B when converting old types to new
+2024-03-30:	Fixed how it was loading the Type A heatmap file instead of Type B when converting old types to new
 
-2023-03-30:	Made it so that writing an image for an empty heatmap doesn't throw an IllegalArgumentException "Heatmap is empty" which was resulting from getting the min/max values of an empty heatmap
+2024-03-30:	Made it so that writing an image for an empty heatmap doesn't throw an IllegalArgumentException "Heatmap is empty" which was resulting from getting the min/max values of an empty heatmap
 
-2023-03-30:	Added a check for min/max X coordinates when checking if coordinates are in bounds when incrementing heatmaps such as TELEPORT_PATHs to help reduce likelihood of login/logout causing weird teleportation paths way off-screen and stuff
+2024-03-30:	Added a check for min/max X coordinates when checking if coordinates are in bounds when incrementing heatmaps such as TELEPORT_PATHs to help reduce likelihood of login/logout causing weird teleportation paths way off-screen and stuff
 
-2023-03-30:	refactored a pissload of code so that all the main reading/writing heatmap data stuff is inside HeatmapNew and HeatmapImage (and not WorldHeatmapPlugin) so that they can be tested /debugged/profiled with some standalone test program rather than only being able to be run in runelite.
+2024-03-30:	refactored a pissload of code so that all the main reading/writing heatmap data stuff is inside HeatmapNew and HeatmapImage (and not WorldHeatmapPlugin) so that they can be tested /debugged/profiled with some standalone test program rather than only being able to be run in runelite.
 
 UPDATE RELEASED
 
-2023-04-01:	Updated map to include Varlamore
+2024-04-01:	Updated map to include Varlamore
 
-2023-04-03:	I wonder if it's possible to just use runelite's MapImageDumper directly from the plugin instead of using my HeatmapImage class, so that the world map is always up to date? Perhaps I can override its methods or something to add the heatmap visualization.
+2024-04-03:	I wonder if it's possible to just use runelite's MapImageDumper directly from the plugin instead of using my HeatmapImage class, so that the world map is always up to date? Perhaps I can override its methods or something to add the heatmap visualization.
 	result: Just remembered that MapImageDumper uses a somewhat broken version of BigBufferedImage which creates big ass temp files that never get deleted, so it shouldn't be used in a plugin.
 
-2023-04-03:	Changed default speed-memory tradeoff from 4 to 6
+2024-04-03:	Changed default speed-memory tradeoff from 4 to 6
 
 ----You are Here----
+
+TODO: Make sure that backups are actually working and that the filenames don't have illegal characters in them and are not way too long
+
+TODO:	make it so the % done label returns to normal when an exception is thrown whilst writing image
+
+TODO:	Fix how if you're writing an image, the label will correctly say "Writing ... X%", but opening the config and then returning to the panel will cause the default "Write Heatmap Image" text to be drawn until the label is updated again for the next percentage. Also, the label is undisabled when this happens (the text remains green, though.)

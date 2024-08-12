@@ -127,15 +127,18 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     /**
-     * Handles loading of legacy V1 heatmap files by converting them to the new format, saving the new files, and deleting the legacy files
+     * Handles loading of legacy V1 heatmap files by converting them to the new format, saving the new files, and renaming the old files to '.old'
      */
     private void handleLegacyV1HeatmapFiles() {
         File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeA.heatmap");
         if (filepathTypeAUsername.exists()) {
+            // Load and convert the legacy heatmap file
             HeatmapNew legacyHeatmapTypeA = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeAUsername, mostRecentLocalUserID);
+            // Define the heatmap type as TYPE_A
             legacyHeatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
-            boolean newerTypeAExists = heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null;
-            if (!newerTypeAExists){
+            // Check if a Type A heatmap has already been loaded
+            boolean typeAAlreadyLoaded = heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null;
+            if (!typeAAlreadyLoaded){
                 // Load heatmap from legacy file
                 log.info("Loading Type A legacy (V1) heatmap file for user ID {}...", mostRecentLocalUserID);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, legacyHeatmapTypeA);

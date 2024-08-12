@@ -171,7 +171,9 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage) {
         // Save all heatmap data
-        File heatmapFile = HeatmapFile.getLatestHeatmapFile(mostRecentLocalUserID);
+        File latestFile = HeatmapFile.getLatestHeatmapFile(mostRecentLocalUserID);
+        File newFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
+        File heatmapFile = latestFile != null ? latestFile : newFile;
         File imageFile = HeatmapFile.getCurrentImageFile(mostRecentLocalUserID, heatmapType);
         plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), heatmapFile, null));
         // Write the specified heatmap image

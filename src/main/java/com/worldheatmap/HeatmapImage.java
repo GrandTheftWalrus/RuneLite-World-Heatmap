@@ -63,7 +63,7 @@ public class HeatmapImage implements RenderedImage
 		{
 			if (worldMapImageReader.getHeight(0) % numYTiles != 0)
 			{
-                log.warn("WARNING: Image height {} is not evenly divisible by the number of Y tiles, {}.", worldMapImageReader.getHeight(0), numYTiles);
+                log.debug("WARNING: Image height {} is not evenly divisible by the number of Y tiles, {}.", worldMapImageReader.getHeight(0), numYTiles);
 			}
 		}
 		catch (IOException e)
@@ -173,7 +173,6 @@ public class HeatmapImage implements RenderedImage
 					"(if they exist in this version of the plugin) then perhaps consider submitting" +
 					"an Issue on the GitHub");
 		} catch (Exception e) {
-			e.printStackTrace();
 			log.error("Exception thrown whilst creating and/or writing image file");
 		}
 	}

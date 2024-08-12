@@ -14,17 +14,17 @@ public interface WorldHeatmapConfig extends Config {
     String settings = "settings";
 
     @Range(
-            min = 30
+            min = 100
     )
     @ConfigItem(
             keyName = "ImageAutosaveFrequency",
             name = "Type A&B image autosave frequency",
             position = 0,
-            description = "Determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 2000 ticks (20 minutes)",
+            description = "Determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 36000 ticks (6 hours)",
             section = settings
     )
     default int typeABImageAutosaveFrequency() {
-        return 2000;
+        return 36000;
     }
 
     @ConfigItem(
@@ -39,7 +39,7 @@ public interface WorldHeatmapConfig extends Config {
     }
 
     @Range(
-            min = 30
+            min = 100
     )
     @ConfigItem(
             keyName = "HeatmapBackupFrequency",
