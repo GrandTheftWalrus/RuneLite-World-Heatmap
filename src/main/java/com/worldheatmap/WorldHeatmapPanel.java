@@ -183,7 +183,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
         // Replace the heatmap with a new one
-        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID));
+        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID, plugin.mostRecentAccountType));
         List<HeatmapNew> heatmap = List.of(plugin.heatmaps.get(heatmapType));
 
         // Write new .heatmaps data file, so the current (now old) one can be kept as a backup

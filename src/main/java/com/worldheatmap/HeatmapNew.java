@@ -21,7 +21,7 @@ public class HeatmapNew
 	@Getter
 	private final HashMap<Point, Integer> heatmapHashMap;
 	@Getter
-	private static final int heatmapVersion = 100;
+	private static final int heatmapVersion = 101;
 	@Getter
 	private long totalValue = 0;
 	@Getter
@@ -34,56 +34,46 @@ public class HeatmapNew
 		HEATMAP_HEIGHT = 1664,      //never change these
 		HEATMAP_OFFSET_X = -1152,   //never change these
 		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
-	@Getter
+	@Getter @Setter
 	private long userID = -1;
-
-	/**
-	 * Loads, converts, and returns .heatmap file of legacy style as a HeatmapNew.
-	 * If the file isn't actually a legacy .heatmap file, throws an exception.
-	 * @param heatmapFile The .heatmap file
-	 * @return HeatmapNew object
-	 */
-	static HeatmapNew readLegacyV1HeatmapFile(File heatmapFile, long mostRecentLocalUserID) {
-		try (FileInputStream fis = new FileInputStream(heatmapFile);
-			 InflaterInputStream iis = new InflaterInputStream(fis);
-			 ObjectInputStream ois = new ObjectInputStream(iis)) {
-			Heatmap heatmap = (Heatmap) ois.readObject();
-			long startTime = System.nanoTime();
-			HeatmapNew result = convertOldHeatmapToNew(heatmap, mostRecentLocalUserID);
-			return result;
-		} catch (Exception e) {
-			log.error("Exception occurred while reading legacy heatmap file '{}'", heatmapFile.getName());
-			throw new RuntimeException(e);
-		}
-	}
-
+	@Getter @Setter
+	private int accountType = -1;
 	public enum HeatmapType
-		{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
+	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
 	@Getter @Setter
 	private HeatmapType heatmapType;
 
-	public HeatmapNew(HeatmapType heatmapType)
+	/**
+	 * Constructor for HeatmapNew object with no arguments.
+	 */
+	public HeatmapNew()
 	{
-		this.heatmapType = heatmapType;
+		this.heatmapType = HeatmapType.UNKNOWN;
 		this.heatmapHashMap = new HashMap<>();
 	}
 
-	public HeatmapNew(HeatmapType heatmapType, long userID)
+	/**
+	 * Constructor for HeatmapNew object with userID and accountType.
+	 * @param heatmapType
+	 * @param userID
+	 * @param accountType
+	 */
+	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType)
 	{
 		this.heatmapType = heatmapType;
 		this.heatmapHashMap = new HashMap<>();
 		this.userID = userID;
+		this.accountType = accountType;
 	}
 
-	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle, long userId)
+	/**
+	 * Converter for backwards compatibility with the old, retarded method of storing heatmap data
+	 * @param oldStyle
+	 * @return
+	 */
+	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle)
 	{
-		return convertOldHeatmapToNew(oldStyle, HeatmapType.UNKNOWN, userId);
-	}
-
-	// The following horse shit is for backwards compatibility with the old, retarded method of storing heatmap data
-	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle, HeatmapType type, long userId)
-	{
-		HeatmapNew newStyle = new HeatmapNew(type, userId);
+		HeatmapNew newStyle = new HeatmapNew();
 		for (int x = 0; x < HEATMAP_WIDTH; x++)
 		{
 			for (int y = 0; y < HEATMAP_HEIGHT; y++)
@@ -95,6 +85,25 @@ public class HeatmapNew
 			}
 		}
 		return newStyle;
+	}
+
+	/**
+	 * Loads, converts, and returns .heatmap file of legacy style as a HeatmapNew.
+	 * If the file isn't actually a legacy .heatmap file, throws an exception.
+	 * @param heatmapFile The .heatmap file
+	 * @return HeatmapNew object
+	 */
+	static HeatmapNew readLegacyV1HeatmapFile(File heatmapFile) {
+		try (FileInputStream fis = new FileInputStream(heatmapFile);
+			 InflaterInputStream iis = new InflaterInputStream(fis);
+			 ObjectInputStream ois = new ObjectInputStream(iis)) {
+			Heatmap heatmap = (Heatmap) ois.readObject();
+			HeatmapNew result = convertOldHeatmapToNew(heatmap);
+			return result;
+		} catch (Exception e) {
+			log.error("Exception occurred while reading legacy heatmap file '{}'", heatmapFile.getName());
+			throw new RuntimeException(e);
+		}
 	}
 
 	protected Set<Entry<Point, Integer>> getEntrySet()
@@ -286,7 +295,7 @@ public class HeatmapNew
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
 					// Write them field variables
-					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks\n");
+					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks,accountType\n");
 					osw.write(heatmap.getUserID() +
 							"," + getHeatmapVersion() +
 							"," + heatmap.getHeatmapType() +
@@ -298,7 +307,8 @@ public class HeatmapNew
 							"," + heatmap.getMinVal()[0] +
 							"," + heatmap.getMinVal()[1] +
 							"," + heatmap.getMinVal()[2] +
-							"," + heatmap.getGameTimeTicks() + "\n");
+							"," + heatmap.getGameTimeTicks() +
+							"," + heatmap.getAccountType() + "\n");
 					// Write the tile values
 					for (Entry<Point, Integer> e : heatmap.getEntrySet()) {
 						int x = e.getKey().x;
@@ -349,6 +359,7 @@ public class HeatmapNew
 					String[] fieldNames = reader.readLine().split(",");
 					String[] fieldValues = reader.readLine().split(",");
 					long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
+					long heatmapVersion = (fieldValues[1].isEmpty() ? -1 : Long.parseLong(fieldValues[1]));
 					String heatmapTypeString = fieldValues[2];
 					int totalValue = (fieldValues[3].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
 					int numTilesVisited = (fieldValues[4].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
@@ -359,6 +370,12 @@ public class HeatmapNew
 					int minValX = (fieldValues[9].isEmpty() ? -1 : Integer.parseInt(fieldValues[9]));
 					int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
 					int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
+					int accountType = -1;
+					if (heatmapVersion >= 101){
+						accountType = (fieldValues[12].isEmpty() ? -1 : Integer.parseInt(fieldValues[12]));
+					}
+					log.debug("Heatmap file version: {}", heatmapVersion);
+					log.debug("Detected account type: {}", accountType);
 
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;
@@ -370,9 +387,11 @@ public class HeatmapNew
 						recognizedHeatmapType = HeatmapType.valueOf(heatmapTypeString);
 					}
 
-					// Make ze Heatmap
-					HeatmapNew heatmap = new HeatmapNew(recognizedHeatmapType, userID);
-					// Add le metadata to it
+					// Make ze Heatmap and set metadata
+					HeatmapNew heatmap = new HeatmapNew();
+					heatmap.setHeatmapType(recognizedHeatmapType);
+					heatmap.setUserID(userID);
+					heatmap.setAccountType(accountType);
 					heatmap.setGameTimeTicks(gameTimeTicks);
 
 					// Read and load the tile values

@@ -184,7 +184,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-03-30:	refactored a pissload of code so that all the main reading/writing heatmap data stuff is inside HeatmapNew and HeatmapImage (and not WorldHeatmapPlugin) so that they can be tested /debugged/profiled with some standalone test program rather than only being able to be run in runelite.
 
-UPDATE RELEASED
+**UPDATE RELEASED**
 
 2024-04-01:	Updated map to include Varlamore
 
@@ -195,8 +195,17 @@ UPDATE RELEASED
 
 ----You are Here----
 
+TODO: Use whatever logic the "Ground Items" plugin uses to identify "takeable" ground items, so that LOOT_VALUE only counts value of your own l00t
+
+TODO: Add field to CSVs made by plugin: AccountType (regular/ironman/etc)
+
+TODO: Add field to CSVs made by plugin: CurrentCombatLevel
+
+TODO: Perhaps put heatmap images in their own folder based on type, so we dont have a bunch of TYPE_As, TYPE_Bs, TELEPORT_PATHS, etc. in the same folder
+
 TODO: Make sure that backups are actually working and that the filenames don't have illegal characters in them and are not way too long
 
 TODO:	make it so the % done label returns to normal when an exception is thrown whilst writing image
 
 TODO:	Fix how if you're writing an image, the label will correctly say "Writing ... X%", but opening the config and then returning to the panel will cause the default "Write Heatmap Image" text to be drawn until the label is updated again for the next percentage. Also, the label is undisabled when this happens (the text remains green, though.)
+

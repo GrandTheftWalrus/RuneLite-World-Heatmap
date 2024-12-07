@@ -31,6 +31,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
+import net.runelite.api.Varbits;
 
 import java.awt.image.BufferedImage;
 import java.util.concurrent.*;
@@ -48,6 +49,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private int lastX = 0;
     private int lastY = 0;
     protected long mostRecentLocalUserID;
+    protected int mostRecentAccountType;
     private boolean shouldLoadHeatmaps;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
@@ -122,7 +124,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
         handleLegacyV1HeatmapFiles();
 
-        initializeMissingHeatmaps(heatmaps, mostRecentLocalUserID);
+        initializeMissingHeatmaps(heatmaps);
         panel.setEnabledHeatmapButtons(true);
     }
 
@@ -133,10 +135,12 @@ public class WorldHeatmapPlugin extends Plugin {
         File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeA.heatmap");
         if (filepathTypeAUsername.exists()) {
             // Load and convert the legacy heatmap file
-            HeatmapNew legacyHeatmapTypeA = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeAUsername, mostRecentLocalUserID);
-            // Define the heatmap type as TYPE_A
+            HeatmapNew legacyHeatmapTypeA = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeAUsername);
+            legacyHeatmapTypeA.setUserID(mostRecentLocalUserID);
+            legacyHeatmapTypeA.setAccountType(mostRecentAccountType);
             legacyHeatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
-            // Check if a Type A heatmap has already been loaded
+
+            // Check if heatmap has already been loaded
             boolean typeAAlreadyLoaded = heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null;
             if (!typeAAlreadyLoaded){
                 // Load heatmap from legacy file
@@ -153,8 +157,13 @@ public class WorldHeatmapPlugin extends Plugin {
         // Repeat for Type B
         File filepathTypeBUsername = new File(HEATMAP_FILES_DIR.toString(), mostRecentLocalUserName + "_TypeB.heatmap");
         if (filepathTypeBUsername.exists()) {
-            HeatmapNew legacyHeatmapTypeB = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeBUsername, mostRecentLocalUserID);
+            // Load and convert the legacy heatmap file
+            HeatmapNew legacyHeatmapTypeB = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeBUsername);
+            legacyHeatmapTypeB.setUserID(mostRecentLocalUserID);
+            legacyHeatmapTypeB.setAccountType(mostRecentAccountType);
             legacyHeatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
+
+            // Check if heatmap has already been loaded
             boolean newerTypeBExists = heatmaps.get(HeatmapNew.HeatmapType.TYPE_B) != null;
             if (!newerTypeBExists){
                 // Load heatmap from legacy file
@@ -213,13 +222,13 @@ public class WorldHeatmapPlugin extends Plugin {
             saveCurrentHeatmapsFile();
             loadHeatmapsFuture = null;
         }
-        if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
-            // Disable write heatmap image buttons
-            panel.setEnabledHeatmapButtons(false);
-        }
+
+        // Enable/disable "Write Heatmap" buttons if logged in/out
         if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-            // Enable write heatmap image buttons
             panel.setEnabledHeatmapButtons(true);
+        }
+        else {
+            panel.setEnabledHeatmapButtons(false);
         }
     }
 
@@ -228,10 +237,11 @@ public class WorldHeatmapPlugin extends Plugin {
         if (client.getAccountHash() == -1) {
             return;
         }
-        // If the player has changed, update the player ID
+        // If the player has changed, update player metadata
         if (mostRecentLocalUserID != client.getAccountHash()) {
             mostRecentLocalUserName = client.getLocalPlayer().getName();
             mostRecentLocalUserID = client.getAccountHash();
+            mostRecentAccountType = Varbits.ACCOUNT_TYPE;
         }
         if (panel.mostRecentLocalUserID != mostRecentLocalUserID) {
             SwingUtilities.invokeLater(panel::updatePlayerID);
@@ -591,9 +601,8 @@ public class WorldHeatmapPlugin extends Plugin {
      * Initializes any enabled Heatmap types in the given Map of Heatmaps that weren't loaded
      *
      * @param heatmaps HashMap of HeatmapNew objects
-     * @param userID   The user ID
      */
-    public void initializeMissingHeatmaps(Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps, long userID) {
+    public void initializeMissingHeatmaps(Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps) {
         log.debug("Initializing missing heatmaps...");
         // Get the heatmaps that are enabled but were not loaded
         ArrayList<HeatmapNew.HeatmapType> missingTypes = new ArrayList<>();
@@ -609,9 +618,9 @@ public class WorldHeatmapPlugin extends Plugin {
         for (HeatmapNew.HeatmapType type : missingTypes) {
             missingTypesNames.add(type.toString());
         }
-        log.debug("Initializing the following types: " + String.join(", ", missingTypesNames));
+        log.debug("Initializing the following types: {}", String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
-            heatmaps.put(type, new HeatmapNew(type, userID));
+            heatmaps.put(type, new HeatmapNew(type, mostRecentLocalUserID, mostRecentAccountType));
         }
     }
 
@@ -706,7 +715,7 @@ public class WorldHeatmapPlugin extends Plugin {
             HeatmapNew.writeHeatmapsToFile(List.of(heatmaps.get(heatmapType)), heatmapsFile, null);
             heatmaps.remove(heatmapType);
         }
-        initializeMissingHeatmaps(heatmaps, mostRecentLocalUserID);
+        initializeMissingHeatmaps(heatmaps);
         panel.rebuild();
     }
 
