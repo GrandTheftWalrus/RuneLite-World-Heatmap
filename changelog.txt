@@ -193,15 +193,19 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-04-03:	Changed default speed-memory tradeoff from 4 to 6
 
+2024-12-07: Added int field to HeatmapNew: AccountType
+
 ----You are Here----
 
 TODO: Use whatever logic the "Ground Items" plugin uses to identify "takeable" ground items, so that LOOT_VALUE only counts value of your own l00t
 
-TODO: Add field to CSVs made by plugin: AccountType (regular/ironman/etc)
-
 TODO: Add field to CSVs made by plugin: CurrentCombatLevel
 
 TODO: Perhaps put heatmap images in their own folder based on type, so we dont have a bunch of TYPE_As, TYPE_Bs, TELEPORT_PATHS, etc. in the same folder
+
+TODO: Make it periodically upload files to https://www.osrsworldheatmap.com/api/upload-csv/
+
+TODO: Perhaps add "warning=blah blah" to plugin-hub file
 
 TODO: Make sure that backups are actually working and that the filenames don't have illegal characters in them and are not way too long
 

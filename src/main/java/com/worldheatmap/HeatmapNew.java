@@ -374,8 +374,6 @@ public class HeatmapNew
 					if (heatmapVersion >= 101){
 						accountType = (fieldValues[12].isEmpty() ? -1 : Integer.parseInt(fieldValues[12]));
 					}
-					log.debug("Heatmap file version: {}", heatmapVersion);
-					log.debug("Detected account type: {}", accountType);
 
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;

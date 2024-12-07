@@ -120,6 +120,10 @@ public class WorldHeatmapPlugin extends Plugin {
         // Load all heatmaps from the file
         if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
             heatmaps = HeatmapNew.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
+            for (HeatmapNew heatmap : heatmaps.values()){
+                heatmap.setUserID(mostRecentLocalUserID);
+                heatmap.setAccountType(mostRecentAccountType);
+            }
         }
 
         handleLegacyV1HeatmapFiles();
@@ -241,7 +245,7 @@ public class WorldHeatmapPlugin extends Plugin {
         if (mostRecentLocalUserID != client.getAccountHash()) {
             mostRecentLocalUserName = client.getLocalPlayer().getName();
             mostRecentLocalUserID = client.getAccountHash();
-            mostRecentAccountType = Varbits.ACCOUNT_TYPE;
+            mostRecentAccountType = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
         }
         if (panel.mostRecentLocalUserID != mostRecentLocalUserID) {
             SwingUtilities.invokeLater(panel::updatePlayerID);
@@ -603,7 +607,6 @@ public class WorldHeatmapPlugin extends Plugin {
      * @param heatmaps HashMap of HeatmapNew objects
      */
     public void initializeMissingHeatmaps(Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps) {
-        log.debug("Initializing missing heatmaps...");
         // Get the heatmaps that are enabled but were not loaded
         ArrayList<HeatmapNew.HeatmapType> missingTypes = new ArrayList<>();
         for (HeatmapNew.HeatmapType type : HeatmapNew.HeatmapType.values()) {
@@ -618,7 +621,7 @@ public class WorldHeatmapPlugin extends Plugin {
         for (HeatmapNew.HeatmapType type : missingTypes) {
             missingTypesNames.add(type.toString());
         }
-        log.debug("Initializing the following types: {}", String.join(", ", missingTypesNames));
+        log.debug("Initializing missing heatmaps: {}", String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
             heatmaps.put(type, new HeatmapNew(type, mostRecentLocalUserID, mostRecentAccountType));
         }
@@ -700,6 +703,8 @@ public class WorldHeatmapPlugin extends Plugin {
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
                     heatmap = HeatmapNew.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
+                    heatmap.setUserID(mostRecentLocalUserID);
+                    heatmap.setAccountType(mostRecentAccountType);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
