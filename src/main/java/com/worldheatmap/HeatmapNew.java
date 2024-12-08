@@ -34,14 +34,16 @@ public class HeatmapNew
 		HEATMAP_HEIGHT = 1664,      //never change these
 		HEATMAP_OFFSET_X = -1152,   //never change these
 		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
+	public enum HeatmapType
+	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
 	@Getter @Setter
 	private long userID = -1;
 	@Getter @Setter
 	private int accountType = -1;
-	public enum HeatmapType
-	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
 	@Getter @Setter
 	private HeatmapType heatmapType;
+	@Getter @Setter
+	private int currentCombatLevel = -1;
 
 	/**
 	 * Constructor for HeatmapNew object with no arguments.
@@ -295,7 +297,7 @@ public class HeatmapNew
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
 					// Write them field variables
-					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks,accountType\n");
+					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks,accountType,currentCombatLevel\n");
 					osw.write(heatmap.getUserID() +
 							"," + getHeatmapVersion() +
 							"," + heatmap.getHeatmapType() +
@@ -308,7 +310,8 @@ public class HeatmapNew
 							"," + heatmap.getMinVal()[1] +
 							"," + heatmap.getMinVal()[2] +
 							"," + heatmap.getGameTimeTicks() +
-							"," + heatmap.getAccountType() + "\n");
+							"," + heatmap.getAccountType() +
+							"," + heatmap.getCurrentCombatLevel() + "\n");
 					// Write the tile values
 					for (Entry<Point, Integer> e : heatmap.getEntrySet()) {
 						int x = e.getKey().x;
@@ -371,8 +374,10 @@ public class HeatmapNew
 					int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
 					int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
 					int accountType = -1;
+					int currentCombatLevel = -1;
 					if (heatmapVersion >= 101){
 						accountType = (fieldValues[12].isEmpty() ? -1 : Integer.parseInt(fieldValues[12]));
+						currentCombatLevel = (fieldValues[13].isEmpty() ? -1 : Integer.parseInt(fieldValues[13]));
 					}
 
 					// Get HeatmapType from field value if legit
@@ -391,6 +396,7 @@ public class HeatmapNew
 					heatmap.setUserID(userID);
 					heatmap.setAccountType(accountType);
 					heatmap.setGameTimeTicks(gameTimeTicks);
+					heatmap.setCurrentCombatLevel(currentCombatLevel);
 
 					// Read and load the tile values
 					final int[] errorCount = {0}; // Number of parsing errors occurred during read

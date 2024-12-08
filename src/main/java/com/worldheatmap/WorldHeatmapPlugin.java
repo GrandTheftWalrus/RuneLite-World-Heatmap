@@ -50,6 +50,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private int lastY = 0;
     protected long mostRecentLocalUserID;
     protected int mostRecentAccountType;
+    protected int mostRecentCombatLevel;
     private boolean shouldLoadHeatmaps;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
@@ -123,6 +124,7 @@ public class WorldHeatmapPlugin extends Plugin {
             for (HeatmapNew heatmap : heatmaps.values()){
                 heatmap.setUserID(mostRecentLocalUserID);
                 heatmap.setAccountType(mostRecentAccountType);
+                heatmap.setCurrentCombatLevel(mostRecentCombatLevel);
             }
         }
 
@@ -143,6 +145,7 @@ public class WorldHeatmapPlugin extends Plugin {
             legacyHeatmapTypeA.setUserID(mostRecentLocalUserID);
             legacyHeatmapTypeA.setAccountType(mostRecentAccountType);
             legacyHeatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
+            legacyHeatmapTypeA.setCurrentCombatLevel(mostRecentCombatLevel);
 
             // Check if heatmap has already been loaded
             boolean typeAAlreadyLoaded = heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null;
@@ -166,6 +169,7 @@ public class WorldHeatmapPlugin extends Plugin {
             legacyHeatmapTypeB.setUserID(mostRecentLocalUserID);
             legacyHeatmapTypeB.setAccountType(mostRecentAccountType);
             legacyHeatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
+            legacyHeatmapTypeB.setCurrentCombatLevel(mostRecentCombatLevel);
 
             // Check if heatmap has already been loaded
             boolean newerTypeBExists = heatmaps.get(HeatmapNew.HeatmapType.TYPE_B) != null;
@@ -246,6 +250,7 @@ public class WorldHeatmapPlugin extends Plugin {
             mostRecentLocalUserName = client.getLocalPlayer().getName();
             mostRecentLocalUserID = client.getAccountHash();
             mostRecentAccountType = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
+            mostRecentCombatLevel = client.getLocalPlayer().getCombatLevel();
         }
         if (panel.mostRecentLocalUserID != mostRecentLocalUserID) {
             SwingUtilities.invokeLater(panel::updatePlayerID);
@@ -705,6 +710,7 @@ public class WorldHeatmapPlugin extends Plugin {
                     heatmap = HeatmapNew.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
                     heatmap.setUserID(mostRecentLocalUserID);
                     heatmap.setAccountType(mostRecentAccountType);
+                    heatmap.setCurrentCombatLevel(mostRecentCombatLevel);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
