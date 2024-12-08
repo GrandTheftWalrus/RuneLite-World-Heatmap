@@ -64,7 +64,7 @@ public interface WorldHeatmapConfig extends Config {
             section = settings
     )
     default double heatmapAlpha() {
-        return 0.65;
+        return 1.0;
     }
 
     @Range(
