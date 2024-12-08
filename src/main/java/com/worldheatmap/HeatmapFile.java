@@ -34,10 +34,10 @@ public class HeatmapFile {
     }
 
     public static File getCurrentImageFile(long userId, HeatmapNew.HeatmapType type) {
-        String name = formatDate(new Date());
+        String dateString = formatDate(new Date());
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId));
 
-        return new File(userIdDir, name + "_" + type + ".tif");
+        return new File(userIdDir, type + "_" + dateString + ".tif");
     }
 
     /**
