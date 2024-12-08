@@ -5,6 +5,9 @@ import com.google.inject.Provides;
 import java.awt.*;
 import java.awt.Point;
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
 import java.util.*;
@@ -35,6 +38,8 @@ import net.runelite.api.Varbits;
 
 import java.awt.image.BufferedImage;
 import java.util.concurrent.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import net.runelite.client.game.ItemManager;
 
@@ -95,6 +100,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private final int[] previousXP = new int[Skill.values().length];
     protected String mostRecentLocalUserName;
     private Future<?> loadHeatmapsFuture;
+    private final String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
 
     @Inject
     private Client client;
@@ -325,9 +331,10 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         }
 
-        // Backup/autosave routines
+        // Routines
         backupRoutine();
         autosaveRoutine();
+        uploadHeatmapRoutine();
 
         // Update panel step counter
         SwingUtilities.invokeLater(panel::updateCounts);
@@ -728,6 +735,89 @@ public class WorldHeatmapPlugin extends Plugin {
         }
         initializeMissingHeatmaps(heatmaps);
         panel.rebuild();
+    }
+
+    private void uploadHeatmapRoutine() {
+        int defaultUploadFrequency = 100; // Default upload frequency in game time ticks
+
+        // Get list of heatmaps to upload, if any
+        List<HeatmapNew.HeatmapType> heatmapsToUpload = new ArrayList<>();
+        for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
+            if (isHeatmapEnabled(type)) {
+                // Check if it's time to upload each heatmap based on the upload frequencies
+                if (heatmaps.get(type).getGameTimeTicks() % defaultUploadFrequency == 0) {
+                    heatmapsToUpload.add(type);
+                }
+            }
+        }
+
+        if (heatmapsToUpload.isEmpty()) {
+            return;
+        }
+
+        // Upload the heatmaps
+        log.info("Uploading heatmaps {}...", heatmapsToUpload);
+        if (uploadHeatmaps(heatmapsToUpload)){
+            log.info("Heatmaps uploaded successfully");
+        }
+    }
+
+    /**
+     * Serializes heatmap as CSV, zip it, and then upload it to HEATMAP_SITE_API_ENDPOINT
+     * @param heatmaps
+     * @return
+     */
+    private boolean uploadHeatmaps(Collection<HeatmapNew.HeatmapType> heatmaps){
+        if (heatmaps.isEmpty()){
+            return false;
+        }
+
+        // Get HTTP POST output stream
+        HttpURLConnection connection = null;
+
+        try {
+            URL url = new URL(HEATMAP_SITE_API_ENDPOINT);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/zip");
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+
+            // Zip the CSV
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            try (ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)) {
+                for (HeatmapNew.HeatmapType heatmapType : heatmaps) {
+                    byte[] heatmapCSV = this.heatmaps.get(heatmapType).toCSV().getBytes();
+                    ZipEntry zipEntry = new ZipEntry(heatmapType.toString() + "_HEATMAP.csv");
+                    zipOutputStream.putNextEntry(zipEntry);
+                    zipOutputStream.write(heatmapCSV);
+                    zipOutputStream.closeEntry();
+                }
+            }
+
+            // Write the zip to the output stream
+            try (OutputStream outputStream = connection.getOutputStream()) {
+                byteArrayOutputStream.writeTo(outputStream);
+            }
+
+            // Get the response
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                return true;
+            }
+            else{
+                log.error("Failed to upload heatmaps: HTTP {} {}", responseCode, connection.getResponseMessage());
+            }
+        } catch (IOException e) {
+            log.error("Error uploading heatmap to " + HEATMAP_SITE_API_ENDPOINT, e);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+
+        log.error("Failed to upload heatmaps");
+        return false;
     }
 
     static class HeatmapProgressListener implements IIOWriteProgressListener {

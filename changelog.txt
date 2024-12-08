@@ -197,10 +197,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-07: Added int field to HeatmapNew: CurrentCombatLevel
 
-----You are Here----
+2024-12-07: Changed image output filenames for better sorting (now the name comes before the date)
 
-TODO: Perhaps put heatmap images in their own folder based on type, so we don't have a bunch of TYPE_As, TYPE_Bs, TELEPORT_PATHS, etc. in the same folder
-TODO: Instead, let's just put the heatmap type name before the date so that they can be sorted by type (and date) simultaneously without needing to separate them into folders.
+----You are Here----
 
 TODO: Make it periodically upload files to https://www.osrsworldheatmap.com/api/upload-csv/ with opt-out (or opt-in?)
     NOTE: Add "warning=This plugin uploads anonymous data blah blah" to plugin-hub file

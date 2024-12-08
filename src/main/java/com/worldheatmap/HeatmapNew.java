@@ -296,30 +296,8 @@ public class HeatmapNew
 			try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
-					// Write them field variables
-					osw.write("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks,accountType,currentCombatLevel\n");
-					osw.write(heatmap.getUserID() +
-							"," + getHeatmapVersion() +
-							"," + heatmap.getHeatmapType() +
-							"," + heatmap.getTotalValue() +
-							"," + heatmap.getNumTilesVisited() +
-							"," + heatmap.getMaxVal()[0] +
-							"," + heatmap.getMaxVal()[1] +
-							"," + heatmap.getMaxVal()[2] +
-							"," + heatmap.getMinVal()[0] +
-							"," + heatmap.getMinVal()[1] +
-							"," + heatmap.getMinVal()[2] +
-							"," + heatmap.getGameTimeTicks() +
-							"," + heatmap.getAccountType() +
-							"," + heatmap.getCurrentCombatLevel() + "\n");
-					// Write the tile values
-					for (Entry<Point, Integer> e : heatmap.getEntrySet()) {
-						int x = e.getKey().x;
-						int y = e.getKey().y;
-						int stepVal = e.getValue();
-						osw.write(x + "," + y + "," + stepVal + "\n");
-					}
-					osw.flush();
+					osw.write(heatmap.toCSV());
+					osw.flush(); // Not sure if this is necessary
 				}
 
 			} catch (IOException e) {
@@ -332,6 +310,37 @@ public class HeatmapNew
 
 		log.debug(loggingOutput.toString());
         log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
+	}
+
+	/**
+	 * Serializes the provided heatmap data to the specified OutputStream in CSV format.
+	 */
+	protected String toCSV() {
+		StringBuilder output = new StringBuilder();
+			// Write them field variables
+			output.append("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks,accountType,currentCombatLevel\n");
+			output.append(this.getUserID() +
+					"," + this.getHeatmapVersion() +
+					"," + this.getHeatmapType() +
+					"," + this.getTotalValue() +
+					"," + this.getNumTilesVisited() +
+					"," + this.getMaxVal()[0] +
+					"," + this.getMaxVal()[1] +
+					"," + this.getMaxVal()[2] +
+					"," + this.getMinVal()[0] +
+					"," + this.getMinVal()[1] +
+					"," + this.getMinVal()[2] +
+					"," + this.getGameTimeTicks() +
+					"," + this.getAccountType() +
+					"," + this.getCurrentCombatLevel() + "\n");
+			// Write the tile values
+			for (Entry<Point, Integer> e : this.getEntrySet()) {
+				int x = e.getKey().x;
+				int y = e.getKey().y;
+				int stepVal = e.getValue();
+				output.append(x + "," + y + "," + stepVal + "\n");
+			}
+		return output.toString();
 	}
 
 	/**
