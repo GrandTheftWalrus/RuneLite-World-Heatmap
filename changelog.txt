@@ -139,29 +139,49 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
             NOTE: This was done by keeping the reading and writing of supported heatmaps enabled, but will just make the incrementing of each heatmap type dependent on whether or not it is enabled
 
 2024-03-11:	Made a `config.isHeatmapEnabled(heatmapType)` function instead of having a bunch of different functions
+
 2024-03-11:	Make new method that writes one heatmap type at a time to the .heatmaps ZIP instead of all at once
+
 2024-03-11:	Modify writeHeatmapsFile to use the above function to write all enabled heatmaps (do not perform it on disabled/unloaded ones or they'll be restarted or null pointer exceptions will be thrown)
+
 2024-03-11:	Made it so that during writing, if a heatmap is disabled or not loaded, leave it untouched in the .heatmaps ZIP
+
 2024-03-11:	Made it so that when disabled, a heatmap type is not loaded on startup
+
 2024-03-11:	Added the condition to initializeMissingHeatmaps() that they're not initialized if disabled
+
 2024-03-11:	Changed the readHeatmapsFile method to use FileSystem instead of ZipInputStream
+
 2024-03-11:	Made it so that a heatmap being disabled makes it not show up in the panel
+
 2024-03-11:	Separated readHeatmapFromFile into `readHeatmap(HeatmapType, HeatmapsFile)` and `readHeatmapOld(HeatmapsFile)`
+
 2024-03-11:	Made it so that on enabled, a heatmap type is read from disk and loaded
+
 2024-03-11:	Made it so that on disabled, a heatmap type is saved to disk
+
 2024-03-11:	Made it so that panels don't appear for disabled heatmaps
+
 2024-03-11:	Make it so that when disabled, heatmap types are not incremented
+
 2024-03-11:	tl;dr made it so that disabling heatmaps writes them to disk, and enabling loads them.
 
 2024-03-11:	Implemented memory usage estimation for each beatbap type, based on number of Entry<Point, Integer> objects, Point objects, and pooled/unpooled Integer objects
+
 2024-03-11:	Asked chatGPT if there is a less retarded workaround for the old serialization issue.
 	Result: Seems like I screwed myself by previously using ObjectOutputStream to write Heatmap objects without serialVersionUID fields. There's not really a way to deserialize these files to Heatmap objects without having the unmodified Heatmap class in the program, so I'm stuck having Heatmap and HeatmapNew
+
 2024-03-11: See if RuneLite occasionally not wanting to terminate has something to do with the plugin
 	Result: it doesn't seem to happen anymore so perhaps it was not related to the plugin
+
 2024-03-11:	Implemented DAMAGE_TAKEN
+
 2024-03-11:	Implemented DAMAGE_GIVEN
+
 2024-03-12:	broke, then fixed writing to .heatmaps for shadowjar (fixed it by closing the OutputStreamWriter which had to be moved out of the old try-with-resources)
+
 2024-03-12:	broke, then fixed how for some reason it couldn't read old .heatmap files because of an InvalidClassException (turns out it was because I had changed the name of a single variable)
+
 2024-03-12:	broke, then fixed how after reading and converting an old heatmap file, the Type A and Type B are not put into the heatmaps Map (it was because I changed 2 lines of code and caused them to be loaded as UNKNOWN types which are not initialized or something)
 
 2024-03-29:	fixed how for some reason heatmap tiles were missing in horizontal stripes in the image, depending on the speed-memory tradeoff, but only for TELEPORT_PATHS?
