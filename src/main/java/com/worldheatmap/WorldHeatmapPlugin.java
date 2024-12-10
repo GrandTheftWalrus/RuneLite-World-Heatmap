@@ -844,25 +844,24 @@ public class WorldHeatmapPlugin extends Plugin {
         @Override
         public void imageStarted(ImageWriter source, int imageIndex) {
             panel.setEnabledHeatmapButtons(false);
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
             panel.writeHeatmapImageButtons.get(heatmapType).setText("Writing... 0%");
         }
 
         @Override
         public void imageProgress(ImageWriter source, float percentageDone) {
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
             panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.2f%%", percentageDone));
         }
 
         @Override
         public void imageComplete(ImageWriter source) {
+            panel.setEnabledHeatmapButtons(true); // Had to do this early so that the color change would be visible
+            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
             panel.writeHeatmapImageButtons.get(heatmapType).setText("Done");
             worldHeatmapPlugin.worldHeatmapPluginExecutor.schedule(() -> {
-                panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
-                panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
-                panel.writeHeatmapImageButtons.get(heatmapType).revalidate();
-                panel.writeHeatmapImageButtons.get(heatmapType).repaint();
-                panel.setEnabledHeatmapButtons(true);
+                SwingUtilities.invokeLater(() -> {
+                    panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
+                    panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
+                });
             }, 2L, TimeUnit.SECONDS);
         }
 
@@ -880,6 +879,15 @@ public class WorldHeatmapPlugin extends Plugin {
 
         @Override
         public void writeAborted(ImageWriter source) {
+            panel.setEnabledHeatmapButtons(true); // Had to do this early so that the color change would be visible
+            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.RED);
+            panel.writeHeatmapImageButtons.get(heatmapType).setText("Error");
+            worldHeatmapPlugin.worldHeatmapPluginExecutor.schedule(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
+                    panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
+                });
+            }, 2L, TimeUnit.SECONDS);
         }
     }
 }
