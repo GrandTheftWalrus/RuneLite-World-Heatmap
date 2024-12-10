@@ -188,10 +188,12 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-04-01:	Updated map to include Varlamore
 
-2024-04-03:	I wonder if it's possible to just use runelite's MapImageDumper directly from the plugin instead of using my HeatmapImage class, so that the world map is always up to date? Perhaps I can override its methods or something to add the heatmap visualization.
+2024-04-03:	NOTE: I wonder if it's possible to just use runelite's MapImageDumper directly from the plugin instead of using my HeatmapImage class, so that the world map is always up to date? Perhaps I can override its methods or something to add the heatmap visualization.
 	result: Just remembered that MapImageDumper uses a somewhat broken version of BigBufferedImage which creates big ass temp files that never get deleted, so it shouldn't be used in a plugin.
 
 2024-04-03:	Changed default speed-memory tradeoff from 4 to 6
+
+2024-12-07: Changed default heatmap alpha from 0.65 to 1.0
 
 2024-12-07: Added int field to HeatmapNew: AccountType
 
