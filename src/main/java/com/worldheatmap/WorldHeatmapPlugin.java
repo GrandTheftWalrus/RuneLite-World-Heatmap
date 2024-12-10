@@ -738,14 +738,18 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     private void uploadHeatmapRoutine() {
-        int defaultUploadFrequency = 100; // Default upload frequency in game time ticks
+        int uploadFrequency = 36_000; // Every 6 hours of game time
+
+        if (!config.isHeatmapEnabled()){
+            return;
+        }
 
         // Get list of heatmaps to upload, if any
         List<HeatmapNew.HeatmapType> heatmapsToUpload = new ArrayList<>();
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
             if (isHeatmapEnabled(type)) {
                 // Check if it's time to upload each heatmap based on the upload frequencies
-                if (heatmaps.get(type).getGameTimeTicks() % defaultUploadFrequency == 0) {
+                if (heatmaps.get(type).getGameTimeTicks() % uploadFrequency == 0) {
                     heatmapsToUpload.add(type);
                 }
             }

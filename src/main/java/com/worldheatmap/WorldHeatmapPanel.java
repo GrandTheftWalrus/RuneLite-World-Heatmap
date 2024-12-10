@@ -1,6 +1,8 @@
 package com.worldheatmap;
 
 import java.awt.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -45,6 +47,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         JPanel mainPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
         mainPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        add(mainPanel);
 
         //Player ID label
         if (mostRecentLocalUserID == 0 || mostRecentLocalUserID == -1){
@@ -66,17 +69,20 @@ public class WorldHeatmapPanel extends PluginPanel {
         mainPanel.add(memoryUsageLabel);
 
         //'Open Heatmaps Folder' button
-        JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
+        JButton openHeatmapFolderButton = new JButton("Open Local Heatmaps Folder");
         openHeatmapFolderButton.setFont(buttonFont);
         openHeatmapFolderButton.addActionListener(e -> {
             try {
                 openHeatmapsFolder();
             } catch (IOException exception) {
-                log.error("Error: Exception thrown whilst opening worldheatmap folder: " + exception.getMessage());
+                log.error("Error: Exception thrown whilst opening worldheatmap folder: {}", exception.getMessage());
             }
         });
         mainPanel.add(openHeatmapFolderButton);
-        add(mainPanel);
+
+        //'Visit Global Heatmap Website' button
+        JButton visitGlobalHeatmapButton = getGlobalHeatmapButton(buttonFont);
+        mainPanel.add(visitGlobalHeatmapButton);
 
         // Create the panels/buttons for each loaded Heatmap type
         for (HeatmapNew.HeatmapType heatmapType : HeatmapNew.HeatmapType.values()) {
@@ -136,6 +142,45 @@ public class WorldHeatmapPanel extends PluginPanel {
 
             add(heatmapPanel);
         }
+    }
+
+    /**
+     * Get the button to visit the global heatmap website at osrsworldheatmap.com
+     * @param buttonFont
+     * @return
+     */
+    private static JButton getGlobalHeatmapButton(Font buttonFont) {
+        JButton visitGlobalHeatmapButton = new JButton("Visit Global Heatmap Website");
+        visitGlobalHeatmapButton.setFont(buttonFont);
+        visitGlobalHeatmapButton.addActionListener(e -> {
+            try {
+                // Try Desktop.browse first (might not work on Linux)
+                String url = "https://www.osrsworldheatmap.com";
+                if (Desktop.isDesktopSupported()) {
+                    Desktop desktop = Desktop.getDesktop();
+                    if (desktop.isSupported(Desktop.Action.BROWSE)) {
+                        desktop.browse(new URI(url));
+                        return;
+                    }
+                }
+                boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux");
+                if (isLinux) {
+                    // Fallback to Runtime.exec or ProcessBuilder
+                    String[] browsers = {"xdg-open", "firefox", "google-chrome"};
+                    for (String browser : browsers) {
+                        try {
+                            new ProcessBuilder(browser, url).start();
+                            return; // Stop if we successfully open the URL
+                        } catch (IOException ignored) {
+                        }
+                    }
+                }
+                log.error("Unable to open browser, please visit {} manually", url);
+            } catch (Exception exception) {
+                log.error("Error: Exception thrown whilst opening browser: {}", exception.getMessage());
+            }
+        });
+        return visitGlobalHeatmapButton;
     }
 
     protected void updatePlayerID() {

@@ -13,13 +13,24 @@ public interface WorldHeatmapConfig extends Config {
     )
     String settings = "settings";
 
+    @ConfigItem(
+            keyName = "isUploadEnabled",
+            name = "Enable anonymous data upload",
+            position = 0,
+            description = "Enables automatic uploading of anonymized heatmap data to contribute to the global heatmaps at osrsworldheatmap.com.",
+            section = settings
+    )
+    default boolean isHeatmapEnabled() {
+        return true;
+    }
+
     @Range(
             min = 100
     )
     @ConfigItem(
             keyName = "ImageAutosaveFrequency",
             name = "Type A&B image autosave frequency",
-            position = 0,
+            position = 1,
             description = "Determines how often (in number of steps) to automatically save both the 'Type A' and 'Type B' world heatmap TIF images. Default value of 36000 ticks (6 hours)",
             section = settings
     )
@@ -30,7 +41,7 @@ public interface WorldHeatmapConfig extends Config {
     @ConfigItem(
             keyName = "ImageAutosave",
             name = "Type A&B image autosave",
-            position = 1,
+            position = 2,
             description = "Determines whether to automatically save both the 'Type A' and 'Type B' world heatmap TIF images.",
             section = settings
     )
@@ -44,7 +55,7 @@ public interface WorldHeatmapConfig extends Config {
     @ConfigItem(
             keyName = "HeatmapBackupFrequency",
             name = "Data backup frequency",
-            position = 2,
+            position = 3,
             description = "Determines how often (in ticks of game time) to make a new backup of the heatmap data, in the Heatmap 'Results/Backups' folder (don't set this field too low or there will be too many backups piling up). Default value 36000 ticks (6 hours). Minimum value 50.",
             section = settings
     )
@@ -59,7 +70,7 @@ public interface WorldHeatmapConfig extends Config {
     @ConfigItem(
             keyName = "HeatmapAlpha",
             name = "Heatmap colour alpha",
-            position = 3,
+            position = 4,
             description = "The opacity of the heatmap colours drawn over the world map image",
             section = settings
     )
@@ -74,7 +85,7 @@ public interface WorldHeatmapConfig extends Config {
     @ConfigItem(
             keyName = "heatmapSensitivity",
             name = "Heatmap curve sensitivity",
-            position = 4,
+            position = 5,
             description = "Increasing this makes the heatmap's colour gradient more sensitive to step counts.",
             section = settings
     )
@@ -88,7 +99,7 @@ public interface WorldHeatmapConfig extends Config {
     @ConfigItem(
             keyName = "speedMemoryTradeoff",
             name = "Speed-memory tradeoff",
-            position = 5,
+            position = 6,
             description = "Corresponds to the vertical size of chunks used in writing the heatmap image. Higher values = faster image writing, but increases memory usage. Try lowering this value if the plugin is crashing whilst writing images.",
             section = settings
     )

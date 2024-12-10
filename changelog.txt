@@ -199,10 +199,15 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-07: Changed image output filenames for better sorting (now the name comes before the date)
 
+2024-12-09: Made it periodically upload files to https://www.osrsworldheatmap.com/api/upload-csv/
+
+2024-12-10: Added opt in/out checkbox for uploading anonymous data to contribute to the global heatmap
+
 ----You are Here----
 
-TODO: Make it periodically upload files to https://www.osrsworldheatmap.com/api/upload-csv/ with opt-out (or opt-in?)
-    NOTE: Add "warning=This plugin uploads anonymous data blah blah" to plugin-hub file
+TODO: Add "warning=This plugin uploads anonymous data blah blah" to plugin-hub file? I spose I would only need to do this if I had data uploading be opt-out
+
+TODO: Should probably change PLACES_SPOKEN_AT to include other people talking instead of just the user, because one user usually doesn't talk too much. It would be more interesting to see a heatmap of where people talk in general.
 
 TODO: Make it so the % done label returns to normal when an exception is thrown whilst writing image
 
