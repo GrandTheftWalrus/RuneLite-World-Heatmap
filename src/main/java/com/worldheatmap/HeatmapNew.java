@@ -261,6 +261,11 @@ public class HeatmapNew
 
 	/**
 	 * Writes the provided heatmap data to the specified .heatmaps file. Unprovided heatmaps are carried over from the file previousHeatmapsFile, if it has them.
+	 * If heatmapsFile already exists, existing unprovided heatmaps will be kept. Heatmaps in previousHeatmapsFile take precedence over heatmaps in heatmapsFile
+	 * if heatmapsFile already exists.
+	 * @param heatmapsToWrite The heatmaps to write
+	 * @param heatmapsFile The .heatmaps file
+	 * @param previousHeatmapsFile The previous .heatmaps file.
 	 */
 	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
 		// Preamble
@@ -292,14 +297,13 @@ public class HeatmapNew
 		URI uri = URI.create("jar:" + heatmapsFile.toURI());
 
 		for (HeatmapNew heatmap : heatmapsToWrite) {
-			// Write the heatmap file
+			// Write the heatmap file, overwriting zip entries that already exist
 			try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
 					osw.write(heatmap.toCSV());
 					osw.flush(); // Not sure if this is necessary
 				}
-
 			} catch (IOException e) {
                 log.error("World Heatmap was not able to save heatmap type '{}' to file '{}'", heatmap.getHeatmapType(), heatmapsFile.getName());
 				e.printStackTrace();
