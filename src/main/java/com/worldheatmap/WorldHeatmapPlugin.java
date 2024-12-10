@@ -396,7 +396,7 @@ public class WorldHeatmapPlugin extends Plugin {
         if (client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
             return;
         }
-        if (chatMessage.getType() == ChatMessageType.PUBLICCHAT && chatMessage.getName().contains(client.getLocalPlayer().getName())) {
+        if (chatMessage.getType() == ChatMessageType.PUBLICCHAT) {
             // PLACES_SPOKEN_AT
             if (config.isHeatmapPlacesSpokenAtEnabled() && heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT) != null) {
                 heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT).increment(client.getLocalPlayer().getWorldLocation().getX(), client.getLocalPlayer().getWorldLocation().getY());
