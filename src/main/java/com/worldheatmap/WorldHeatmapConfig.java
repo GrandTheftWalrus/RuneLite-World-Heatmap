@@ -15,9 +15,9 @@ public interface WorldHeatmapConfig extends Config {
 
     @ConfigItem(
             keyName = "isUploadEnabled",
-            name = "Enable anonymous data upload",
+            name = "Upload anonymous data to the global heatmap",
             position = 0,
-            description = "Enables automatic uploading of anonymized heatmap data to contribute to the global heatmaps at osrsworldheatmap.com.",
+            description = "Enable automatic uploading of anonymized heatmap data to contribute to the global heatmap at osrsworldheatmap.com.",
             section = settings
     )
     default boolean isHeatmapEnabled() {

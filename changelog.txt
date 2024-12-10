@@ -205,13 +205,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-10: Changed PLACES_SPOKEN_AT to include other people talking instead of just the user, because one user usually doesn't talk too much. It would be more interesting to see a heatmap of where people talk in general.
 
+2024-12-10: Fixed some buttons not fitting their text
+
 ----You are Here----
 
-TODO: Add "warning=This plugin uploads anonymous data blah blah" to plugin-hub file? I spose I would only need to do this if I had data uploading be opt-out
-
-TODO: Make it so the % done label returns to normal when an exception is thrown whilst writing image
-
-TODO: Fix how if you're writing an image, the label will correctly say "Writing ... X%", but opening the config and then returning to the panel will cause the default "Write Heatmap Image" text to be drawn until the label is updated again for the next percentage. Also, the label is undisabled when this happens (the text remains green, though.)
+TODO: Add "warning=This plugin uploads anonymous data blah blah" to plugin-hub file, since I'm having the data upload be opt-out
 
 TODO: See if there's any reason why that guy's heatmaps were resetting
     NOTE: Maybe I should see if there's anything interesting about the time since his last save file when it reset

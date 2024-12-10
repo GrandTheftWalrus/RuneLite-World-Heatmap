@@ -68,15 +68,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         mainPanel.add(memoryUsageLabel);
 
         //'Open Heatmaps Folder' button
-        JButton openHeatmapFolderButton = new JButton("Open Local Heatmaps Folder");
-        openHeatmapFolderButton.setFont(buttonFont);
-        openHeatmapFolderButton.addActionListener(e -> {
-            try {
-                openHeatmapsFolder();
-            } catch (IOException exception) {
-                log.error("Error: Exception thrown whilst opening worldheatmap folder: {}", exception.getMessage());
-            }
-        });
+        JButton openHeatmapFolderButton = getOpenHeatmapFolderButton(buttonFont);
         mainPanel.add(openHeatmapFolderButton);
 
         //'Visit Global Heatmap Website' button
@@ -118,18 +110,7 @@ public class WorldHeatmapPanel extends PluginPanel {
             heatmapPanel.add(writeHeatmapImageButton);
 
             //'Restart Heatmap' button
-            JButton clearHeatmapButton = new JButton("Restart Heatmap");
-            clearHeatmapButton.setFont(buttonFont);
-            clearHeatmapButton.addActionListener(e -> {
-                final int result = JOptionPane.showOptionDialog(heatmapPanel,
-                        "<html>Art thou sure you want to restart your " + heatmapType + " heatmap? The data will be lost.</html>",
-                        "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
-                        null, new String[]{"Yes", "No"}, "No");
-
-                if (result == JOptionPane.YES_OPTION) {
-                    clearHeatmap(heatmapType);
-                }
-            });
+            JButton clearHeatmapButton = getClearHeatmapButton(heatmapType, buttonFont, heatmapPanel);
             clearHeatmapButtons.put(heatmapType, clearHeatmapButton);
             heatmapPanel.add(clearHeatmapButton);
 
@@ -143,13 +124,42 @@ public class WorldHeatmapPanel extends PluginPanel {
         }
     }
 
+    private JButton getClearHeatmapButton(HeatmapNew.HeatmapType heatmapType, Font buttonFont, JPanel heatmapPanel) {
+        JButton clearHeatmapButton = new JButton("Restart Heatmap");
+        clearHeatmapButton.setFont(buttonFont);
+        clearHeatmapButton.addActionListener(e -> {
+            final int result = JOptionPane.showOptionDialog(heatmapPanel,
+                    "<html>Art thou sure you want to restart your " + heatmapType + " heatmap? The data will be lost.</html>",
+                    "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+                    null, new String[]{"Yes", "No"}, "No");
+
+            if (result == JOptionPane.YES_OPTION) {
+                clearHeatmap(heatmapType);
+            }
+        });
+        return clearHeatmapButton;
+    }
+
+    private JButton getOpenHeatmapFolderButton(Font buttonFont) {
+        JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
+        openHeatmapFolderButton.setFont(buttonFont);
+        openHeatmapFolderButton.addActionListener(e -> {
+            try {
+                openHeatmapsFolder();
+            } catch (IOException exception) {
+                log.error("Error: Exception thrown whilst opening worldheatmap folder: {}", exception.getMessage());
+            }
+        });
+        return openHeatmapFolderButton;
+    }
+
     /**
      * Get the button to visit the global heatmap website at osrsworldheatmap.com
      * @param buttonFont
      * @return
      */
     private static JButton getGlobalHeatmapButton(Font buttonFont) {
-        JButton visitGlobalHeatmapButton = new JButton("Visit Global Heatmap Website");
+        JButton visitGlobalHeatmapButton = new JButton("Global Heatmap Website");
         visitGlobalHeatmapButton.setFont(buttonFont);
         visitGlobalHeatmapButton.addActionListener(e -> {
             try {
