@@ -184,7 +184,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-03-30:	refactored a pissload of code so that all the main reading/writing heatmap data stuff is inside HeatmapNew and HeatmapImage (and not WorldHeatmapPlugin) so that they can be tested /debugged/profiled with some standalone test program rather than only being able to be run in runelite.
 
-**UPDATE RELEASED**
+** UPDATE RELEASED **
 
 2024-04-01:	Updated map to include Varlamore
 
@@ -207,9 +207,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-10: Fixed some buttons not fitting their text
 
-----You are Here----
+** UPDATE RELEASED **
 
-TODO: Add "warning=This plugin uploads anonymous data blah blah" to plugin-hub file, since I'm having the data upload be opt-out
+----You are Here----
 
 TODO: See if there's any reason why that guy's heatmaps were resetting
     NOTE: Maybe I should see if there's anything interesting about the time since his last save file when it reset
