@@ -1,11 +1,12 @@
 # RuneLite World Heatmap plugin
-This plugin logs each tile that the local player steps on to create a visualization of where they most often travel, gain xp, get loot, die, get damaged, deal damage, teleport to/from, see bob the cat, etc. Data can be exported as CSVs for analysis in other programs.
+This plugin logs each tile that the local player steps on to create a visualization of where they most often travel, gain xp, get loot, die, take damage, deal damage, teleport to/from, speak, see bob the cat, etc. Users can volunteer to have their anonymous heatmap data uploaded to https://osrsworldheatmap.com/ to help produce a global heatmap of data, so that perhaps we can see which parts of the wilderness are the most dangerous, or where the most secret smoke spots are.
 
-![image](https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap/assets/70998757/60b840ad-f359-4ec8-98d0-a4d7948f5115)
-![image](https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap/assets/70998757/9d3675a8-5716-461b-ba18-2d152dbb46a0)
-![image](https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap/assets/70998757/ab05c3b4-ec2a-44d1-8afd-604db9eb5ee7)
-![image](https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap/assets/70998757/dac931e6-1d53-4536-916d-4464354ee046)
+Data can be exported as CSVs for analysis in other programs.
 
+![TYPE_A](https://github.com/user-attachments/assets/7c234858-00ad-4973-8885-8781e5759509)
+![TELEPORT_PATHS](https://github.com/user-attachments/assets/80fa3310-fa59-4a48-a20e-e866fd5b97b3)
+![NPC_DEATHS](https://github.com/user-attachments/assets/5e1a8fc4-5f93-40f6-b5b9-3a2af11e719a)
+![Heatmap Config](https://github.com/user-attachments/assets/50ee358e-08f5-46ea-89b8-939f06d9e048)
 
 Types of trackable data:
 
@@ -28,3 +29,10 @@ The data can be analyzed more fancily with other tools such as R, or Quicken 200
 (to do this, copy and rename the .heatmaps file to a .zip and look inside it)
 ![image](https://user-images.githubusercontent.com/70998757/193536404-1aad969d-e2fb-4ab1-af27-3c38be4ac90d.png)
 
+## How to export as CSV
+
+1. The .heatmap files are actually just zip files containing CSVs. You might need to rename the file extension to .zip for them to behave with zip programs.
+
+## Important note
+
+The memory constraints of RuneLite plugins make it difficult to handle such large PNG images as this plugin does, so they are read, modified, and written one piece at a time. If the plugin is crashing for you when you write an image, try lowering the "speed-memory tradeoff" config setting until it works.
