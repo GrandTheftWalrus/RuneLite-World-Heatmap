@@ -25,7 +25,7 @@ public class HeatmapNew
 	@Getter
 	private long totalValue = 0;
 	@Getter
-	private int numTilesVisited = 0;
+	private int tileCount = 0;
 	@Getter @Setter
 	private int gameTimeTicks = 0;
 	private int[] maxVal = {1, 0, 0}, minVal = {1, 0, 0}; // {val, x, y}
@@ -162,11 +162,11 @@ public class HeatmapNew
 		//Update numTilesVisited
 		if (oldValue == null && newValue > 0)
 		{
-			numTilesVisited++;
+			tileCount++;
 		}
 		else if (oldValue != null && newValue == 0)
 		{
-			numTilesVisited--;
+			tileCount--;
 		}
 
 		//Update total value
@@ -309,7 +309,7 @@ public class HeatmapNew
 				e.printStackTrace();
 				return;
 			}
-			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getNumTilesVisited() + " tiles), ");
+			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getTileCount() + " tiles), ");
 		}
 
 		log.debug(loggingOutput.toString());
@@ -327,7 +327,7 @@ public class HeatmapNew
 					"," + this.getHeatmapVersion() +
 					"," + this.getHeatmapType() +
 					"," + this.getTotalValue() +
-					"," + this.getNumTilesVisited() +
+					"," + this.getTileCount() +
 					"," + this.getMaxVal()[0] +
 					"," + this.getMaxVal()[1] +
 					"," + this.getMaxVal()[2] +

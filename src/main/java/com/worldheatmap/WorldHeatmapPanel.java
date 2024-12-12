@@ -25,6 +25,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     Map<HeatmapNew.HeatmapType, JPanel> heatmapPanels = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JLabel> heatmapTotalValueLabels = new HashMap<>();
+	Map<HeatmapNew.HeatmapType, JLabel> heatmapTileCountLabels = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JLabel> heatmapPanelLabels = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
@@ -121,11 +122,27 @@ public class WorldHeatmapPanel extends PluginPanel {
             clearHeatmapButtons.put(heatmapType, clearHeatmapButton);
             heatmapPanel.add(clearHeatmapButton);
 
-            // Total value label
-            JLabel heatmapTotalValueLabel = new JLabel("Total value: 0");
-            heatmapTotalValueLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            heatmapTotalValueLabels.put(heatmapType, heatmapTotalValueLabel);
-            heatmapPanel.add(heatmapTotalValueLabel);
+            // Total value and Tile count labels panel
+			JPanel labelsPanel = new JPanel(new GridLayout(1, 2, hGap, vGap));
+			labelsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+			// Total value label
+			String totalToolTipText = "Total value of all tiles in the heatmap";
+			JLabel heatmapTotalValueLabel = new JLabel("Total: 0");
+			heatmapTotalValueLabel.setHorizontalAlignment(SwingConstants.CENTER);
+			heatmapTotalValueLabel.setToolTipText("Total value of all tiles in the heatmap");
+			heatmapTotalValueLabels.put(heatmapType, heatmapTotalValueLabel);
+			labelsPanel.add(heatmapTotalValueLabel);
+
+			// Tile count label
+			String countToolTipText = "Count of tiles in the heatmap";
+			JLabel heatmapTileCountLabel = new JLabel("Count: 0");
+			heatmapTileCountLabel.setHorizontalAlignment(SwingConstants.CENTER);
+			heatmapTileCountLabel.setToolTipText(countToolTipText);
+			heatmapTileCountLabels.put(heatmapType, heatmapTileCountLabel);
+			labelsPanel.add(heatmapTileCountLabel);
+
+			heatmapPanel.add(labelsPanel);
 
             add(heatmapPanel);
         }
@@ -212,8 +229,11 @@ public class WorldHeatmapPanel extends PluginPanel {
     protected void updateCounts() {
         for (HeatmapNew.HeatmapType heatmapType : plugin.heatmaps.keySet()) {
             if (heatmapTotalValueLabels.get(heatmapType) != null) {
-                heatmapTotalValueLabels.get(heatmapType).setText("Total value: " + plugin.heatmaps.get(heatmapType).getTotalValue());
+                heatmapTotalValueLabels.get(heatmapType).setText("Total: " + plugin.heatmaps.get(heatmapType).getTotalValue());
             }
+			if (heatmapTileCountLabels.get(heatmapType) != null) {
+				heatmapTileCountLabels.get(heatmapType).setText("Count: " + plugin.heatmaps.get(heatmapType).getTileCount());
+			}
         }
         updateUI();
     }

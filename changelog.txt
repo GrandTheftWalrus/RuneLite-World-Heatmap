@@ -231,7 +231,15 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ** UPDATE RELEASED **
 
+2024-12-11: Added heatmap age to panel tooltips
+
+2024-12-11: Added Tile Count labels to panel
+
 ----You are Here----
+
+TODO: Add option for blue world map for heatmap images
+
+TODO: Make HeatmapNew.estimateSize not a static method
 
 TODO: See if there's any reason why that guy's heatmaps were resetting
     NOTE: Maybe I should see if there's anything interesting about the time since his last save file when it reset
