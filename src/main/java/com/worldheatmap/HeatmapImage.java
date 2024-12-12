@@ -91,40 +91,43 @@ public class HeatmapImage implements RenderedImage
 		}
 	}
 
-	protected static void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener) {
-        log.debug("Saving {} image to disk...", imageFileOut);
+	protected static void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
+	{
+		log.debug("Saving {} image to disk...", imageFileOut);
 		long startTime = System.nanoTime();
-		if (!imageFileOut.getName().endsWith(".tif")) {
+		if (!imageFileOut.getName().endsWith(".tif"))
+		{
 			imageFileOut = new File(imageFileOut.getName() + ".tif");
 		}
 
-		if (imageFileOut.getParentFile().mkdirs()){
-            log.debug("Created directory for image file: {}", imageFileOut.getParentFile());
+		if (imageFileOut.getParentFile().mkdirs())
+		{
+			log.debug("Created directory for image file: {}", imageFileOut.getParentFile());
 		}
 
-		if (heatmapTransparency < 0) {
+		if (heatmapTransparency < 0)
+		{
 			heatmapTransparency = 0;
-		} else if (heatmapTransparency > 1) {
+		}
+		else if (heatmapTransparency > 1)
+		{
 			heatmapTransparency = 1;
 		}
 
-		String worldMapImageURL;
-		if (isFullMapImage) {
-			worldMapImageURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map_full.png";
-		} else {
-			worldMapImageURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map.png";
-		}
+		String worldMapImageURL = String.format("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map%s%s.png", isFullMapImage ? "_full" : "", isBlue ? "_blue" : "");
 
 		// Prepare the image reader
 		try (InputStream inputStream = new URL(worldMapImageURL).openStream();
-			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource didn't exist: '" + worldMapImageURL + "'"))) {
+			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource didn't exist: '" + worldMapImageURL + "'")))
+		{
 			ImageReader reader = ImageIO.getImageReadersByFormatName("PNG").next();
 			reader.setInput(worldMapImageInputStream, true);
 
 			// Prepare the image writer
 			try (FileOutputStream fos = new FileOutputStream(imageFileOut);
 				 BufferedOutputStream bos = new BufferedOutputStream(fos);
-				 ImageOutputStream ios = ImageIO.createImageOutputStream(bos)) {
+				 ImageOutputStream ios = ImageIO.createImageOutputStream(bos))
+			{
 				ImageWriter writer = ImageIO.getImageWritersByFormatName("tif").next();
 				writer.setOutput(ios);
 				final int tileWidth = reader.getWidth(0);
@@ -132,7 +135,8 @@ public class HeatmapImage implements RenderedImage
 				final int N = reader.getHeight(0) / tileHeight;
 
 				// Make progress listener majigger
-				if (progressListener != null){
+				if (progressListener != null)
+				{
 					writer.addIIOWriteProgressListener(progressListener);
 				}
 
@@ -157,23 +161,30 @@ public class HeatmapImage implements RenderedImage
 				int overworldMapOffsetY = Integer.parseInt(scanner.next().trim());
 				scanner.close();
 
-				if (isFullMapImage) {
+				if (isFullMapImage)
+				{
 					heatmapImage = new HeatmapImage(heatmap, reader, N, (float) heatmapTransparency, heatmapSensitivity, fullMapOffsetX, fullMapOffsetY);
-				} else {
+				}
+				else
+				{
 					heatmapImage = new HeatmapImage(heatmap, reader, N, (float) heatmapTransparency, heatmapSensitivity, overworldMapOffsetX, overworldMapOffsetY);
 				}
 				writer.write(null, new IIOImage(heatmapImage, null, null), writeParam);
 				reader.dispose();
 				writer.dispose();
 			}
-            log.debug("Finished writing {} image to disk after {} ms", imageFileOut, (System.nanoTime() - startTime) / 1_000_000);
-		} catch (OutOfMemoryError e) {
+			log.debug("Finished writing {} image to disk after {} ms", imageFileOut, (System.nanoTime() - startTime) / 1_000_000);
+		}
+		catch (OutOfMemoryError e)
+		{
 			log.error("OutOfMemoryError thrown whilst creating and/or writing image file. " +
-					"If you're not able to fix the issue by lowering the memory usage settings " +
-					"(if they exist in this version of the plugin) then perhaps consider submitting" +
-					"an Issue on the GitHub");
-		} catch (Exception e) {
-			log.error("Exception thrown whilst creating and/or writing image file");
+				"If you're not able to fix the issue by lowering the memory usage settings " +
+				"(if they exist in this version of the plugin) then perhaps consider submitting" +
+				"an Issue on the GitHub");
+		}
+		catch (Exception e)
+		{
+			log.error("Exception thrown whilst creating and/or writing image file: ", e);
 		}
 	}
 

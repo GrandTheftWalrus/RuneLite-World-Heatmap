@@ -118,6 +118,17 @@ public interface WorldHeatmapConfig extends Config {
         return false;
     }
 
+	@ConfigItem(
+			keyName = "isBlueMapEnabled",
+			name = "Blue map",
+			position = 8,
+			description = "If enabled, the world map will be coloured blue instead of grayscale.",
+			section = settings
+	)
+	default boolean isBlueMapEnabled() {
+		return true;
+	}
+
     @ConfigSection(
             name = "Per-Heatmap On/Off",
             description = "Enabling/disabling individual heatmaps",
