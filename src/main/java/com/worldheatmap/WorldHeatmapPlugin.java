@@ -7,7 +7,6 @@ import java.awt.Point;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
 import java.util.*;
@@ -339,10 +338,8 @@ public class WorldHeatmapPlugin extends Plugin {
         // Update panel step counter
         SwingUtilities.invokeLater(panel::updateCounts);
 
-        // Update memory usage label/tooltips every 10 ticks
-        if (client.getTickCount() % 10 == 0) {
-            SwingUtilities.invokeLater(panel::updateMemoryUsages);
-        }
+        // Update memory usage + heatmap age tooltips
+		SwingUtilities.invokeLater(panel::updateMemoryUsageLabels);
 
         // Update last coords
         lastX = currentX;

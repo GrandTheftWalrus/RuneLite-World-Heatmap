@@ -21,14 +21,16 @@ public class WorldHeatmapPanel extends PluginPanel {
     private final WorldHeatmapPlugin plugin;
     private JLabel playerIDLabel;
 
-    private JLabel memoryUsageLabel;
+    private JLabel totalMemoryUsageLabel;
 
     Map<HeatmapNew.HeatmapType, JPanel> heatmapPanels = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JLabel> heatmapTotalValueLabels = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JLabel> heatmapPanelLabels = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
+	Map<HeatmapNew.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
     protected long mostRecentLocalUserID;
+	protected long timeOfLastMemoryEstimate = -1;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -63,9 +65,14 @@ public class WorldHeatmapPanel extends PluginPanel {
         for (HeatmapNew heatmap : plugin.heatmaps.values()) {
             estimatedMemoryUsage += HeatmapNew.estimateSize(heatmap);
         }
-        memoryUsageLabel = new JLabel("Estimated Memory Usage: " + String.format("%.2f", estimatedMemoryUsage / 1024. / 1024) +  "MB");
-        memoryUsageLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        mainPanel.add(memoryUsageLabel);
+		if (estimatedMemoryUsage == 0) {
+			totalMemoryUsageLabel = new JLabel("Estimated Memory Usage: 0MB");
+		}
+		else {
+			totalMemoryUsageLabel = new JLabel("Estimated Memory Usage: " + String.format("%.2f", estimatedMemoryUsage / 1024. / 1024) +  "MB");
+		}
+        totalMemoryUsageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        mainPanel.add(totalMemoryUsageLabel);
 
         //'Open Heatmaps Folder' button
         JButton openHeatmapFolderButton = getOpenHeatmapFolderButton(buttonFont);
@@ -211,15 +218,43 @@ public class WorldHeatmapPanel extends PluginPanel {
         updateUI();
     }
 
-    protected void updateMemoryUsages() {
-        int estimatedTotalMemoryUsage = 0;
-        for (HeatmapNew heatmap : plugin.heatmaps.values()) {
-            estimatedTotalMemoryUsage += HeatmapNew.estimateSize(heatmap);
-            memoryUsageLabel.setText("Estimated Memory Usage: " + String.format("%.2f", estimatedTotalMemoryUsage / 1024. / 1024) +  "MB");
-            if (heatmapPanelLabels.get(heatmap.getHeatmapType()) != null) {
-                heatmapPanelLabels.get(heatmap.getHeatmapType()).setToolTipText("Estimated memory usage: " + String.format("%.2f", HeatmapNew.estimateSize(heatmap) / 1024. / 1024) + "MB");
-            }
-        }
+	/**
+	 * Update the memory usage label and the tooltip of each heatmap panel label
+	 */
+    protected void updateMemoryUsageLabels() {
+		// Only update the memory usage label every minute
+		// because it is a relatively expensive operation
+		if (System.currentTimeMillis() - timeOfLastMemoryEstimate < 60_000 || timeOfLastMemoryEstimate == -1) {
+			timeOfLastMemoryEstimate = System.currentTimeMillis();
+			int totalEstimatedMemoryUsage = 0;
+			for (HeatmapNew heatmap : plugin.heatmaps.values()) {
+				int estimatedMemoryUsage = HeatmapNew.estimateSize(heatmap); // TODO: Make this not a static method
+				memoryUsageEstimates.put(heatmap.getHeatmapType(), estimatedMemoryUsage);
+				totalEstimatedMemoryUsage += estimatedMemoryUsage;
+			}
+			totalMemoryUsageLabel.setText("Estimated Memory Usage: " + String.format("%.2f", totalEstimatedMemoryUsage / 1024. / 1024) +  "MB");
+		}
+
+		// Update the tooltips of the heatmap panel labels
+		for (Map.Entry<HeatmapNew.HeatmapType, JLabel> entry : heatmapPanelLabels.entrySet()) {
+			JLabel label = entry.getValue();
+			HeatmapNew.HeatmapType heatmapType = entry.getKey();
+			HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
+			if (label == null || heatmapType == null) {
+				continue;
+			}
+			if (heatmap == null) {
+				label.setToolTipText("Estimated memory usage: 0MB (heatmap not loaded)");
+			}
+			else {
+				int gameTimeSeconds = (int)(heatmap.getGameTimeTicks() * 0.6);
+				String gameTimeFormatted = String.format("%02d:%02d:%02d", gameTimeSeconds / 3600, (gameTimeSeconds % 3600) / 60, gameTimeSeconds % 60);
+				label.setToolTipText("Estimated memory usage: " + String.format("%.2f", memoryUsageEstimates.get(heatmapType) / 1024. / 1024) + "MB"
+					+ "\n"
+					+ "Heatmap age: " + gameTimeFormatted);
+			}
+		}
+
         updateUI();
     }
 
