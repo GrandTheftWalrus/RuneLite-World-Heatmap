@@ -235,9 +235,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-11: Added Tile Count labels to panel
 
-----You are Here----
+2024-12-11: Added option for blue world map for heatmap images
 
-TODO: Add option for blue world map for heatmap images
+----You are Here----
 
 TODO: Make HeatmapNew.estimateSize not a static method
 
