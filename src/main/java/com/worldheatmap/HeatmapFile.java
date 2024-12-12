@@ -60,15 +60,15 @@ public class HeatmapFile {
             // Move the old file to the new location
             File destination = getCurrentHeatmapFile(userId);
             if (!destination.mkdirs()) {
-                log.info("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
+                log.error("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
                 return legacyHeatmapsFile;
             }
             try {
                 log.info("Moving heatmaps file from legacy (V2) location {} to new location {}", legacyHeatmapsFile, destination);
                 Files.move(legacyHeatmapsFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                log.info("Moving heatmaps file from legacy (V2) location failed:");
-                log.info(e.toString());
+                log.error("Moving heatmaps file from legacy (V2) location failed:");
+                log.debug(e.toString());
                 return legacyHeatmapsFile;
             }
 
