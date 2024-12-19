@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -112,6 +113,12 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Inject
     private ClientToolbar clientToolbar;
+
+	@Inject
+	private ClientThread clientThread;
+
+	@Inject
+	private ConfigManager configManager;
 
     @Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
@@ -213,7 +220,21 @@ public class WorldHeatmapPlugin extends Plugin {
                 .build();
         clientToolbar.addNavigation(toolbarButton);
         panel.setEnabledHeatmapButtons(false);
+		clientThread.invokeLater(this::displayUpdateMessage);
     }
+
+	/**
+	 * Displays a message to the user about the latest update.
+	 * Only displays the message once per update.
+	 */
+	private void displayUpdateMessage() {
+		String noticeKey = "shownNoticeV1.6";
+		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
+			// Send a message in game chat
+			client.addChatMessage(ChatMessageType.CONSOLE, "", "World Heatmap has been updated! We would love your help in crowdsourcing data for the global heatmap. Check out the new features and settings.", null);
+			configManager.setConfiguration("worldheatmap", noticeKey, "shown");
+		}
+	}
 
     @Override
     protected void shutDown() {
