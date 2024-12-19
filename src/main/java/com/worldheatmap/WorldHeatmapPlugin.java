@@ -737,7 +737,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private void uploadHeatmapRoutine() {
         int uploadFrequency = 36_000; // Every 6 hours of game time
 
-        if (!config.isHeatmapEnabled()){
+        if (!config.isUploadEnabled()){
             return;
         }
 

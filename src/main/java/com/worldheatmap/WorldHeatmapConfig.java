@@ -15,13 +15,14 @@ public interface WorldHeatmapConfig extends Config {
 
     @ConfigItem(
             keyName = "isUploadEnabled",
-            name = "Upload anonymous data to the global heatmap",
+            name = "Contribute to the global heatmap",
             position = 0,
             description = "Enable automatic uploading of anonymized heatmap data to contribute to the global heatmap at osrsworldheatmap.com.",
-            section = settings
+            section = settings,
+			warning = "This will upload your anonymized data to the global heatmap at https://osrsworldheatmap.com, a 3rd party website not controlled or verified by the RuneLite Developers. Individual heatmap data is only displayed in aggregate with all global data, and no personally identifying metadata is stored."
     )
-    default boolean isHeatmapEnabled() {
-        return true;
+    default boolean isUploadEnabled() {
+        return false;
     }
 
     @Range(

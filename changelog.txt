@@ -237,6 +237,8 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-11: Added option for blue world map for heatmap images
 
+2024-12-19: Made the heatmap data uploading turned off by default
+
 ----You are Here----
 
 TODO: Make HeatmapNew.estimateSize not a static method
