@@ -239,6 +239,10 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-19: Made the heatmap data uploading turned off by default
 
+2024-12-24: Started using injected OkHTTPClient & stopped doing upload on main thread
+
+2024-12-24: Moved backup & autosave routines out of main thread, onto ScheduledExecutorService
+
 ----You are Here----
 
 TODO: Make HeatmapNew.estimateSize not a static method

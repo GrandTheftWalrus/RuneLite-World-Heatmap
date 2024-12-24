@@ -5,8 +5,6 @@ import com.google.inject.Provides;
 import java.awt.*;
 import java.awt.Point;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.file.*;
 import java.time.Instant;
 import java.util.*;
@@ -55,7 +53,6 @@ import okhttp3.Response;
         name = "World Heatmap"
 )
 public class WorldHeatmapPlugin extends Plugin {
-    private static final int HEATMAP_AUTOSAVE_FREQUENCY = 3000; // How often to autosave the .heatmap file (in ticks)
     private int lastX = 0;
     private int lastY = 0;
     protected long mostRecentLocalUserID;
@@ -360,8 +357,8 @@ public class WorldHeatmapPlugin extends Plugin {
         }
 
         // Routines
-        backupRoutine();
-        autosaveRoutine();
+		worldHeatmapPluginExecutor.execute(this::backupRoutine);
+		worldHeatmapPluginExecutor.execute(this::autosaveRoutine);
 		worldHeatmapPluginExecutor.execute(this::uploadHeatmapRoutine);
 
         // Update panel step counter
@@ -490,7 +487,8 @@ public class WorldHeatmapPlugin extends Plugin {
      */
     private void autosaveRoutine() {
         // Determine if autosave should happen
-        if (heatmaps.keySet().isEmpty()){
+		final int AUTOSAVE_FREQUENCY = 3000; // Autosave every 30 minutes of game time
+        if (heatmaps.keySet().isEmpty()) {
             return;
         }
         int highestGameTimeTicks = 0;
@@ -499,8 +497,8 @@ public class WorldHeatmapPlugin extends Plugin {
                 highestGameTimeTicks = heatmaps.get(type).getGameTimeTicks();
             }
         }
-        boolean shouldAutosaveFiles = highestGameTimeTicks % WorldHeatmapPlugin.HEATMAP_AUTOSAVE_FREQUENCY == 0;
         boolean shouldWriteImages = config.typeABImageAutosave() && highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0;
+		boolean shouldAutosaveFiles = highestGameTimeTicks % AUTOSAVE_FREQUENCY == 0;
 
         // Autosave the heatmap file if it is the correct time to do so, or if image is about to be written
         if (shouldAutosaveFiles || shouldWriteImages) {

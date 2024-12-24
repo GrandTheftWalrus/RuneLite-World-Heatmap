@@ -57,7 +57,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "HeatmapBackupFrequency",
             name = "Data backup frequency",
             position = 3,
-            description = "Determines how often (in ticks of game time) to make a new backup of the heatmap data, in the Heatmap 'Results/Backups' folder (don't set this field too low or there will be too many backups piling up). Default value 36000 ticks (6 hours). Minimum value 50.",
+            description = "Determines how often (in ticks of game time) to make a new backup of the heatmap data, in the Heatmap 'Results/Backups' folder (don't set this field too low or there will be too many backups piling up). Default value 36000 ticks (6 hours). Minimum value 100.",
             section = settings
     )
     default int heatmapBackupFrequency() {
