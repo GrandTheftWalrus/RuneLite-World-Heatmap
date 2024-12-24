@@ -247,5 +247,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 TODO: Make HeatmapNew.estimateSize not a static method
 
+TODO: Make an auto-image button for each heatmap type instead of only having the option for both Type A and Type B
+
 TODO: See if there's any reason why that guy's heatmaps were resetting
     NOTE: Maybe I should see if there's anything interesting about the time since his last save file when it reset
