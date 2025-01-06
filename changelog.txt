@@ -251,22 +251,13 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-05: Refactored startup/shutdown and loading/unloading code to be simpler/more logical and also prepare for seasonal world support
 
+2025-01-05: Made retroactive half-fix for heatmaps contaminated with leagues data
+
 ----You are Here----
 
-TODO: Large: Should definitely separate leagues data from non-leagues
+TODO: Add 'isSeasonal' field to HeatmapNew serialization
 
-The leaguesish question; what to do:
-	// User logs in/starts plugin
-	boolean isSeasonal = user is on seasonal world
-	boolean isDuringLeaguesV = date is before Jan 23rd 2025
-	File fileToLoad = isSeasonal ? "{user_id}_seasonal.heatmaps" : "{user_id}.heatmaps"
-	if fileToLoad exists:
-		load it
-	elif isSeasonal && "{user_id}.heatmaps" file exists && isDuringLeaguesV:
-		// We assume it's leagues-contaminated
-		load "{user_id}.heatmaps" and steal it by renaming it to "{user_id}_seasonal.heatmaps" and setting "seasonal" = true in metadata
-	else:
-		create new file
+TODO: I think I just realized that .heatmaps files are being named with the hour being in 12-hour format instead of 24-hour format, which is causing them to be cycled out of order sometimes
 
 TODO: Update world map image
 
