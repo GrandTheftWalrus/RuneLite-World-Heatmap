@@ -243,9 +243,38 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2024-12-24: Moved backup & autosave routines out of main thread, onto ScheduledExecutorService
 
-2024-12-24: Added icon to plugin
+** UPDATE RELEASED **
+
+2025-01-01: Added icon to plugin
+
+** UPDATE RELEASED **
+
+2025-01-05: Refactored startup/shutdown and loading/unloading code to be simpler/more logical and also prepare for seasonal world support
 
 ----You are Here----
+
+TODO: Large: Should definitely separate leagues data from non-leagues
+
+The leaguesish question; what to do:
+	// User logs in/starts plugin
+	boolean isSeasonal = user is on seasonal world
+	boolean isDuringLeaguesV = date is before Jan 23rd 2025
+	File fileToLoad = isSeasonal ? "{user_id}_seasonal.heatmaps" : "{user_id}.heatmaps"
+	if fileToLoad exists:
+		load it
+	elif isSeasonal && "{user_id}.heatmaps" file exists && isDuringLeaguesV:
+		// We assume it's leagues-contaminated
+		load "{user_id}.heatmaps" and steal it by renaming it to "{user_id}_seasonal.heatmaps" and setting "seasonal" = true in metadata
+	else:
+		create new file
+
+TODO: Update world map image
+
+TODO: Determine when to upload heatmaps by the age of the *oldest* heatmap, rather than doing them all individually. This will result in other heatmaps being uploaded even though they may be no different than the previous time they were uploaded, but it allows us to make the uploading rate limit more strict.
+
+TODO: Large: Start tracking heatmaps in 3 dimensions? Would have to convert existing heatmaps, and the existing data would be mucked.
+
+TODO: Make it so that the button that opens the website includes some user-agent/referrer deets about where the user was referred from (the plugin)
 
 TODO: Add PLAYERS_KILLED (might want to separate normal vs. deadman or something)
 
@@ -256,3 +285,4 @@ TODO: Make an auto-image button for each heatmap type instead of only having the
 TODO: See if there's any reason why that guy's heatmaps were resetting
     NOTE: Maybe I should see if there's anything interesting about the time since his last save file when it reset
 
+TODO stretch goal: Have the heatmaps displayable in the in-game world map similarly to how Shortest Path displays them.

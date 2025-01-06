@@ -30,7 +30,6 @@ public class WorldHeatmapPanel extends PluginPanel {
     Map<HeatmapNew.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
 	Map<HeatmapNew.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
-    protected long mostRecentLocalUserID;
 	protected long timeOfLastMemoryEstimate = -1;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
@@ -52,11 +51,11 @@ public class WorldHeatmapPanel extends PluginPanel {
         add(mainPanel);
 
         //Player ID label
-        if (mostRecentLocalUserID == 0 || mostRecentLocalUserID == -1){
+        if (plugin.localAccountHash == 0 || plugin.localAccountHash == -1){
             playerIDLabel = new JLabel("Player ID: unknown");
         }
         else{
-            playerIDLabel = new JLabel("Player ID: " + mostRecentLocalUserID);
+            playerIDLabel = new JLabel("Player ID: " + plugin.localAccountHash);
         }
         playerIDLabel.setHorizontalAlignment(SwingConstants.CENTER);
         mainPanel.add(playerIDLabel);
@@ -217,11 +216,11 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     protected void updatePlayerID() {
-        this.mostRecentLocalUserID = plugin.mostRecentLocalUserID;
-        if (this.mostRecentLocalUserID == -1 || this.mostRecentLocalUserID == 0) {
+        this.plugin.localAccountHash = plugin.localAccountHash;
+        if (this.plugin.localAccountHash == -1 || this.plugin.localAccountHash == 0) {
             playerIDLabel = new JLabel("Player ID: unavailable");
         } else {
-            playerIDLabel.setText("Player ID: " + this.mostRecentLocalUserID);
+            playerIDLabel.setText("Player ID: " + this.plugin.localAccountHash);
         }
         updateUI();
     }
@@ -280,25 +279,25 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage) {
         // Save all heatmap data
-        File latestFile = HeatmapFile.getLatestHeatmapFile(mostRecentLocalUserID);
-        File newFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
+        File latestFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash);
+        File newFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash);
         File heatmapFile = latestFile != null ? latestFile : newFile;
-        File imageFile = HeatmapFile.getCurrentImageFile(mostRecentLocalUserID, heatmapType);
-        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), heatmapFile, null));
+        File imageFile = HeatmapFile.getNewImageFile(plugin.localAccountHash, heatmapType);
+        plugin.executor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), heatmapFile, null));
         // Write the specified heatmap image
         HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
-        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
+        plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
         // Replace the heatmap with a new one
-        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.mostRecentLocalUserID, plugin.mostRecentAccountType));
+        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.localAccountHash, plugin.localPlayerAccountType));
         List<HeatmapNew> heatmap = List.of(plugin.heatmaps.get(heatmapType));
 
         // Write new .heatmaps data file, so the current (now old) one can be kept as a backup
-        File latestHeatmapFile = HeatmapFile.getLatestHeatmapFile(mostRecentLocalUserID);
-        File newHeatmapFile = HeatmapFile.getCurrentHeatmapFile(mostRecentLocalUserID);
-        plugin.worldHeatmapPluginExecutor.execute(() -> HeatmapNew.writeHeatmapsToFile(heatmap, newHeatmapFile, latestHeatmapFile));
+        File latestHeatmapFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash);
+        File newHeatmapFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash);
+        plugin.executor.execute(() -> HeatmapNew.writeHeatmapsToFile(heatmap, newHeatmapFile, latestHeatmapFile));
     }
 
     private void openHeatmapsFolder() throws IOException {

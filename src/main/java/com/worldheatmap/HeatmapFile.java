@@ -26,14 +26,14 @@ public class HeatmapFile {
      * Return a new File in the correct directory and filename according to userId and time. Doesn't actually create the file, just a File object.
      * @return The new File
      */
-    public static File getCurrentHeatmapFile(long userId) {
+    public static File getNewHeatmapFile(long userId) {
         String name = formatDate(new Date());
         File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId));
 
         return new File(userIdDir, name + HEATMAP_EXTENSION);
     }
 
-    public static File getCurrentImageFile(long userId, HeatmapNew.HeatmapType type) {
+    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type) {
         String dateString = formatDate(new Date());
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId));
 
@@ -58,7 +58,7 @@ public class HeatmapFile {
             }
 
             // Move the old file to the new location
-            File destination = getCurrentHeatmapFile(userId);
+            File destination = getNewHeatmapFile(userId);
             if (!destination.mkdirs()) {
                 log.error("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
                 return legacyHeatmapsFile;
