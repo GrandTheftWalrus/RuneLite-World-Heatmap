@@ -21,7 +21,7 @@ public class HeatmapNew
 	@Getter
 	private final HashMap<Point, Integer> heatmapHashMap;
 	@Getter
-	private static final int heatmapVersion = 101;
+	private static final int heatmapVersion = 102;
 	@Getter
 	private long totalValue = 0;
 	@Getter
@@ -44,6 +44,8 @@ public class HeatmapNew
 	private HeatmapType heatmapType;
 	@Getter @Setter
 	private int currentCombatLevel = -1;
+	@Getter @Setter
+	private boolean isSeasonal = false;
 
 	/**
 	 * Constructor for HeatmapNew object with no arguments.
@@ -60,12 +62,13 @@ public class HeatmapNew
 	 * @param userID
 	 * @param accountType
 	 */
-	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType)
+	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType, boolean isSeasonal)
 	{
 		this.heatmapType = heatmapType;
 		this.heatmapHashMap = new HashMap<>();
 		this.userID = userID;
 		this.accountType = accountType;
+		this.isSeasonal = isSeasonal;
 	}
 
 	/**

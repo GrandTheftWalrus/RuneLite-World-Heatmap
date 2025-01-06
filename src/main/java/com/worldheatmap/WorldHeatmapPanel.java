@@ -278,25 +278,26 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage) {
+		HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
         // Save all heatmap data
-        File latestFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash);
-        File newFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash);
+        File latestFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash, heatmap.isSeasonal());
+        File newFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash, heatmap.isSeasonal());
         File heatmapFile = latestFile != null ? latestFile : newFile;
-        File imageFile = HeatmapFile.getNewImageFile(plugin.localAccountHash, heatmapType);
+        File imageFile = HeatmapFile.getNewImageFile(plugin.localAccountHash, heatmapType, heatmap.isSeasonal());
         plugin.executor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), heatmapFile, null));
         // Write the specified heatmap image
-        HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
         plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
+		boolean isSeasonal = plugin.heatmaps.get(heatmapType).isSeasonal();
         // Replace the heatmap with a new one
-        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.localAccountHash, plugin.localPlayerAccountType));
+        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.localAccountHash, plugin.localPlayerAccountType, isSeasonal));
         List<HeatmapNew> heatmap = List.of(plugin.heatmaps.get(heatmapType));
 
         // Write new .heatmaps data file, so the current (now old) one can be kept as a backup
-        File latestHeatmapFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash);
-        File newHeatmapFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash);
+        File latestHeatmapFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash, isSeasonal);
+        File newHeatmapFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash, isSeasonal);
         plugin.executor.execute(() -> HeatmapNew.writeHeatmapsToFile(heatmap, newHeatmapFile, latestHeatmapFile));
     }
 

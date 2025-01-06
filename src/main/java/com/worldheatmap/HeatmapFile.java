@@ -26,16 +26,16 @@ public class HeatmapFile {
      * Return a new File in the correct directory and filename according to userId and time. Doesn't actually create the file, just a File object.
      * @return The new File
      */
-    public static File getNewHeatmapFile(long userId) {
+    public static File getNewHeatmapFile(long userId, boolean isSeasonal) {
         String name = formatDate(new Date());
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId));
+        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_seasonal" : ""));
 
         return new File(userIdDir, name + HEATMAP_EXTENSION);
     }
 
-    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type) {
+    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, boolean isSeasonal) {
         String dateString = formatDate(new Date());
-        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId));
+        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_seasonal" : ""));
 
         return new File(userIdDir, type + "_" + dateString + ".tif");
     }
@@ -45,8 +45,8 @@ public class HeatmapFile {
      * Returns null if no such file exists.
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long userId) {
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId));
+    public static File getLatestHeatmapFile(long userId, boolean isSeasonal) {
+        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_seasonal" : ""));
         File mostRecent = getMostRecentFile(userIdDir);
 
         // Check legacy location if latest file not found
@@ -58,7 +58,7 @@ public class HeatmapFile {
             }
 
             // Move the old file to the new location
-            File destination = getNewHeatmapFile(userId);
+            File destination = getNewHeatmapFile(userId, isSeasonal);
             if (!destination.mkdirs()) {
                 log.error("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
                 return legacyHeatmapsFile;
