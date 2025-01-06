@@ -20,7 +20,7 @@ public class HeatmapFile {
     protected final static File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final static File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
     protected final static File HEATMAP_IMAGE_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Images").toFile();
-    protected final static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_hh-mm");
+    protected final static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm");
     
     /**
      * Return a new File in the correct directory and filename according to userId and time. Doesn't actually create the file, just a File object.
@@ -59,7 +59,7 @@ public class HeatmapFile {
 				assert userIdDirNormalGameMode.renameTo(userIdDir);
 				// Create a text file explaining the situation, for when the user eventually investigates
 				String today = formatDate(new Date());
-				File leaguesExplanationFile = new File(userIdDir, today + "leagues_explanation.txt");
+				File leaguesExplanationFile = new File(userIdDir, today + "_leagues_incident.txt");
 				try {
 					Files.write(leaguesExplanationFile.toPath(), (
 						"This directory contains regular account heatmaps that were contaminated by Leagues V data.\n" +
