@@ -284,6 +284,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         File newFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash, heatmap.isSeasonal());
         File heatmapFile = latestFile != null ? latestFile : newFile;
         File imageFile = HeatmapFile.getNewImageFile(plugin.localAccountHash, heatmapType, heatmap.isSeasonal());
+		log.debug("Is heatmap marked as seasonal? {}", heatmap.isSeasonal());
         plugin.executor.execute(() -> HeatmapNew.writeHeatmapsToFile(plugin.getEnabledHeatmaps(), heatmapFile, null));
         // Write the specified heatmap image
         plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));

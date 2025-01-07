@@ -132,11 +132,14 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @SneakyThrows
     protected void loadHeatmaps() {
+		// Make sure player metadata is loaded and up to date
 		localAccountHash = client.getAccountHash();
+		clientThread.invoke(() -> updatePlayerMetaData());
 		assert localAccountHash != 0 && localAccountHash != -1;
 		assert localPlayerAccountType != 0 && localPlayerAccountType != -1;
 		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
-        log.debug("Loading most recent {} heatmaps under user ID {}...", isSeasonal ? "seasonal" : "regular", localAccountHash);
+
+        log.debug("Loading most recent {}heatmaps under user ID {}...", isSeasonal ? "seasonal " : "", localAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, isSeasonal);
 
         // Load all heatmaps from the file
@@ -239,7 +242,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		clientThread.invokeLater(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
-			executor.execute(this::loadHeatmaps);
+			executor.schedule(this::loadHeatmaps, 1, TimeUnit.SECONDS);
 		}
     }
 
@@ -316,6 +319,10 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	@Subscribe
 	public void onPlayerChanged(PlayerChanged event) {
+		updatePlayerMetaData();
+	}
+
+	public void updatePlayerMetaData() {
 		if (client.getLocalPlayer() != null) {
 			localPlayerName = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
 			localPlayerCombatLevel = client.getLocalPlayer() != null ? client.getLocalPlayer().getCombatLevel() : -1;
