@@ -604,18 +604,23 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     /**
-     * Updates the most recent heatmap file with the latest data. If the most recent file does not exist, it will create a new file.
+     * Updates the most recent heatmap file with the latest data, renaming it after the current date and time.
+	 * If a most recent file does not exist, it will create a new file.
      */
     protected void saveHeatmapsFile() {
 		localAccountHash = client.getAccountHash();
 		assert localAccountHash != 0 && localAccountHash != -1;
 		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
-		if (latestFile == null) {
+		if (latestFile == null || !latestFile.exists()) {
 			saveNewHeatmapsFile();
 			return;
 		}
 
-		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
+		// Update the name of the latest file
+		File newFileName = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
+		assert latestFile.renameTo(newFileName);
+
+		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newFileName);
     }
 
     /**
@@ -836,7 +841,8 @@ public class WorldHeatmapPlugin extends Plugin {
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
             if (isHeatmapEnabled(type)) {
                 // Check if it's time to upload each heatmap based on the upload frequencies
-                if (heatmaps.get(type).getGameTimeTicks() % uploadFrequency == 0) {
+				int gameTimeTicks = heatmaps.get(type).getGameTimeTicks();
+                if (gameTimeTicks % uploadFrequency == 0 && gameTimeTicks != 0) {
                     heatmapsToUpload.add(type);
                 }
             }
