@@ -63,6 +63,7 @@ public class WorldHeatmapPlugin extends Plugin {
 	protected String seasonalType;
     protected int localPlayerAccountType;
     protected int localPlayerCombatLevel;
+	protected int startUpAttempts = 0;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
@@ -142,9 +143,26 @@ public class WorldHeatmapPlugin extends Plugin {
 		localAccountHash = client.getAccountHash();
 		clientThread.invoke(this::updatePlayerMetaData);
 		clientThread.invoke(this::updateSeasonalType);
-		assert localAccountHash != 0 && localAccountHash != -1;
-		assert localPlayerAccountType != 0 && localPlayerAccountType != -1;
-		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
+		try
+		{
+			assert localAccountHash != 0 && localAccountHash != -1;
+			assert localPlayerAccountType != -1;
+			assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
+		}
+		catch (AssertionError e)
+		{
+			startUpAttempts++;
+			if (startUpAttempts >= 10) {
+				throw new RuntimeException("Failed to load player metadata after 10 attempts, giving up (it's over)");
+			}
+			executor.schedule(this::loadHeatmaps, 1, TimeUnit.SECONDS);
+			return;
+		}
+		log.debug("Local account hash: {}", localAccountHash);
+		log.debug("Local player account type: {}", localPlayerAccountType);
+		log.debug("Local player combat level: {}", localPlayerCombatLevel);
+		log.debug("Local player name: {}", localPlayerName);
+		log.debug("Seasonal type: {}", seasonalType);
 
 		// Perform V1.6.1 fix on file naming scheme if necessary
 		HeatmapNew.fileNamingSchemeFix(localAccountHash, seasonalType);
@@ -180,7 +198,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private void handleLegacyV1HeatmapFiles() {
 		assert localPlayerName != null;
 		assert localAccountHash != -1 && localAccountHash != 0;
-		assert localPlayerAccountType != -1 && localPlayerAccountType != 0;
+		assert localPlayerAccountType != -1;
 		assert localPlayerCombatLevel != -1 && localPlayerCombatLevel != 0;
 
         File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), localPlayerName + "_TypeA.heatmap");
@@ -254,7 +272,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		clientThread.invokeLater(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
-			executor.schedule(this::loadHeatmaps, 1, TimeUnit.SECONDS);
+			executor.execute(this::loadHeatmaps);
 		}
     }
 
@@ -854,8 +872,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		boolean shouldUpload = highestGameTimeTicks % uploadFrequency == 0 && highestGameTimeTicks != 0;
 
         // Upload the heatmaps
-        log.info("Uploading heatmaps...");
         if (shouldUpload && uploadHeatmaps()){
+			log.info("Uploading heatmaps...");
             log.info("Heatmaps uploaded successfully");
         }
     }

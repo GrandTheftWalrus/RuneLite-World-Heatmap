@@ -282,6 +282,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-07: Time to upload heatmaps is now determined by age of oldest heatmap, so they're all uploaded at once now
 
+2025-01-07: Fixed how turning the plugin on for the first time mid-game wasn't working again, by adding a debounce for
+	loading player metadata on ze client thread
+
 ----You are Here----
 
 TODO: When you hop from a normal world to a seasonal world, the jump in location is counted as a teleport, meaning we need to reinitialize all the relevant variables such as lastX, lastY, and probably the skillXp hashmap
@@ -301,13 +304,12 @@ TODO: Large: Start tracking heatmaps in 3 dimensions? Would have to convert exis
 
 TODO: Make it so that the button that opens the website includes some user-agent/referrer deets about where the user was referred from (the plugin)
 
-TODO: Add PLAYERS_KILLED (might want to separate normal vs. deadman or something)
+TODO: Add PLAYERS_KILLED
 
 TODO: Make HeatmapNew.estimateSize not a static method
 
 TODO: Make an auto-image button for each heatmap type instead of only having the option for both Type A and Type B
 
-TODO: See if there's any reason why that guy's heatmaps were resetting
-    NOTE: Maybe I should see if there's anything interesting about the time since his last save file when it reset
-
 TODO stretch goal: Have the heatmaps displayable in the in-game world map similarly to how Shortest Path displays them.
+
+TODO: stretch goal: Have the heatmaps visible on the ground in-game
