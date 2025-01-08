@@ -34,7 +34,7 @@ public class HeatmapFile {
     public static File getNewHeatmapFile(long userId, String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
         String name = formatDate(LocalDateTime.now());
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
+        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
 		
         return new File(userIdDir, name + HEATMAP_EXTENSION);
     }
@@ -42,7 +42,7 @@ public class HeatmapFile {
     public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
         String dateString = formatDate(LocalDateTime.now());
-        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
+        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
 
         return new File(userIdDir, type + "_" + dateString + ".tif");
     }
