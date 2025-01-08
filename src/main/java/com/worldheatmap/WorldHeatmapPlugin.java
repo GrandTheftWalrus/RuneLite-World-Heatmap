@@ -104,7 +104,7 @@ public class WorldHeatmapPlugin extends Plugin {
     Map<Integer, Instant> timeLastSeenBobTheCatPerWorld = new HashMap<>();
     @Inject
     ItemManager itemManager;
-    private final int[] previousXP = new int[Skill.values().length];
+    private int[] previousXP = new int[Skill.values().length];
     protected String localPlayerName;
     private final String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
 
@@ -148,6 +148,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			assert localAccountHash != 0 && localAccountHash != -1;
 			assert localPlayerAccountType != -1;
 			assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
+			assert localPlayerName != null;
 		}
 		catch (AssertionError e)
 		{
@@ -167,7 +168,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		// Perform V1.6.1 fix on file naming scheme if necessary
 		HeatmapNew.fileNamingSchemeFix(localAccountHash, seasonalType);
 
-        log.debug("Loading most recent {}heatmaps under user ID {}...", seasonalType == null ? " " : seasonalType + " ", localAccountHash);
+        log.info("Loading most recent {}heatmaps under user ID {}...", seasonalType == null ? " " : seasonalType + " ", localAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 
         // Load all heatmaps from the file
@@ -313,8 +314,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		// This is when to load the heatmaps
 		if (justLoggedIn || justHopped) {
 			// Schedule the loading of the heatmap files
-			// Had to give it some time to load the local player name
-			executor.schedule(this::loadHeatmaps, 1, TimeUnit.SECONDS);
+			executor.execute(this::loadHeatmaps);
 		}
 
 		// This is when to save & unload the heatmaps
@@ -324,12 +324,21 @@ public class WorldHeatmapPlugin extends Plugin {
 			gameState == GameState.LOGIN_SCREEN) {
 			panel.setEnabledHeatmapButtons(false);
 			executor.execute(this::saveHeatmapsFile);
+			executor.execute(this::reinitializeVariables);
 			executor.execute(() -> heatmaps = new HashMap<>());
 		}
 
 		previousPreviousGameState = previousGameState;
 		previousGameState = gameState;
     }
+
+	private void reinitializeVariables()
+	{
+		lastX = 0;
+		lastY = 0;
+		previousXP = new int[Skill.values().length];
+		timeLastSeenBobTheCatPerWorld = new HashMap<>();
+	}
 
 	@Subscribe
 	public void onAccountHashChanged(AccountHashChanged event) {
@@ -644,8 +653,20 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		// Rename the latest file to be the current date and time
 		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType);
-		log.debug("Renaming latest heatmap file to {}", newFile.getName());
-		assert latestFile.renameTo(newFile);
+		boolean latestFileExisted = latestFile.exists();
+		boolean newFileExisted = newFile.exists();
+		log.debug("Renaming latest heatmap file ({}) to {}", latestFile.getName(), newFile.getName());
+		if (latestFile.renameTo(newFile)) {
+			log.debug("Successfully renamed latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
+			// Log whether each file already exists
+			log.debug("{} did {}exist", latestFile.getName(), latestFileExisted ? "" : "not ");
+			log.debug("{} did {}exist", newFile.getName(), newFileExisted ? "" : "not ");
+		}
+		else {
+			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
+			log.debug("{} did {}exist", latestFile.getName(), latestFileExisted ? "" : "not ");
+			log.debug("{} did {}exist", newFile.getName(), newFileExisted ? "" : "not ");
+		}
     }
 
     /**
