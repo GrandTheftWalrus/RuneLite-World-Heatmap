@@ -38,7 +38,7 @@ public class HeatmapFile {
 	 */
 	public static File getHeatmapFile(long userId, @Nullable String seasonalType, int onConflictOffset) {
 		boolean isSeasonal = seasonalType != null;
-		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
+		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 		// Find the next available filename
 		File latestFile = getLatestHeatmapFile(userId, seasonalType);
 		LocalDateTime dateOfLatestFile = null;
@@ -94,7 +94,7 @@ public class HeatmapFile {
     public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, @Nullable String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
         String dateString = formatDate(LocalDateTime.now());
-        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
+        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 
         return new File(userIdDir, type + "_" + dateString + ".tif");
     }
@@ -108,16 +108,16 @@ public class HeatmapFile {
      */
     public static File getLatestHeatmapFile(long accountHash, @Nullable String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
+        File heatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash) + (isSeasonal ? "_" + seasonalType : ""));
 
 		// Carry out the leagues decontamination process if necessary
-		if (!userIdDir.exists() && isSeasonal) {
-			File userIdDirNormalGameMode = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
-			if (userIdDirNormalGameMode.exists() && LocalDate.now().isBefore(endOfLeaguesV)) {
-				handleLeaguesDecontamination(userIdDirNormalGameMode, userIdDir);
+		if (!heatmapsDir.exists() && isSeasonal) {
+			File normalHeatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
+			if (normalHeatmapsDir.exists() && LocalDate.now().isBefore(endOfLeaguesV)) {
+				handleLeaguesDecontamination(normalHeatmapsDir, heatmapsDir);
 			}
 		}
-        File mostRecentFile = getMostRecentFile(userIdDir);
+        File mostRecentFile = getMostRecentFile(heatmapsDir);
 
         // Check legacy location if latest file not found
         if (mostRecentFile == null) {
@@ -205,22 +205,16 @@ public class HeatmapFile {
 					"between the release of WorldHeatmap v1.6.1 and the end of Leagues V (Jan 22nd, 2025), as a\n" +
 					"leagues heatmap (which is why you're seeing this), and roll-back any regular heatmaps\n" +
 					"to the latest existing pre-leagues backup. That way, the personal data that players spent\n" +
-					"a long time collecting wouldn't be lost (just archived in a '{userID}_seasonal' folder),\n" +
-					"whilst somewhat unfugging the global heatmap. In the future (or perhaps in the past?)\n" +
-					"I'm  thinking that I'll add a feature to the website where you can open a local\n.heatmaps" +
-					"file for visualization, so you can more easily take a gander at your old data in this\n" +
-					"folder. If you have any questions or concerns, please make an issue on the GitHub page\n" +
-					"for the plugin: https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap\n"+
+					"a long time collecting wouldn't be lost, whilst somewhat unfugging the global heatmap.\n" +
+					"In the future (or perhaps in the past?) I'm  thinking that I'll add a feature to the \n" +
+					"website where you can open a local .heatmaps file for visualization, so you can more\n" +
+					"easily take a gander at your old data in this folder. If you have any questions or \n" +
+					"concerns, please contact me somehow or make an issue on the GitHub page for the plugin:\n" +
+					"https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap\n"+
 					"\n" +
-					"P.S. You'll want to rename this folder to something else if a new seasonal game mode\n" +
-					"comes out that you want to play and you don't want its new data mixed with the data \n" +
-					"currently in this folder. Note: The world-based game modes 'TOURNAMENT', 'SEASONAL' \n" +
-					"(includes seasonal deadman), and 'BETA_WORLD' all get written to the '{userID}_seasonal'\n" +
-					"folder.\n" +
-					"\n" +
-					"P.P.S. If you're absolutely certain that you didn't play Leagues V until a certain date\n" +
+					"P.S. If you're absolutely certain that you didn't play Leagues V until a certain date\n" +
 					"post-release, then I gueeeeesss you could move the allegedly unaffected .heatmap files from\n" +
-					"this folder back to the regular folder \uD83E\uDD28 if you see this message in time, but\n" +
+					"this folder back to the regular folder if you see this message in time \uD83E\uDD28 but\n" +
 					"you better be deadass or else you'll be messing up the global heatmap if you're opted-in\n" +
 					"to contributing to it. If not, then I spose you can whatever you want with your own data.\n"
 			).getBytes());

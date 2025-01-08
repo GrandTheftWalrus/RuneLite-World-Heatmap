@@ -278,16 +278,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 	started rather than the date they were last updated, which was kinda confusing. The fix is just to detect if the
 	serialized heatmaps in the directory are of version <= 101, and then rename them after their dates modified.
 
+2025-01-07: Updated heatmap serialization to Version 102, which includes the new seasonalType field
+
 ----You are Here----
-
-TODO: isSeasonal isn't yet included in the heatmap serialization, so currently only heatmaps that went through
-	the contamination detection process are marked as seasonal in memory, and then writing them to disk and
-	reading them again results in them having an isSeasonal = false status, which causes them to be written
-	to the wrong images folder, probably among other tings.
-	Whilst fixing this, see if there's a more robust, dictionary-like way to read the metadata of heatmap files
-	instead of indexing them by their expected order in the CSV
-
-TODO: Remove the fields maxVal, minVal, numTilesVisited etc from the heatmap serialization/deserialization process. They shant have been there in the foist place.
 
 TODO: When you hop from a normal world to a seasonal world, the jump in location is counted as a teleport, meaning we need to reinitialize all the relevant variables such as lastX, lastY, and probably the skillXp hashmap
 

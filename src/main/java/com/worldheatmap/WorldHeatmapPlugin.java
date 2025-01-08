@@ -330,17 +330,16 @@ public class WorldHeatmapPlugin extends Plugin {
 			client.getWorldType().contains(WorldType.BETA_WORLD) ||
 			client.getWorldType().contains(WorldType.TOURNAMENT_WORLD);
 		if (isSeasonal) {
-			log.debug("SEASONAL WORLD DETECTED");
 			WorldResult worlds = worldService.getWorlds();
 			assert worlds != null;
 			World world = worlds.findWorld(client.getWorld());
 			assert world != null;
 			String worldActivity = world.getActivity();
 			if (worldActivity != null && !worldActivity.isBlank()) {
-				seasonalType = worldActivity.split(" - ")[0];
+				seasonalType = worldActivity.split(" - ")[0].replaceAll("\\s", "_").toUpperCase();
 			}
 			else {
-				seasonalType = "unknown_seasonal";
+				seasonalType = "UNKNOWN_SEASONAL";
 			}
 		}
 		else {

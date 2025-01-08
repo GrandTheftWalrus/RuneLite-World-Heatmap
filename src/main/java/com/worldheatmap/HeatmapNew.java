@@ -340,21 +340,14 @@ public class HeatmapNew
 	protected String toCSV() {
 		StringBuilder output = new StringBuilder();
 			// Write them field variables
-			output.append("userID,heatmapVersion,heatmapType,totalValue,numTilesVisited,maxVal,maxValX,maxValY,minVal,minValX,minValY,gameTimeTicks,accountType,currentCombatLevel\n");
+			output.append("userID,heatmapVersion,heatmapType,gameTimeTicks,accountType,currentCombatLevel,seasonalType\n");
 			output.append(this.getUserID() +
 					"," + this.getHeatmapVersion() +
 					"," + this.getHeatmapType() +
-					"," + this.getTotalValue() +
-					"," + this.getTileCount() +
-					"," + this.getMaxVal()[0] +
-					"," + this.getMaxVal()[1] +
-					"," + this.getMaxVal()[2] +
-					"," + this.getMinVal()[0] +
-					"," + this.getMinVal()[1] +
-					"," + this.getMinVal()[2] +
 					"," + this.getGameTimeTicks() +
 					"," + this.getAccountType() +
-					"," + this.getCurrentCombatLevel() + "\n");
+					"," + this.getCurrentCombatLevel() +
+					"," + this.getSeasonalType() + "\n");
 			// Write the tile values
 			for (Entry<Point, Integer> e : this.getEntrySet()) {
 				int x = e.getKey().x;
@@ -397,22 +390,13 @@ public class HeatmapNew
 						fieldMap.put(fieldNames[i], fieldValues[i]);
 					}
 					long userID = Long.parseLong(fieldMap.getOrDefault("userID", "-1"));
-					long heatmapVersion = Long.parseLong(fieldMap.getOrDefault("heatmapVersion", "-1"));
 					String heatmapTypeString = fieldMap.get("heatmapType");
-					int totalValue = Integer.parseInt(fieldMap.getOrDefault("totalValue", "-1"));
-					int numTilesVisited = Integer.parseInt(fieldMap.getOrDefault("numTilesVisited", "-1"));
-					int maxVal = Integer.parseInt(fieldMap.getOrDefault("maxVal", "-1"));
-					int maxValX = Integer.parseInt(fieldMap.getOrDefault("maxValX", "-1"));
-					int maxValY = Integer.parseInt(fieldMap.getOrDefault("maxValY", "-1"));
-					int minVal = Integer.parseInt(fieldMap.getOrDefault("minVal", "-1"));
-					int minValX = Integer.parseInt(fieldMap.getOrDefault("minValX", "-1"));
-					int minValY = Integer.parseInt(fieldMap.getOrDefault("minValY", "-1"));
 					int gameTimeTicks = Integer.parseInt(fieldMap.getOrDefault("gameTimeTicks", "-1"));
 					// The following fields exist only in version 101 and later
 					int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
 					int currentCombatLevel = Integer.parseInt(fieldMap.getOrDefault("currentCombatLevel", "-1"));
 					// The following fields exist only in version 102 and later
-//					String seasonalType = fieldMap.getOrDefault("seasonalType", "");
+					String seasonalType = fieldMap.getOrDefault("seasonalType", "");
 
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;
@@ -431,6 +415,7 @@ public class HeatmapNew
 					heatmap.setAccountType(accountType);
 					heatmap.setGameTimeTicks(gameTimeTicks);
 					heatmap.setCurrentCombatLevel(currentCombatLevel);
+					heatmap.setSeasonalType(seasonalType);
 
 					// Read and load the tile values
 					final int[] errorCount = {0}; // Number of parsing errors occurred during read
