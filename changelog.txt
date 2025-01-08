@@ -249,35 +249,40 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ** UPDATE RELEASED **
 
-2025-01-05: Refactored startup/shutdown and loading/unloading code to be simpler/more logical and also prepare for seasonal world support
+2025-01-05: Refactored startup/shutdown code to be simpler and also prepare for seasonal world support
 
 2025-01-05: Made retroactive half-fix for heatmaps contaminated with leagues data
 
 2025-01-06: Fixed how a non-heatmaps file starting with a yyyy-mm-dd in the .heatmaps folder could cause a crash
 
-2025-01-06: Added the rolling-back of normal heatmaps to the half-fix mentioned above, and pruning leagues heatmap history
+2025-01-06: Added the rolling-back of normal heatmaps (instead of just deleting them) to the half-fix mentioned above
 
 2025-01-06: Started using LocalDateTime instead of Date because apparently Date is horrible and deprecated
 
-2025-01-06: Fixed new bug where startUp() would cause a crash if run mid-game instead of on runelite startup
+2025-01-06: Fixed new bug where startUp() would cause a crash if run mid-game instead of on runelite startup, due to
+	startUp() -> loadHeatmaps() being run before event listeners that set necessary metadata such as onPlayerChanged()
+
+2025-01-07: Made HeatmapNew.readHeatmapsFromFile() parse the fields dictionary-style instead of via direct indexing
 
 ----You are Here----
-
-TODO: Make it so pre-leagues backups are restored during heatmap-decontamination, and add it to explanation file.
-TODO: Should probably do a reverse-backing up for the leagues folder too (aka deleting pre-leagues backups)
-
-TODO: When you hop from a normal world to a seasonal world, the jump in location is counted as a teleport, meaning we need to reinitialize all the relevant variables such as lastX, lastY
 
 TODO: isSeasonal isn't yet included in the heatmap serialization, so currently only heatmaps that went through
 	the contamination detection process are marked as seasonal in memory, and then writing them to disk and
 	reading them again results in them having an isSeasonal = false status, which causes them to be written
 	to the wrong images folder, probably among other tings.
+	Whilst fixing this, see if there's a more robust, dictionary-like way to read the metadata of heatmap files
+	instead of indexing them by their expected order in the CSV
+
+TODO: Remove the fields maxVal, minVal, numTilesVisited etc from the heatmap serialization/deserialization process. They shant have been there in the foist place.
+
+TODO: When you hop from a normal world to a seasonal world, the jump in location is counted as a teleport, meaning we need to reinitialize all the relevant variables such as lastX, lastY, and probably the skillXp hashmap
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
 
-TODO: Add 'isSeasonal' field to HeatmapNew serialization
+** UPDATE TO BE RELEASED **
 
-TODO: I think I just realized that .heatmaps files are being named with the hour being in 12-hour format instead of 24-hour format, which is causing them to be cycled out of order sometimes
+TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
+	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
 
 TODO: Update world map image
 

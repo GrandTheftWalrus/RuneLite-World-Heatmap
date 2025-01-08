@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.InflaterInputStream;
 
 import lombok.Getter;
@@ -377,24 +378,25 @@ public class HeatmapNew
 					// Read them field variables
 					String[] fieldNames = reader.readLine().split(",");
 					String[] fieldValues = reader.readLine().split(",");
-					long userID = (fieldValues[0].isEmpty() ? -1 : Long.parseLong(fieldValues[0]));
-					long heatmapVersion = (fieldValues[1].isEmpty() ? -1 : Long.parseLong(fieldValues[1]));
-					String heatmapTypeString = fieldValues[2];
-					int totalValue = (fieldValues[3].isEmpty() ? -1 : Integer.parseInt(fieldValues[3]));
-					int numTilesVisited = (fieldValues[4].isEmpty() ? -1 : Integer.parseInt(fieldValues[4]));
-					int maxVal = (fieldValues[5].isEmpty() ? -1 : Integer.parseInt(fieldValues[5]));
-					int maxValX = (fieldValues[6].isEmpty() ? -1 : Integer.parseInt(fieldValues[6]));
-					int maxValY = (fieldValues[7].isEmpty() ? -1 : Integer.parseInt(fieldValues[7]));
-					int minVal = (fieldValues[8].isEmpty() ? -1 : Integer.parseInt(fieldValues[8]));
-					int minValX = (fieldValues[9].isEmpty() ? -1 : Integer.parseInt(fieldValues[9]));
-					int minValY = (fieldValues[10].isEmpty() ? -1 : Integer.parseInt(fieldValues[10]));
-					int gameTimeTicks = (fieldValues[11].isEmpty() ? -1 : Integer.parseInt(fieldValues[11]));
-					int accountType = -1;
-					int currentCombatLevel = -1;
-					if (heatmapVersion >= 101){
-						accountType = (fieldValues[12].isEmpty() ? -1 : Integer.parseInt(fieldValues[12]));
-						currentCombatLevel = (fieldValues[13].isEmpty() ? -1 : Integer.parseInt(fieldValues[13]));
+					Map<String, String> fieldMap = new HashMap<>();
+					for (int i = 0; i < fieldNames.length; i++) {
+						fieldMap.put(fieldNames[i], fieldValues[i]);
 					}
+					long userID = Long.parseLong(fieldMap.getOrDefault("userID", "-1"));
+					long heatmapVersion = Long.parseLong(fieldMap.getOrDefault("heatmapVersion", "-1"));
+					String heatmapTypeString = fieldMap.get("heatmapType");
+					int totalValue = Integer.parseInt(fieldMap.getOrDefault("totalValue", "-1"));
+					int numTilesVisited = Integer.parseInt(fieldMap.getOrDefault("numTilesVisited", "-1"));
+					int maxVal = Integer.parseInt(fieldMap.getOrDefault("maxVal", "-1"));
+					int maxValX = Integer.parseInt(fieldMap.getOrDefault("maxValX", "-1"));
+					int maxValY = Integer.parseInt(fieldMap.getOrDefault("maxValY", "-1"));
+					int minVal = Integer.parseInt(fieldMap.getOrDefault("minVal", "-1"));
+					int minValX = Integer.parseInt(fieldMap.getOrDefault("minValX", "-1"));
+					int minValY = Integer.parseInt(fieldMap.getOrDefault("minValY", "-1"));
+					int gameTimeTicks = Integer.parseInt(fieldMap.getOrDefault("gameTimeTicks", "-1"));
+					// The following fields exist only in version 101 and later
+					int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
+					int currentCombatLevel = Integer.parseInt(fieldMap.getOrDefault("currentCombatLevel", "-1"));
 
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;
@@ -416,10 +418,12 @@ public class HeatmapNew
 
 					// Read and load the tile values
 					final int[] errorCount = {0}; // Number of parsing errors occurred during read
+					AtomicInteger numTiles = new AtomicInteger();
 					reader.lines().forEach(s -> {
 						String[] tile = s.split(",");
 						try {
 							heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
+							numTiles.getAndIncrement();
 						} catch (NumberFormatException e) {
 							errorCount[0]++;
 						}
@@ -427,7 +431,7 @@ public class HeatmapNew
 					if (errorCount[0] != 0) {
                         log.error("{} errors occurred during {} heatmap file read.", errorCount[0], recognizedHeatmapType);
 					}
-					loggingOutput.append(recognizedHeatmapType + " (" + numTilesVisited + " tiles), ");
+					loggingOutput.append(recognizedHeatmapType + " (" + numTiles + " tiles), ");
 					heatmapsRead.put(recognizedHeatmapType, heatmap);
 				} catch (IOException e) {
                     log.error("Error reading {} heatmap from .heatmaps entry '{}'", curType, curHeatmapPath);

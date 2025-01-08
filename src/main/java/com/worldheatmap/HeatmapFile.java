@@ -142,10 +142,10 @@ public class HeatmapFile {
 					"uploaded to the website https://osrsworldheatmap.com was looking kinda sus\n" +
 					"such as how TELEPORTED_TO had a bunch of entries that would normally be impossibru\n" +
 					"for regular accounts. The only way to semi-fix it, that I could think of, was to\n" +
-					"designate the contaminated .heatmaps files of anyone who logged into Leagues V between\n" +
-					"the release of WorldHeatmap v1.6.1 and the end of Leagues V (Jan 22nd, 2025), as a\n" +
+					"designate the potentially contaminated .heatmaps files of anyone who logged into Leagues V\n" +
+					"between the release of WorldHeatmap v1.6.1 and the end of Leagues V (Jan 22nd, 2025), as a\n" +
 					"leagues heatmap (which is why you're seeing this), and roll-back any regular heatmaps\n" +
-					"to a pre-leagues backup, if one exists. That way, the personal data that players spent\n" +
+					"to the latest existing pre-leagues backup. That way, the personal data that players spent\n" +
 					"a long time collecting wouldn't be lost (just archived in a '{userID}_seasonal' folder),\n" +
 					"whilst somewhat unfugging the global heatmap. In the future (or perhaps in the past?)\n" +
 					"I'm  thinking that I'll add a feature to the website where you can open a local\n.heatmaps" +
