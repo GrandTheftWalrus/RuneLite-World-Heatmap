@@ -27,12 +27,14 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NpcLootReceived;
 import net.runelite.client.game.ItemStack;
+import net.runelite.client.game.WorldService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.api.Varbits;
+import net.runelite.http.api.worlds.World;
 
 import java.awt.image.BufferedImage;
 import java.util.concurrent.*;
@@ -42,6 +44,7 @@ import java.util.zip.ZipOutputStream;
 import net.runelite.client.game.ItemManager;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
+import net.runelite.http.api.worlds.WorldResult;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -57,7 +60,7 @@ public class WorldHeatmapPlugin extends Plugin {
     private int lastY = 0;
 	protected GameState previousGameState, previousPreviousGameState = GameState.UNKNOWN;
     protected long localAccountHash;
-	protected boolean isSeasonal;
+	protected String seasonalType;
     protected int localPlayerAccountType;
     protected int localPlayerCombatLevel;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
@@ -125,6 +128,9 @@ public class WorldHeatmapPlugin extends Plugin {
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private WorldService worldService;
+
     @Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(WorldHeatmapConfig.class);
@@ -139,16 +145,18 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert localPlayerAccountType != 0 && localPlayerAccountType != -1;
 		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
 
-        log.debug("Loading most recent {}heatmaps under user ID {}...", isSeasonal ? "seasonal " : "", localAccountHash);
-        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, isSeasonal);
+        log.debug("Loading most recent {} heatmaps under user ID {}...", seasonalType, localAccountHash);
+        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 
         // Load all heatmaps from the file
         if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
             heatmaps = HeatmapNew.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
             for (HeatmapNew heatmap : heatmaps.values()){
+				// Set metadata for each heatmap in case they were wrong or missing
                 heatmap.setUserID(localAccountHash);
                 heatmap.setAccountType(localPlayerAccountType);
                 heatmap.setCurrentCombatLevel(localPlayerCombatLevel);
+				heatmap.setSeasonalType(seasonalType);
             }
         }
 
@@ -309,11 +317,26 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	@Subscribe
 	public void onWorldChanged(WorldChanged event) {
-		isSeasonal = client.getWorldType().contains(WorldType.SEASONAL) ||
+		// This is where seasonalType gets updated
+		boolean isSeasonal = client.getWorldType().contains(WorldType.SEASONAL) ||
 			client.getWorldType().contains(WorldType.BETA_WORLD) ||
 			client.getWorldType().contains(WorldType.TOURNAMENT_WORLD);
 		if (isSeasonal) {
 			log.debug("SEASONAL WORLD DETECTED");
+			WorldResult worlds = worldService.getWorlds();
+			assert worlds != null;
+			World world = worlds.findWorld(client.getWorld());
+			assert world != null;
+			String worldActivity = world.getActivity();
+			if (worldActivity != null && !worldActivity.isBlank()) {
+				seasonalType = worldActivity.split(" - ")[0];
+			}
+			else {
+				seasonalType = "unknown_seasonal";
+			}
+		}
+		else {
+			seasonalType = null;
 		}
 	}
 
@@ -541,8 +564,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // Autosave the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do so
         if (shouldWriteImages) {
-            File typeAImageFile = HeatmapFile.getNewImageFile(localAccountHash, HeatmapNew.HeatmapType.TYPE_A, isSeasonal);
-            File typeBImageFile = HeatmapFile.getNewImageFile(localAccountHash, HeatmapNew.HeatmapType.TYPE_B, isSeasonal);
+            File typeAImageFile = HeatmapFile.getNewImageFile(localAccountHash, HeatmapNew.HeatmapType.TYPE_A, seasonalType);
+            File typeBImageFile = HeatmapFile.getNewImageFile(localAccountHash, HeatmapNew.HeatmapType.TYPE_B, seasonalType);
 
             // Write the image files
             if (config.isHeatmapTypeAEnabled()) {
@@ -581,9 +604,9 @@ public class WorldHeatmapPlugin extends Plugin {
     private void saveCurrentHeatmapsFile() {
 		localAccountHash = client.getAccountHash();
 		assert localAccountHash != 0 && localAccountHash != -1;
-        File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, isSeasonal);
+        File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
         if (heatmapsFile == null) {
-            heatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, isSeasonal);
+            heatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
         }
         File finalHeatmapsFile = heatmapsFile;
         HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), finalHeatmapsFile, null);
@@ -596,8 +619,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		localAccountHash = client.getAccountHash();
 		assert localAccountHash != 0 && localAccountHash != -1;
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
-        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, isSeasonal);
-        File newHeatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, isSeasonal);
+        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
+        File newHeatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
         log.debug("Backing up heatmaps to file: {}", latestHeatmapsFile);
         executor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newHeatmapsFile, latestHeatmapsFile));
     }
@@ -697,7 +720,7 @@ public class WorldHeatmapPlugin extends Plugin {
         }
         log.debug("Initializing missing heatmaps: {}", String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
-            heatmaps.put(type, new HeatmapNew(type, localAccountHash, localPlayerAccountType, isSeasonal));
+            heatmaps.put(type, new HeatmapNew(type, localAccountHash, localPlayerAccountType, seasonalType));
         }
     }
 
@@ -768,7 +791,7 @@ public class WorldHeatmapPlugin extends Plugin {
      * @param heatmapType The type of heatmap
      */
     private void handleHeatmapToggled(boolean isHeatmapEnabled, HeatmapNew.HeatmapType heatmapType){
-        File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, isSeasonal);
+        File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 
         if (isHeatmapEnabled) {
             log.debug("Enabling {} heatmap...", heatmapType);
@@ -790,7 +813,7 @@ public class WorldHeatmapPlugin extends Plugin {
         } else {
             log.debug("Disabling {} heatmap...", heatmapType);
             if (heatmapsFile == null){
-                heatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, isSeasonal);
+                heatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
             }
             HeatmapNew.writeHeatmapsToFile(List.of(heatmaps.get(heatmapType)), heatmapsFile, null);
             heatmaps.remove(heatmapType);

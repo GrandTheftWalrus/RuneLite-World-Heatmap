@@ -27,18 +27,22 @@ public class HeatmapFile {
     
     /**
      * Return a new File in the correct directory and filename according to userId and time. Doesn't actually create the file, just a File object.
+	 * @param userId the user ID
+	 * @param seasonalType the seasonal type, or null if not seasonal
      * @return The new File
      */
-    public static File getNewHeatmapFile(long userId, boolean isSeasonal) {
+    public static File getNewHeatmapFile(long userId, String seasonalType) {
+		boolean isSeasonal = seasonalType != null;
         String name = formatDate(LocalDateTime.now());
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_seasonal" : ""));
+        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 		
         return new File(userIdDir, name + HEATMAP_EXTENSION);
     }
 
-    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, boolean isSeasonal) {
+    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
+		boolean isSeasonal = seasonalType != null;
         String dateString = formatDate(LocalDateTime.now());
-        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_seasonal" : ""));
+        File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 
         return new File(userIdDir, type + "_" + dateString + ".tif");
     }
@@ -46,13 +50,16 @@ public class HeatmapFile {
     /**
      * Get the File that contains the latest heatmaps based on the filename being a date.
      * Returns null if no such file exists.
+	 * @param userId the user ID
+	 * @param seasonalType the seasonal type, or null if not seasonal
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long userId, boolean isSeasonalGameMode) {
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonalGameMode ? "_seasonal" : ""));
+    public static File getLatestHeatmapFile(long userId, String seasonalType) {
+		boolean isSeasonal = seasonalType != null;
+        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
 
 		// Carry out the leagues decontamination process if necessary
-		if (!userIdDir.exists() && isSeasonalGameMode) {
+		if (!userIdDir.exists() && isSeasonal) {
 			File userIdDirNormalGameMode = new File(HEATMAP_FILES_DIR, Long.toString(userId));
 			if (userIdDirNormalGameMode.exists() && LocalDate.now().isBefore(endOfLeaguesV)) {
 				handleLeaguesDecontamination(userIdDirNormalGameMode, userIdDir);
@@ -69,7 +76,7 @@ public class HeatmapFile {
             }
 
             // Move the old file to the new location
-            File destination = getNewHeatmapFile(userId, isSeasonalGameMode);
+            File destination = getNewHeatmapFile(userId, seasonalType);
             if (!destination.mkdirs()) {
                 log.error("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
                 return legacyHeatmapsFile;
@@ -163,7 +170,9 @@ public class HeatmapFile {
 					"post-release, then I gueeeeesss you could move the allegedly unaffected .heatmap files from\n" +
 					"this folder back to the regular folder \uD83E\uDD28 if you see this message in time, but\n" +
 					"you better be deadass or else you'll be messing up the global heatmap if you're opted-in\n" +
-					"to contributing to it. If not, then I spose you can whatever you want with your own data.\n"
+					"to contributing to it. If not, then I spose you can whatever you want with your own data.\n" +
+					"If you do do this, do not include the backup file right before you started Leagues-ing as\n" +
+					"its labeled date is when it was created, not when it was finished.\n"
 			).getBytes());
 		} catch (IOException e) {
 			log.error("Failed to write leagues explanation file: {}", e.toString());

@@ -266,6 +266,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ----You are Here----
 
+TODO: Use a field String "seasonalType" instead of a boolean "isSeasonal" to determine if a heatmap is seasonal or not,
+	in addition to encoding the type of the seasonal world.	That way, we can automatically differentiate Leagues V
+	from Leagues VI, etc., so long as the "Activity" attribute of seasonal worlds continue to be parseable,
+	e.g. "Leagues V" -> "Leagues V", "Leagues V - Sorceress' Garden" -> "Leagues V"
+
 TODO: isSeasonal isn't yet included in the heatmap serialization, so currently only heatmaps that went through
 	the contamination detection process are marked as seasonal in memory, and then writing them to disk and
 	reading them again results in them having an isSeasonal = false status, which causes them to be written
@@ -278,6 +283,8 @@ TODO: Remove the fields maxVal, minVal, numTilesVisited etc from the heatmap ser
 TODO: When you hop from a normal world to a seasonal world, the jump in location is counted as a teleport, meaning we need to reinitialize all the relevant variables such as lastX, lastY, and probably the skillXp hashmap
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
+
+TODO: Remove any temporary log.debugs()
 
 ** UPDATE TO BE RELEASED **
 

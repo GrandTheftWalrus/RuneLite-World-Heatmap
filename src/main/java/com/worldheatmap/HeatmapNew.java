@@ -46,7 +46,7 @@ public class HeatmapNew
 	@Getter @Setter
 	private int currentCombatLevel = -1;
 	@Getter @Setter
-	private boolean isSeasonal = false;
+	private String seasonalType = null;
 
 	/**
 	 * Constructor for HeatmapNew object with no arguments.
@@ -63,13 +63,13 @@ public class HeatmapNew
 	 * @param userID
 	 * @param accountType
 	 */
-	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType, boolean isSeasonal)
+	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType, String seasonalType)
 	{
 		this.heatmapType = heatmapType;
 		this.heatmapHashMap = new HashMap<>();
 		this.userID = userID;
 		this.accountType = accountType;
-		this.isSeasonal = isSeasonal;
+		this.seasonalType = seasonalType;
 	}
 
 	/**
@@ -397,6 +397,8 @@ public class HeatmapNew
 					// The following fields exist only in version 101 and later
 					int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
 					int currentCombatLevel = Integer.parseInt(fieldMap.getOrDefault("currentCombatLevel", "-1"));
+					// The following fields exist only in version 102 and later
+//					String seasonalType = fieldMap.getOrDefault("seasonalType", "");
 
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;
