@@ -146,7 +146,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert localPlayerAccountType != 0 && localPlayerAccountType != -1;
 		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
 
-        log.debug("Loading most recent {} heatmaps under user ID {}...", seasonalType, localAccountHash);
+        log.debug("Loading most recent {}heatmaps under user ID {}...", seasonalType == null ? " " : seasonalType + " ", localAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 
         // Load all heatmaps from the file
@@ -559,8 +559,10 @@ public class WorldHeatmapPlugin extends Plugin {
                 highestGameTimeTicks = heatmaps.get(type).getGameTimeTicks();
             }
         }
-        boolean shouldWriteImages = config.typeABImageAutosave() && highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0;
-		boolean shouldAutosaveFiles = highestGameTimeTicks % AUTOSAVE_FREQUENCY == 0;
+        boolean shouldWriteImages = config.typeABImageAutosave() &&
+			highestGameTimeTicks % config.typeABImageAutosaveFrequency() == 0 &&
+			highestGameTimeTicks != 0;
+		boolean shouldAutosaveFiles = highestGameTimeTicks % AUTOSAVE_FREQUENCY == 0 && highestGameTimeTicks != 0;
 
         // Autosave the heatmap file if it is the correct time to do so, or if image is about to be written
         if (shouldAutosaveFiles || shouldWriteImages) {
@@ -598,7 +600,7 @@ public class WorldHeatmapPlugin extends Plugin {
         }
 
         // Make new backup
-        if (highestGameTimeTicks % config.heatmapBackupFrequency() == 0) {
+        if (highestGameTimeTicks % config.heatmapBackupFrequency() == 0 && highestGameTimeTicks != 0) {
             executor.execute(this::saveNewHeatmapsFile);
         }
     }
@@ -611,16 +613,19 @@ public class WorldHeatmapPlugin extends Plugin {
 		localAccountHash = client.getAccountHash();
 		assert localAccountHash != 0 && localAccountHash != -1;
 		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
+
+		// If there is no latest file, create a new file
 		if (latestFile == null || !latestFile.exists()) {
 			saveNewHeatmapsFile();
 			return;
 		}
 
-		// Update the name of the latest file
-		File newFileName = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
-		assert latestFile.renameTo(newFileName);
+		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
 
-		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newFileName);
+		// Rename the latest file to be the current date and time
+		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType);
+		log.debug("Renaming latest heatmap file to {}", newFile.getName());
+		assert latestFile.renameTo(newFile);
     }
 
     /**
@@ -632,7 +637,6 @@ public class WorldHeatmapPlugin extends Plugin {
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
         File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
         File newFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
-        log.debug("Backing up heatmaps to file: {}", latestFile);
         HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 

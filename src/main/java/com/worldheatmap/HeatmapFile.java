@@ -1,9 +1,10 @@
 package com.worldheatmap;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
+import java.time.temporal.ChronoUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -24,20 +25,62 @@ public class HeatmapFile {
 	protected final static LocalDate startOfLeaguesV = LocalDate.of(2024, 11, 26);
 	protected final static LocalDate endOfLeaguesV = LocalDate.of(2025, 1, 23);
 	protected final static DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
-    
-    /**
-     * Return a new File in the correct directory and filename according to userId and time. Doesn't actually create the file, just a File object.
-	 * @param userId the user ID
-	 * @param seasonalType the seasonal type, or null if not seasonal
-     * @return The new File
-     */
-    public static File getNewHeatmapFile(long userId, String seasonalType) {
+
+	/**
+	 * Return a File in the correct directory, either named after the current time or the latest file in the directory,
+	 * whichever comes last. If they are equal, returns a new file named onConflictOffset minutes later than the
+	 * latest file. If onConflictOffset is zero, then it returns the latest file.
+	 * Doesn't actually create the file, just a File object.
+	 * @param userId
+	 * @param seasonalType
+	 * @return
+	 */
+	public static File getHeatmapFile(long userId, String seasonalType, int onConflictOffset) {
 		boolean isSeasonal = seasonalType != null;
-        String name = formatDate(LocalDateTime.now());
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
-		
-        return new File(userIdDir, name + HEATMAP_EXTENSION);
+		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
+		// Find the next available filename
+		File latestFile = getLatestHeatmapFile(userId, seasonalType);
+		LocalDateTime dateOfLatestFile = null;
+		if (latestFile != null && latestFile.exists()) {
+			String name = latestFile.getName();
+			int pos = name.lastIndexOf(HEATMAP_EXTENSION);
+			name = name.substring(0, pos);
+			dateOfLatestFile = LocalDateTime.parse(name, dateFormat);
+		}
+
+		LocalDateTime timeToUse;
+		LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
+		if (dateOfLatestFile == null || now.isAfter(dateOfLatestFile)) {
+			timeToUse = now;
+		}
+		else {
+			timeToUse = dateOfLatestFile.plus(Duration.ofMinutes(onConflictOffset));
+		}
+		String fileName = timeToUse.format(dateFormat) + HEATMAP_EXTENSION;
+
+		return new File(userIdDir, fileName);
+	}
+
+	/**
+	 * Returns a new File in the correct heatmap files directory
+	 * Doesn't actually create the file, just a File object.
+	 * @param userId
+	 * @param seasonalType
+	 * @return
+	 */
+    public static File getNewHeatmapFile(long userId, String seasonalType) {
+		return getHeatmapFile(userId, seasonalType, 1);
     }
+
+	/**
+	 * Returns either a new File named after the current time, or the latest existing file, whichever is latest.
+	 * @param userId
+	 * @param seasonalType
+	 * @return
+	 */
+	public static File getCurrentHeatmapFile(long userId, String seasonalType) {
+		return getHeatmapFile(userId, seasonalType, 0);
+	}
 
     public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
 		boolean isSeasonal = seasonalType != null;

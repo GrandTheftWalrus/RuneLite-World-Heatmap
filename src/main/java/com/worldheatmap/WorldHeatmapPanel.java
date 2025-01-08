@@ -4,7 +4,6 @@ import java.awt.*;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
@@ -287,6 +286,7 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
+		log.info("Clearing heatmap: {}", heatmapType);
 		// Update the latest heatmap data file
 		plugin.executor.execute(plugin::saveHeatmapsFile);
 
