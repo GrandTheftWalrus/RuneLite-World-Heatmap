@@ -222,9 +222,7 @@ public class HeatmapFile {
 					"post-release, then I gueeeeesss you could move the allegedly unaffected .heatmap files from\n" +
 					"this folder back to the regular folder \uD83E\uDD28 if you see this message in time, but\n" +
 					"you better be deadass or else you'll be messing up the global heatmap if you're opted-in\n" +
-					"to contributing to it. If not, then I spose you can whatever you want with your own data.\n" +
-					"If you do do this, do not include the backup file right before you started Leagues-ing as\n" +
-					"its labeled date is when it was created, not when it was finished.\n"
+					"to contributing to it. If not, then I spose you can whatever you want with your own data.\n"
 			).getBytes());
 		} catch (IOException e) {
 			log.error("Failed to write leagues explanation file: {}", e.toString());

@@ -274,11 +274,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-07: Fixed heatmap-clearing backup procedure
 
-----You are Here----
+2025-01-07: Introduced a fix fo the naming scheme of heatmap files. They used to be named after the date they were
+	started rather than the date they were last updated, which was kinda confusing. The fix is just to detect if the
+	serialized heatmaps in the directory are of version <= 101, and then rename them after their dates modified.
 
-TODO: Introduce a fix for the naming scheme of heatmap files. Aka, how they're named after the date that they were
-	started rather than the date they were last updated, which is kinda confusing. Once you do this,
-	adjust the leagues incident note because it gives instructions according to the bad naming scheme
+----You are Here----
 
 TODO: isSeasonal isn't yet included in the heatmap serialization, so currently only heatmaps that went through
 	the contamination detection process are marked as seasonal in memory, and then writing them to disk and
