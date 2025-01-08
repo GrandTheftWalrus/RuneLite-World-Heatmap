@@ -264,12 +264,21 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-07: Made HeatmapNew.readHeatmapsFromFile() parse the fields dictionary-style instead of via direct indexing
 
-----You are Here----
-
-TODO: Use a field String "seasonalType" instead of a boolean "isSeasonal" to determine if a heatmap is seasonal or not,
+2025-01-07: Started using a field String "seasonalType" instead of a boolean "isSeasonal" to determine if a heatmap is seasonal or not,
 	in addition to encoding the type of the seasonal world.	That way, we can automatically differentiate Leagues V
 	from Leagues VI, etc., so long as the "Activity" attribute of seasonal worlds continue to be parseable,
-	e.g. "Leagues V" -> "Leagues V", "Leagues V - Sorceress' Garden" -> "Leagues V"
+	e.g. "Leagues V" -> "Leagues V", "Leagues V - Sorceress' Garden" -> "Leagues V". Dat means different future seasonal
+	gamemodes will now be automatically kept separate
+
+2025-01-07: Fixed how uploads would be triggered by clearing a heatmap
+
+2025-01-07: Fixed heatmap-clearing backup procedure
+
+----You are Here----
+
+TODO: Introduce a fix for the naming scheme of heatmap files. Aka, how they're named after the date that they were
+	started rather than the date they were last updated, which is kinda confusing. Once you do this,
+	adjust the leagues incident note because it gives instructions according to the bad naming scheme
 
 TODO: isSeasonal isn't yet included in the heatmap serialization, so currently only heatmaps that went through
 	the contamination detection process are marked as seasonal in memory, and then writing them to disk and

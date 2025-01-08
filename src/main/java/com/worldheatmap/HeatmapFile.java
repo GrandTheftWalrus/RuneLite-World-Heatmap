@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -35,7 +36,7 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getHeatmapFile(long userId, String seasonalType, int onConflictOffset) {
+	public static File getHeatmapFile(long userId, @Nullable String seasonalType, int onConflictOffset) {
 		boolean isSeasonal = seasonalType != null;
 		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
 		// Find the next available filename
@@ -62,27 +63,35 @@ public class HeatmapFile {
 	}
 
 	/**
-	 * Returns a new File in the correct heatmap files directory
+	 * Returns a new heatmaps File named after the current time, or one minute past the latest file if it already exists.
 	 * Doesn't actually create the file, just a File object.
 	 * @param userId
 	 * @param seasonalType
 	 * @return
 	 */
-    public static File getNewHeatmapFile(long userId, String seasonalType) {
+    public static File getNewHeatmapFile(long userId, @Nullable String seasonalType) {
 		return getHeatmapFile(userId, seasonalType, 1);
     }
 
 	/**
-	 * Returns either a new File named after the current time, or the latest existing file, whichever is latest.
+	 * Returns a new heatmaps File named after the current time, or the latest file if it already exists.
+	 * Doesn't actually create the file, just a File object.
 	 * @param userId
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getCurrentHeatmapFile(long userId, String seasonalType) {
+	public static File getCurrentHeatmapFile(long userId, @Nullable String seasonalType) {
 		return getHeatmapFile(userId, seasonalType, 0);
 	}
 
-    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
+	/**
+	 * Returns a File named after the current date and time, even if it already exists.
+	 * @param userId The user ID
+	 * @param type The heatmap type
+	 * @param seasonalType The seasonal type, or null if not seasonal
+	 * @return
+	 */
+    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, @Nullable String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
         String dateString = formatDate(LocalDateTime.now());
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
@@ -97,7 +106,7 @@ public class HeatmapFile {
 	 * @param seasonalType the seasonal type, or null if not seasonal
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long userId, String seasonalType) {
+    public static File getLatestHeatmapFile(long userId, @Nullable String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
         File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
 
@@ -251,8 +260,6 @@ public class HeatmapFile {
 			return null;
 		}
 
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
-
 		files = Arrays.stream(files)
 			.filter(file -> {
 				String name = file.getName();
@@ -262,7 +269,7 @@ public class HeatmapFile {
 				}
 				name = name.substring(0, pos);
 				try {
-					LocalDateTime.parse(name, formatter);
+					LocalDateTime.parse(name, dateFormat);
 					return true;
 				} catch (Exception e) {
 					return false;
@@ -279,8 +286,8 @@ public class HeatmapFile {
 				n1 = n1.substring(0, pos1);
 				n2 = n2.substring(0, pos2);
 
-				LocalDateTime d1 = LocalDateTime.parse(n1, formatter);
-				LocalDateTime d2 = LocalDateTime.parse(n2, formatter);
+				LocalDateTime d1 = LocalDateTime.parse(n1, dateFormat);
+				LocalDateTime d2 = LocalDateTime.parse(n2, dateFormat);
 				return d2.compareTo(d1);
 			} catch (Exception e) {
 				return 0;

@@ -266,8 +266,8 @@ public class HeatmapNew
 	/**
 	 * Writes the provided heatmap data to the specified .heatmaps file. If the file already exists, it will be updated,
 	 * and unprovided heatmaps already in the file will remain.
-	 * @param heatmapsToWrite
-	 * @param heatmapsFile
+	 * @param heatmapsToWrite The heatmaps to write
+	 * @param heatmapsFile The .heatmaps file
 	 */
 	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null);
