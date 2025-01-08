@@ -280,11 +280,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-07: Updated heatmap serialization to Version 102, which includes the new seasonalType field
 
+2025-01-07: Time to upload heatmaps is now determined by age of oldest heatmap, so they're all uploaded at once now
+
 ----You are Here----
 
 TODO: When you hop from a normal world to a seasonal world, the jump in location is counted as a teleport, meaning we need to reinitialize all the relevant variables such as lastX, lastY, and probably the skillXp hashmap
-
-TODO: Determine when to upload heatmaps by the age of the *oldest* heatmap, rather than doing them all individually. This will result in other heatmaps being uploaded even though they may be no different than the previous time they were uploaded, but it allows us to make the uploading rate limit more strict.
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
 

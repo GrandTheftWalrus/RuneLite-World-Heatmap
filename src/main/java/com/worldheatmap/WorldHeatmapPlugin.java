@@ -842,35 +842,29 @@ public class WorldHeatmapPlugin extends Plugin {
             return;
         }
 
-        // Get list of heatmaps to upload, if any
-        List<HeatmapNew.HeatmapType> heatmapsToUpload = new ArrayList<>();
+		// Determine if it is time to upload the heatmaps
+		int highestGameTimeTicks = 0;
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
             if (isHeatmapEnabled(type)) {
                 // Check if it's time to upload each heatmap based on the upload frequencies
 				int gameTimeTicks = heatmaps.get(type).getGameTimeTicks();
-                if (gameTimeTicks % uploadFrequency == 0 && gameTimeTicks != 0) {
-                    heatmapsToUpload.add(type);
-                }
+                highestGameTimeTicks = Math.max(highestGameTimeTicks, gameTimeTicks);
             }
         }
-
-        if (heatmapsToUpload.isEmpty()) {
-            return;
-        }
+		boolean shouldUpload = highestGameTimeTicks % uploadFrequency == 0 && highestGameTimeTicks != 0;
 
         // Upload the heatmaps
-        log.info("Uploading heatmaps {}...", heatmapsToUpload);
-        if (uploadHeatmaps(heatmapsToUpload)){
+        log.info("Uploading heatmaps {}...");
+        if (uploadHeatmaps()){
             log.info("Heatmaps uploaded successfully");
         }
     }
 
 	/**
 	 * Serializes heatmap as CSV, zips it, and then uploads it to HEATMAP_SITE_API_ENDPOINT using OkHttpClient.
-	 * @param heatmaps
 	 * @return
 	 */
-	private boolean uploadHeatmaps(Collection<HeatmapNew.HeatmapType> heatmaps) {
+	private boolean uploadHeatmaps() {
 		if (heatmaps.isEmpty()) {
 			return false;
 		}
@@ -879,9 +873,9 @@ public class WorldHeatmapPlugin extends Plugin {
 			// Zip the CSV
 			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)) {
-				for (HeatmapNew.HeatmapType heatmapType : heatmaps) {
-					byte[] heatmapCSV = this.heatmaps.get(heatmapType).toCSV().getBytes();
-					ZipEntry zipEntry = new ZipEntry(heatmapType.toString() + "_HEATMAP.csv");
+				for (HeatmapNew heatmap : heatmaps.values()) {
+					byte[] heatmapCSV = heatmap.toCSV().getBytes();
+					ZipEntry zipEntry = new ZipEntry(heatmap.getHeatmapType() + "_HEATMAP.csv");
 					zipOutputStream.putNextEntry(zipEntry);
 					zipOutputStream.write(heatmapCSV);
 					zipOutputStream.closeEntry();
