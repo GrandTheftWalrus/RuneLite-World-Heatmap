@@ -854,8 +854,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		boolean shouldUpload = highestGameTimeTicks % uploadFrequency == 0 && highestGameTimeTicks != 0;
 
         // Upload the heatmaps
-        log.info("Uploading heatmaps {}...");
-        if (uploadHeatmaps()){
+        log.info("Uploading heatmaps...");
+        if (shouldUpload && uploadHeatmaps()){
             log.info("Heatmaps uploaded successfully");
         }
     }
