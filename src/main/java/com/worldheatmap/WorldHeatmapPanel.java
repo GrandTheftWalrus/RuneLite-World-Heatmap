@@ -291,14 +291,16 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
 		String seasonalType = plugin.heatmaps.get(heatmapType).getSeasonalType();
-		boolean isSeasonal = seasonalType != null && !seasonalType.isEmpty();
+		log.debug("Seasonal type: {}", seasonalType);
         // Replace the heatmap with a new one
-        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.localAccountHash, plugin.localPlayerAccountType, seasonalType));
+        plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.localAccountHash, plugin.localPlayerAccountType, plugin.seasonalType));
         List<HeatmapNew> heatmap = List.of(plugin.heatmaps.get(heatmapType));
 
         // Write new .heatmaps data file, so the current (now old) one can be kept as a backup
         File latestHeatmapFile = HeatmapFile.getLatestHeatmapFile(plugin.localAccountHash, seasonalType);
         File newHeatmapFile = HeatmapFile.getNewHeatmapFile(plugin.localAccountHash, seasonalType);
+		log.debug("Latest heatmap file: {}", latestHeatmapFile);
+		log.debug("New heatmap file: {}", newHeatmapFile);
         plugin.executor.execute(() -> HeatmapNew.writeHeatmapsToFile(heatmap, newHeatmapFile, latestHeatmapFile));
     }
 
