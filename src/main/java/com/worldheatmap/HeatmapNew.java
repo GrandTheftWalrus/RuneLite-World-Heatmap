@@ -264,6 +264,16 @@ public class HeatmapNew
 	}
 
 	/**
+	 * Writes the provided heatmap data to the specified .heatmaps file. If the file already exists, it will be updated,
+	 * and unprovided heatmaps already in the file will remain.
+	 * @param heatmapsToWrite
+	 * @param heatmapsFile
+	 */
+	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
+		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null);
+	}
+
+	/**
 	 * Writes the provided heatmap data to the specified .heatmaps file. Unprovided heatmaps are carried over from the file previousHeatmapsFile, if it has them.
 	 * If heatmapsFile already exists, existing unprovided heatmaps will be kept. Heatmaps in previousHeatmapsFile take precedence over heatmaps in heatmapsFile
 	 * if heatmapsFile already exists.

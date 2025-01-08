@@ -196,7 +196,7 @@ public class WorldHeatmapPlugin extends Plugin {
                 log.info("Loading Type A legacy (V1) heatmap file for user ID {}...", localAccountHash);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, legacyHeatmapTypeA);
                 // Save as new file type
-                saveNewHeatmapsFile();
+                executor.execute(this::saveNewHeatmapsFile);
             }
             // Append '.old' to legacy file name
             File oldFile = new File(filepathTypeAUsername + ".old");
@@ -220,7 +220,7 @@ public class WorldHeatmapPlugin extends Plugin {
                 log.info("Loading Type B legacy (V1) heatmap file for user ID {}...", localAccountHash);
                 heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, legacyHeatmapTypeB);
                 // Save as new file type
-                saveNewHeatmapsFile();
+                executor.execute(this::saveNewHeatmapsFile);
             }
             // Append '.old' to legacy file name
             File oldFile = new File(filepathTypeBUsername + ".old");
@@ -272,7 +272,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected void shutDown() {
         if (heatmaps != null && !heatmaps.isEmpty()) {
 			panel.setEnabledHeatmapButtons(false);
-			executor.execute(this::saveCurrentHeatmapsFile);
+			executor.execute(this::saveHeatmapsFile);
 			executor.execute(() -> heatmaps = new HashMap<>());
         }
         clientToolbar.removeNavigation(toolbarButton);
@@ -302,7 +302,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			gameState == GameState.HOPPING ||
 			gameState == GameState.LOGIN_SCREEN) {
 			panel.setEnabledHeatmapButtons(false);
-			executor.execute(this::saveCurrentHeatmapsFile);
+			executor.execute(this::saveHeatmapsFile);
 			executor.execute(() -> heatmaps = new HashMap<>());
 		}
 
@@ -564,7 +564,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // Autosave the heatmap file if it is the correct time to do so, or if image is about to be written
         if (shouldAutosaveFiles || shouldWriteImages) {
-			executor.execute(this::saveCurrentHeatmapsFile);
+			executor.execute(this::saveHeatmapsFile);
         }
 
         // Autosave the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do so
@@ -597,37 +597,36 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         }
 
-        // Make backup
+        // Make new backup
         if (highestGameTimeTicks % config.heatmapBackupFrequency() == 0) {
-            saveNewHeatmapsFile();
+            executor.execute(this::saveNewHeatmapsFile);
         }
     }
 
     /**
      * Updates the most recent heatmap file with the latest data. If the most recent file does not exist, it will create a new file.
      */
-    private void saveCurrentHeatmapsFile() {
+    protected void saveHeatmapsFile() {
 		localAccountHash = client.getAccountHash();
 		assert localAccountHash != 0 && localAccountHash != -1;
-        File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
-        if (heatmapsFile == null) {
-            heatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
-        }
-        File finalHeatmapsFile = heatmapsFile;
-        HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), finalHeatmapsFile, null);
+		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
+		if (latestFile == null) {
+			saveNewHeatmapsFile();
+		}
+		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
     }
 
     /**
      * Saves the heatmaps to a new dated file, carrying over disabled/unprovided heatmaps from the most recently dated heatmaps file
      */
-    private void saveNewHeatmapsFile() {
+    protected void saveNewHeatmapsFile() {
 		localAccountHash = client.getAccountHash();
 		assert localAccountHash != 0 && localAccountHash != -1;
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
-        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
-        File newHeatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
-        log.debug("Backing up heatmaps to file: {}", latestHeatmapsFile);
-        executor.execute(() -> HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newHeatmapsFile, latestHeatmapsFile));
+        File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
+        File newFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
+        log.debug("Backing up heatmaps to file: {}", latestFile);
+        HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 
     // Credit to https:// www.redblobgames.com/grids/line-drawing.html for where I figured out how to make the following linear interpolation functions
@@ -796,12 +795,11 @@ public class WorldHeatmapPlugin extends Plugin {
      * @param heatmapType The type of heatmap
      */
     private void handleHeatmapToggled(boolean isHeatmapEnabled, HeatmapNew.HeatmapType heatmapType){
-        File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
-
         if (isHeatmapEnabled) {
             log.debug("Enabling {} heatmap...", heatmapType);
             HeatmapNew heatmap = null;
             // Load the heatmap from the file if it exists
+			File heatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
                     heatmap = HeatmapNew.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
@@ -817,10 +815,7 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         } else {
             log.debug("Disabling {} heatmap...", heatmapType);
-            if (heatmapsFile == null){
-                heatmapsFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
-            }
-            HeatmapNew.writeHeatmapsToFile(List.of(heatmaps.get(heatmapType)), heatmapsFile, null);
+            executor.execute(this::saveHeatmapsFile);
             heatmaps.remove(heatmapType);
         }
         initializeMissingHeatmaps(heatmaps);
