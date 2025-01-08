@@ -5,6 +5,10 @@ import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +26,7 @@ public class HeatmapNew
 	@Getter
 	private final HashMap<Point, Integer> heatmapHashMap;
 	@Getter
-	private static final int heatmapVersion = 102;
+	private final int heatmapVersion = 102;
 	@Getter
 	private long totalValue = 0;
 	@Getter
@@ -455,6 +459,93 @@ public class HeatmapNew
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * V1.6.1 fix for file naming scheme. Checks the latest heatmap version in the directory, and if it's version 101 or
+	 * earlier, renames the files after their dates modified.
+	 * @param userId The user ID
+	 * @param seasonalType The seasonal type
+	 */
+	protected static void fileNamingSchemeFix(long userId, @Nullable String seasonalType) {
+		// Get latest .heatmaps file in the directory
+		File latestHeatmap = HeatmapFile.getLatestHeatmapFile(userId, seasonalType);
+		if (latestHeatmap == null) {
+			return;
+		}
+		File directory = latestHeatmap.getParentFile();
+
+		// Find the latest heatmap version
+		long latestVersion = -1;
+		Map<String, String> env = new HashMap<>();
+		env.put("create", "true");
+		HeatmapType[] types = HeatmapType.values();
+		URI uri = URI.create("jar:" + latestHeatmap.toURI());
+		try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
+			for (HeatmapType curType : types) {
+				Path curHeatmapPath = fs.getPath("/" + curType.toString() + "_HEATMAP.csv");
+				if (!Files.exists(curHeatmapPath)) {
+					continue;
+				}
+
+				// Read the heatmap
+				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
+					 BufferedReader reader = new BufferedReader(isr)) {
+					// Read them field variables
+					String[] fieldNames = reader.readLine().split(",");
+					String[] fieldValues = reader.readLine().split(",");
+					Map<String, String> fieldMap = new HashMap<>();
+					for (int i = 0; i < fieldNames.length; i++) {
+						fieldMap.put(fieldNames[i], fieldValues[i]);
+					}
+					long heatmapVersion = Long.parseLong(fieldMap.getOrDefault("heatmapVersion", "-1"));
+					if (heatmapVersion > latestVersion) {
+						latestVersion = heatmapVersion;
+					}
+				} catch (IOException e) {
+					log.error("Error reading {} heatmap from .heatmaps entry '{}'", curType, curHeatmapPath);
+				}
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		// Rename the files if necessary
+		if (latestVersion <= 101) {
+			log.info("Performing naming scheme fix on .heatmaps files in directory '{}'...", directory.getName());
+			List<File> heatmapFiles = new ArrayList<>();
+			for (File file : Objects.requireNonNull(directory.listFiles())) {
+				if (file.getName().endsWith(".heatmaps")) {
+					heatmapFiles.add(file);
+				}
+			}
+
+			// Sort the files by parseable date
+			heatmapFiles.sort((f1, f2) -> {
+				String name1 = f1.getName().split("\\.")[0];
+				String name2 = f2.getName().split("\\.")[0];
+				LocalDateTime f1Date = LocalDateTime.parse(name1, HeatmapFile.dateFormat);
+				LocalDateTime f2Date = LocalDateTime.parse(name2, HeatmapFile.dateFormat);
+				return f1Date.compareTo(f2Date);
+			});
+
+			// Cycle through them, renaming them after their date modified
+			for (File file : heatmapFiles) {
+				long epochMillis = file.lastModified();
+
+				// Convert to ZonedDateTime in the local time zone
+				ZonedDateTime lastModified = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault());
+
+				// Format the new name
+				String newName = HeatmapFile.dateFormat.format(lastModified);
+				File newFile = new File(directory, newName + ".heatmaps");
+
+				// Rename the file
+				if (!file.renameTo(newFile)) {
+					System.err.println("Could not rename file '" + file.getName() + "' to '" + newFile.getName() + "'");
+				}
+			}
 		}
 	}
 }

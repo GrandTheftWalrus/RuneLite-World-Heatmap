@@ -146,6 +146,9 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert localPlayerAccountType != 0 && localPlayerAccountType != -1;
 		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
 
+		// Perform V1.6.1 fix on file naming scheme if necessary
+		HeatmapNew.fileNamingSchemeFix(localAccountHash, seasonalType);
+
         log.debug("Loading most recent {}heatmaps under user ID {}...", seasonalType == null ? " " : seasonalType + " ", localAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 

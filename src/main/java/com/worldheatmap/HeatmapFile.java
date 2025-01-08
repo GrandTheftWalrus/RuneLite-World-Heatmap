@@ -102,17 +102,17 @@ public class HeatmapFile {
     /**
      * Get the File that contains the latest heatmaps based on the filename being a date.
      * Returns null if no such file exists.
-	 * @param userId the user ID
+	 * @param accountHash the user ID/account hash
 	 * @param seasonalType the seasonal type, or null if not seasonal
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long userId, @Nullable String seasonalType) {
+    public static File getLatestHeatmapFile(long accountHash, @Nullable String seasonalType) {
 		boolean isSeasonal = seasonalType != null;
-        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
+        File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash) + (isSeasonal ? "_" + seasonalType.replaceAll("\\s", "_") : ""));
 
 		// Carry out the leagues decontamination process if necessary
 		if (!userIdDir.exists() && isSeasonal) {
-			File userIdDirNormalGameMode = new File(HEATMAP_FILES_DIR, Long.toString(userId));
+			File userIdDirNormalGameMode = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
 			if (userIdDirNormalGameMode.exists() && LocalDate.now().isBefore(endOfLeaguesV)) {
 				handleLeaguesDecontamination(userIdDirNormalGameMode, userIdDir);
 			}
@@ -122,13 +122,13 @@ public class HeatmapFile {
         // Check legacy location if latest file not found
         if (mostRecentFile == null) {
 
-            File legacyHeatmapsFile = new File(HEATMAP_FILES_DIR, userId + HEATMAP_EXTENSION);
+            File legacyHeatmapsFile = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
             if (!legacyHeatmapsFile.exists()) {
                 return null;
             }
 
             // Move the old file to the new location
-            File destination = getNewHeatmapFile(userId, seasonalType);
+            File destination = getNewHeatmapFile(accountHash, seasonalType);
             if (!destination.mkdirs()) {
                 log.error("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
                 return legacyHeatmapsFile;
