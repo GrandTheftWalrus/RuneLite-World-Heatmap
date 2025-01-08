@@ -612,7 +612,9 @@ public class WorldHeatmapPlugin extends Plugin {
 		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 		if (latestFile == null) {
 			saveNewHeatmapsFile();
+			return;
 		}
+
 		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
     }
 
