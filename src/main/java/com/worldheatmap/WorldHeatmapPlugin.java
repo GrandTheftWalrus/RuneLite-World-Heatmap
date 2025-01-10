@@ -25,7 +25,6 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NpcLootReceived;
-import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.game.WorldService;
 import net.runelite.client.plugins.Plugin;
@@ -106,8 +105,8 @@ public class WorldHeatmapPlugin extends Plugin {
     private int[] previousXP = new int[Skill.values().length];
     protected String currentPlayerName;
     private final String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
-	private CompletableFuture<Void> localPlayerUpdate = new CompletableFuture<>();
-	private CompletableFuture<Void> seasonalTypeUpdate = new CompletableFuture<>();
+	private CompletableFuture<Void> loading = new CompletableFuture<>();
+	private boolean isLoading;
 
 	@Inject
     private Client client;
@@ -139,32 +138,11 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
 	protected void loadHeatmaps() {
-		// Wait for local player to be updated, if necessary
-		if (!localPlayerUpdate.isDone()) {
-			try {
-				localPlayerUpdate.get(2, TimeUnit.SECONDS);
-			}
-			catch (InterruptedException | ExecutionException | TimeoutException e) {
-				log.error("Took too long to wait for local player to be updated", e);
-				return;
-			}
-		}
-
-		// Wait for seasonal type to be updated, if necessary
-		if (!seasonalTypeUpdate.isDone()) {
-			try {
-				seasonalTypeUpdate.get(2, TimeUnit.SECONDS);
-			}
-			catch (InterruptedException | ExecutionException | TimeoutException e) {
-				log.error("Took too long to wait for gamemode type to be updated", e);
-				return;
-			}
-		}
-
+		isLoading = true;
 		// Make sure player metadata is loaded and up to date
 		assert currentLocalAccountHash != 0 && currentLocalAccountHash != -1;
-		assert currentPlayerName != null;
-		assert currentPlayerCombatLevel != 0 && currentPlayerCombatLevel != -1;
+		assert currentPlayerName != null && !currentPlayerName.isBlank();
+		assert currentPlayerCombatLevel >= 3;
 		assert currentPlayerAccountType >= 0 && currentPlayerAccountType <= 10;
 		assert currentSeasonalType != null;
 
@@ -199,6 +177,8 @@ public class WorldHeatmapPlugin extends Plugin {
 			previousXP[skill.ordinal()] = client.getSkillExperience(skill);
 		}
 		panel.setEnabledHeatmapButtons(true);
+		loading.complete(null);
+		isLoading = false;
     }
 
     /**
@@ -281,11 +261,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		clientThread.invoke(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
-			currentLocalAccountHash = client.getAccountHash();
-			SwingUtilities.invokeLater(panel::updatePlayerID);
-			clientThread.invoke(this::updatePlayerMetadata);
-			clientThread.invoke(this::updateSeasonalType);
-			executor.execute(this::loadHeatmaps);
+			loading = new CompletableFuture<>();
 		}
     }
 
@@ -326,9 +302,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		// This is when to load the heatmaps
 		if (justLoggedIn || justHopped) {
 			// Schedule the loading of the heatmap files
-			clientThread.invoke(this::updatePlayerMetadata);
-			clientThread.invoke(this::updateSeasonalType);
-			executor.execute(this::loadHeatmaps);
+			loading = new CompletableFuture<>();
 		}
 
 		// This is when to save & unload the heatmaps
@@ -352,8 +326,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		lastY = 0;
 		previousXP = new int[Skill.values().length];
 		timeLastSeenBobTheCatPerWorld = new HashMap<>();
-		localPlayerUpdate = new CompletableFuture<>();
-		seasonalTypeUpdate = new CompletableFuture<>();
+		loading = new CompletableFuture<>();
 	}
 
 	@Subscribe
@@ -389,13 +362,12 @@ public class WorldHeatmapPlugin extends Plugin {
 			seasonalType = "";
 		}
 		currentSeasonalType = seasonalType;
-		seasonalTypeUpdate.complete(null);
+		loading.complete(null);
 	}
 
 	@Subscribe
 	public void onPlayerChanged(PlayerChanged event) {
-		// Only update if local player is expected to be out of date
-		if (!localPlayerUpdate.isDone() && event.getPlayer() == client.getLocalPlayer() && client.getLocalPlayer() != null) {
+		if (event.getPlayer() == client.getLocalPlayer() && client.getLocalPlayer() != null) {
 			updatePlayerMetadata();
 		}
 	}
@@ -408,34 +380,28 @@ public class WorldHeatmapPlugin extends Plugin {
 		currentPlayerName = localPlayer.getName();
 		currentPlayerCombatLevel = localPlayer.getCombatLevel();
 		currentPlayerAccountType = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
-
-		// Check that it's legit
-		if (currentPlayerName != null &&
-			!currentPlayerName.isBlank() &&
-			currentPlayerCombatLevel >= 3 &&
-			currentPlayerAccountType >= 0 &&
-			currentPlayerAccountType <= 10)
-		{
-			// Mark that local player data is up-to-date
-			localPlayerUpdate.complete(null);
-		}
-	}
-
-	/**
-	 * This happens when the user switches accounts by logging in or switching to leagues/seasonal
-	 * @param event
-	 */
-	@Subscribe
-	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event){
-		localPlayerUpdate = new CompletableFuture<>();
 	}
 
     @Subscribe
     public void onGameTick(GameTick gameTick) {
-        // The following code requires the heatmap files to have been loaded
-        if (heatmaps == null || heatmaps.isEmpty()) {
-            return;
-        }
+		// Start loading them heatmaps if not already
+		if (!loading.isDone() && !isLoading) {
+			currentLocalAccountHash = client.getAccountHash();
+			SwingUtilities.invokeLater(panel::updatePlayerID);
+			updatePlayerMetadata();
+			updateSeasonalType();
+			log.debug("Loading has been scheduled and the first game tick has happened.");
+			log.debug("Local account hash: {}", currentLocalAccountHash);
+			log.debug("Player name: {}", currentPlayerName);
+			log.debug("Player combat level: {}", currentPlayerCombatLevel);
+			log.debug("Player account type: {}", currentPlayerAccountType);
+			log.debug("Seasonal type: {}", currentSeasonalType);
+			executor.execute(this::loadHeatmaps);
+		}
+		// The following code requires the heatmap files to have been loaded
+		if (!loading.isDone() || heatmaps == null || heatmaps.isEmpty()) {
+			return;
+		}
 
         // Increment game time ticks of each heatmap
         for (HeatmapNew.HeatmapType type : heatmaps.keySet()) {
