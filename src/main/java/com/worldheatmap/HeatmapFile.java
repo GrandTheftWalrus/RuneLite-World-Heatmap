@@ -23,8 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -185,20 +185,28 @@ public class HeatmapFile {
 		// Move potentially contaminated files from the normal heatmap directory to the seasonal directory
 		File[] files = getSortedFiles(regularHeatmapsDir);
 		if (files != null) {
-			for (File file : files) {
-				String name = file.getName();
+			for (File originFile : files) {
+				String name = originFile.getName();
 				int pos = name.lastIndexOf(".");
 				name = name.substring(0, pos);
 				LocalDate fileDate = LocalDate.parse(name, dateFormat);
 				if (fileDate.isAfter(startOfLeaguesV)) {
-					log.info("File {} is contaminated by Leagues V, moving to seasonal directory", file.getName());
-					// Move it to the seasonal directory
-					File destination = new File(seasonalHeatmapsDir, file.getName());
 					try {
-						Files.move(file.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
-					} catch (IOException e)
+						// Move it to the seasonal directory, updating its metadata
+						log.info("File {} is contaminated by Leagues V, moving to Leagues V directory", originFile.getName());
+						HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(originFile, List.of(HeatmapNew.HeatmapType.values()), false);
+						heatmaps.values().stream().forEach(h -> {
+							h.setSeasonalType("LEAGUES_V");
+						});
+						File destinationFile = new File(seasonalHeatmapsDir, originFile.getName());
+						writeHeatmapsToFile(heatmaps.values(), destinationFile, false);
+
+						// Delete the original file
+						Files.delete(originFile.toPath());
+					}
+					catch (IOException e)
 					{
-						log.error("Failed to move file to seasonal directory: {}", e.toString());
+						log.error("Failed to move file to seasonal directory and/or update its metadata: {}", e.toString());
 					}
 				}
 			}
@@ -305,14 +313,22 @@ public class HeatmapFile {
 		return files;
 	}
 
+	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
+		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, previousHeatmapsFile, true);
+	}
+
+	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
+		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null, true);
+	}
+
 	/**
 	 * Writes the provided heatmap data to the specified .heatmaps file. If the file already exists, it will be updated,
 	 * and unprovided heatmaps already in the file will remain.
 	 * @param heatmapsToWrite The heatmaps to write
 	 * @param heatmapsFile The .heatmaps file
 	 */
-	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
-		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null);
+	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, boolean verbose) {
+		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null, verbose);
 	}
 
 	/**
@@ -323,9 +339,12 @@ public class HeatmapFile {
 	 * @param heatmapsFile The .heatmaps file
 	 * @param previousHeatmapsFile The previous .heatmaps file.
 	 */
-	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
+	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile, boolean verbose) {
 		// Preamble
-		log.debug("Saving heatmaps to file '{}'...", heatmapsFile.getName());
+		if (verbose) {
+			log.debug("Saving heatmaps to file '{}'...", heatmapsFile.getName());
+		}
+
 		long startTime = System.nanoTime();
 		StringBuilder loggingOutput = new StringBuilder("Heatmap types saved: ");
 
@@ -357,7 +376,7 @@ public class HeatmapFile {
 			try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
 				Path zipEntryFile = fs.getPath("/" + heatmap.getHeatmapType().toString() + "_HEATMAP.csv");
 				try (OutputStreamWriter osw = new OutputStreamWriter(Files.newOutputStream(zipEntryFile), StandardCharsets.UTF_8)) {
-					osw.write(heatmap.toCSV());
+					heatmap.toCSV(osw);
 					osw.flush(); // Not sure if this is necessary
 				}
 			} catch (IOException e) {
@@ -368,8 +387,10 @@ public class HeatmapFile {
 			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getTileCount() + " tiles), ");
 		}
 
-		log.debug(loggingOutput.toString());
-        log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
+		if (verbose) {
+			log.debug(loggingOutput.toString());
+			log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
+		}
 	}
 
 	/**
@@ -381,6 +402,19 @@ public class HeatmapFile {
 	 * @throws FileNotFoundException If the file does not exist
 	 */
 	static HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
+		return readHeatmapsFromFile(heatmapsFile, types, true);
+	}
+
+	/**
+	 * Loads the specified heatmap types from the given .heatmaps file.
+	 *
+	 * @param heatmapsFile The .heatmaps file
+	 * @param types        The heatmap types to load
+	 * @param verbose      Whether to log the heatmap types loaded
+	 * @return HashMap of HeatmapNew objects
+	 * @throws FileNotFoundException If the file does not exist
+	 */
+	static HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapNew.HeatmapType> types, boolean verbose) throws FileNotFoundException {
 		Map<String, String> env = new HashMap<>();
 		env.put("create", "true");
 		URI uri = URI.create("jar:" + heatmapsFile.toURI());
@@ -396,66 +430,16 @@ public class HeatmapFile {
 				}
 				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
 					 BufferedReader reader = new BufferedReader(isr)) {
-					// Read them field variables
-					String[] fieldNames = reader.readLine().split(",", -1);
-					String[] fieldValues = reader.readLine().split(",", -1);
-					Map<String, String> fieldMap = new HashMap<>();
-					for (int i = 0; i < fieldNames.length; i++) {
-						fieldMap.put(fieldNames[i], fieldValues[i]);
-					}
-					long userID = Long.parseLong(fieldMap.getOrDefault("userID", "-1"));
-					int heatmapVersion = Integer.parseInt(fieldMap.getOrDefault("heatmapVersion", "-1"));
-					String allegedHeatmapType = fieldMap.get("heatmapType");
-					int gameTimeTicks = Integer.parseInt(fieldMap.getOrDefault("gameTimeTicks", "-1"));
-					// The following fields exist only in version 101 and later
-					int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
-					int currentCombatLevel = Integer.parseInt(fieldMap.getOrDefault("currentCombatLevel", "-1"));
-					// The following fields exist only in version 102 and later
-					String seasonalType = fieldMap.getOrDefault("seasonalType", null);
-
-					// Get HeatmapType from field value if legit
-					HeatmapNew.HeatmapType heatmapType;
-					try {
-						heatmapType = HeatmapNew.HeatmapType.valueOf(allegedHeatmapType);
-					}
-					catch (IllegalArgumentException e) {
-						log.debug("Heatmap type '{}' from ZipEntry '{}' is not a valid Heatmap type (at least in this program version). Ignoring...", allegedHeatmapType, curHeatmapPath);
-						// Stop reading and go to next Heatmap type
-						continue;
-					}
-
-					// Make ze Heatmap and set metadata
-					HeatmapNew heatmap = new HeatmapNew();
-					heatmap.setUserID(userID);
-					heatmap.setReadFileVersion(heatmapVersion);
-					heatmap.setHeatmapType(heatmapType);
-					heatmap.setAccountType(accountType);
-					heatmap.setGameTimeTicks(gameTimeTicks);
-					heatmap.setCurrentCombatLevel(currentCombatLevel);
-					heatmap.setSeasonalType(seasonalType);
-
-					// Read and load the tile values
-					final int[] errorCount = {0}; // Number of parsing errors occurred during read
-					AtomicInteger numTiles = new AtomicInteger();
-					reader.lines().forEach(s -> {
-						String[] tile = s.split(",");
-						try {
-							heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
-							numTiles.getAndIncrement();
-						} catch (NumberFormatException e) {
-							errorCount[0]++;
-						}
-					});
-					if (errorCount[0] != 0) {
-                        log.error("{} errors occurred during {} heatmap file read.", errorCount[0], heatmapType);
-					}
-					loggingOutput.append(heatmapType + " (" + numTiles + " tiles), ");
-					heatmapsRead.put(heatmapType, heatmap);
+					HeatmapNew heatmap = HeatmapNew.fromCSV(curType, reader);
+					heatmapsRead.put(heatmap.getHeatmapType(), heatmap);
+					loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getTileCount() + " tiles), ");
 				} catch (IOException e) {
                     log.error("Error reading {} heatmap from .heatmaps entry '{}'", curType, curHeatmapPath);
 				}
 			}
-			log.debug(loggingOutput.toString());
+			if (verbose) {
+				log.debug(loggingOutput.toString());
+			}
 			return heatmapsRead;
 		} catch (FileNotFoundException e) {
 			throw e;
@@ -481,10 +465,10 @@ public class HeatmapFile {
 		// Find the latest heatmap version of the latest .heatmaps file
 		long latestVersion = -1;
 		try {
-			Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(latestHeatmap, List.of(HeatmapNew.HeatmapType.values()));
+			Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(latestHeatmap, List.of(HeatmapNew.HeatmapType.values()), false);
 			for (HeatmapNew heatmap : heatmaps.values()) {
-				if (heatmap.getReadFileVersion() > latestVersion) {
-					latestVersion = heatmap.getReadFileVersion();
+				if (heatmap.getVersionReadFrom() > latestVersion) {
+					latestVersion = heatmap.getVersionReadFrom();
 				}
 			}
 		}

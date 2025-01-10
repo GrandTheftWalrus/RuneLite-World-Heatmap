@@ -301,7 +301,13 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-09: Added transient field `readVersion` to HeatmapNew that lets you know the serialization version it was read
 	from. Also refactored HeatmapNew.fileNamingSchemeFix(). P.S no idea why that function is in HeatmapNew and not HeatmapFile
 
+2025-01-09: Moved all the methods for writing to/from file to HeatmapFile. not sure why they were in HeatmapNew
+
+2025-01-09: Moved heatmap deserialization logic into a HeatmapNew.fromCSV() method
+
 ----You are Here----
+
+TODO: Make sure uploading still works after I changed toCSV to use an OutputStreamWriter
 
 TODO: When contaminated files are moved to the leagues folder, their metadata is not updated. This will need to be fixed
 	because the global heatmap will require the "seasonalType" field and stuff to be set

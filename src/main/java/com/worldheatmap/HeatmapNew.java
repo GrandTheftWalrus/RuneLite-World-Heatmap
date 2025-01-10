@@ -4,6 +4,7 @@ import java.awt.Point;
 import java.io.*;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.InflaterInputStream;
 
 import lombok.Getter;
@@ -18,7 +19,7 @@ public class HeatmapNew
 	@Getter
 	private final static int heatmapVersion = 102;
 	@Getter @Setter
-	private transient int readFileVersion = -1;
+	private transient int versionReadFrom = -1;
 	@Getter
 	private long totalValue = 0;
 	@Getter
@@ -31,6 +32,63 @@ public class HeatmapNew
 		HEATMAP_HEIGHT = 1664,      //never change these
 		HEATMAP_OFFSET_X = -1152,   //never change these
 		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
+
+	public static HeatmapNew fromCSV(HeatmapType curType, BufferedReader reader) throws IOException
+	{
+		// Read them field variables
+		String[] fieldNames = reader.readLine().split(",", -1);
+		String[] fieldValues = reader.readLine().split(",", -1);
+		Map<String, String> fieldMap = new HashMap<>();
+		for (int i = 0; i < fieldNames.length; i++) {
+			fieldMap.put(fieldNames[i], fieldValues[i]);
+		}
+		long userID = Long.parseLong(fieldMap.getOrDefault("userID", "-1"));
+		int heatmapVersion = Integer.parseInt(fieldMap.getOrDefault("heatmapVersion", "-1"));
+		String allegedHeatmapType = fieldMap.get("heatmapType");
+		int gameTimeTicks = Integer.parseInt(fieldMap.getOrDefault("gameTimeTicks", "-1"));
+		// The following fields exist only in version 101 and later
+		int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
+		int currentCombatLevel = Integer.parseInt(fieldMap.getOrDefault("currentCombatLevel", "-1"));
+		// The following fields exist only in version 102 and later
+		String seasonalType = fieldMap.getOrDefault("seasonalType", null);
+
+		// Get HeatmapType from field value if legit
+		HeatmapNew.HeatmapType heatmapType;
+		try {
+			heatmapType = HeatmapNew.HeatmapType.valueOf(allegedHeatmapType);
+		}
+		catch (IllegalArgumentException e) {
+			log.debug("Heatmap type '{}' is not a valid Heatmap type (at least in this program version). Ignoring...", allegedHeatmapType);
+			throw new IOException("Invalid Heatmap type");
+		}
+
+		// Make ze Heatmap and set metadata
+		HeatmapNew heatmap = new HeatmapNew();
+		heatmap.setUserID(userID);
+		heatmap.setVersionReadFrom(heatmapVersion);
+		heatmap.setHeatmapType(heatmapType);
+		heatmap.setGameTimeTicks(gameTimeTicks);
+		heatmap.setAccountType(accountType);
+		heatmap.setCurrentCombatLevel(currentCombatLevel);
+		heatmap.setSeasonalType(seasonalType);
+
+		// Read and load the tile values
+		final int[] errorCount = {0}; // Number of parsing errors occurred during read
+		reader.lines().forEach(s -> {
+			String[] tile = s.split(",");
+			try {
+				heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]));
+			} catch (NumberFormatException e) {
+				errorCount[0]++;
+			}
+		});
+		if (errorCount[0] != 0) {
+			log.error("{} errors occurred during {} heatmap file read.", errorCount[0], heatmapType);
+		}
+
+		return heatmap;
+	}
+
 	public enum HeatmapType
 	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, UNKNOWN}
 	@Getter @Setter
@@ -262,25 +320,25 @@ public class HeatmapNew
 	/**
 	 * Serializes the provided heatmap data to the specified OutputStream in CSV format.
 	 */
-	protected String toCSV() {
-		StringBuilder output = new StringBuilder();
-			// Write them field variables
-			output.append("userID,heatmapVersion,heatmapType,gameTimeTicks,accountType,currentCombatLevel,seasonalType\n");
-			output.append(this.getUserID() +
-					"," + this.getHeatmapVersion() +
-					"," + this.getHeatmapType() +
-					"," + this.getGameTimeTicks() +
-					"," + this.getAccountType() +
-					"," + this.getCurrentCombatLevel() +
-					"," + this.getSeasonalType() + "\n");
-			// Write the tile values
-			for (Entry<Point, Integer> e : this.getEntrySet()) {
-				int x = e.getKey().x;
-				int y = e.getKey().y;
-				int stepVal = e.getValue();
-				output.append(x + "," + y + "," + stepVal + "\n");
-			}
-		return output.toString();
+	protected void toCSV(OutputStreamWriter bos) throws IOException
+	{
+		// Write them field variables
+		bos.write("userID,heatmapVersion,heatmapType,gameTimeTicks,accountType,currentCombatLevel,seasonalType\n");
+		bos.write(this.getUserID() +
+			"," + getHeatmapVersion() +
+			"," + this.getHeatmapType() +
+			"," + this.getGameTimeTicks() +
+			"," + this.getAccountType() +
+			"," + this.getCurrentCombatLevel() +
+			"," + this.getSeasonalType() + "\n");
+
+		// Write the tile values
+		for (Entry<Point, Integer> e : this.getEntrySet()) {
+			int x = e.getKey().x;
+			int y = e.getKey().y;
+			int stepVal = e.getValue();
+			bos.write(x + "," + y + "," + stepVal + "\n");
+		}
 	}
 
 }

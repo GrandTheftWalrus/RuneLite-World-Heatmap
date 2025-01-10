@@ -352,6 +352,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		lastY = 0;
 		previousXP = new int[Skill.values().length];
 		timeLastSeenBobTheCatPerWorld = new HashMap<>();
+		localPlayerUpdate = new CompletableFuture<>();
+		seasonalTypeUpdate = new CompletableFuture<>();
 	}
 
 	@Subscribe
@@ -416,9 +418,6 @@ public class WorldHeatmapPlugin extends Plugin {
 		{
 			// Mark that local player data is up-to-date
 			localPlayerUpdate.complete(null);
-		}
-		else {
-			log.debug("Local player metadata was updated but is invalid: name={}, combatLevel={}, accountType={}", currentPlayerName, currentPlayerCombatLevel, currentPlayerAccountType);
 		}
 	}
 
@@ -950,10 +949,11 @@ public class WorldHeatmapPlugin extends Plugin {
 			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)) {
 				for (HeatmapNew heatmap : heatmaps.values()) {
-					byte[] heatmapCSV = heatmap.toCSV().getBytes();
 					ZipEntry zipEntry = new ZipEntry(heatmap.getHeatmapType() + "_HEATMAP.csv");
 					zipOutputStream.putNextEntry(zipEntry);
-					zipOutputStream.write(heatmapCSV);
+					OutputStreamWriter osw = new OutputStreamWriter(zipOutputStream);
+					heatmap.toCSV(osw);
+					osw.flush();
 					zipOutputStream.closeEntry();
 				}
 			}
