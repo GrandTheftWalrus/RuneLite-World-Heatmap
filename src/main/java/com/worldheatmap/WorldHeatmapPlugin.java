@@ -169,7 +169,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert currentSeasonalType != null;
 
 		// Perform V1.6.1 fix on file naming scheme if necessary
-		HeatmapNew.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType);
+		HeatmapFile.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType);
 
         log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType.isBlank() ? "" : currentSeasonalType + " ", currentLocalAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType);
@@ -177,7 +177,7 @@ public class WorldHeatmapPlugin extends Plugin {
         // Load all heatmaps from the file
         if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
 			try {
-				heatmaps = HeatmapNew.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
+				heatmaps = HeatmapFile.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
 			}
 			catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
@@ -697,7 +697,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			return;
 		}
 
-		HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
+		HeatmapFile.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
 
 		// Rename the latest file to be the current date and time
 		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType);
@@ -716,7 +716,7 @@ public class WorldHeatmapPlugin extends Plugin {
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
         File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
         File newFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
-        HeatmapNew.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
+        HeatmapFile.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 
     // Credit to https:// www.redblobgames.com/grids/line-drawing.html for where I figured out how to make the following linear interpolation functions
@@ -892,7 +892,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			File heatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType);
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
-                    heatmap = HeatmapNew.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
+                    heatmap = HeatmapFile.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
                     heatmap.setUserID(currentLocalAccountHash);
                     heatmap.setAccountType(currentPlayerAccountType);
                     heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
