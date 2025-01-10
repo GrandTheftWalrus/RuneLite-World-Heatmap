@@ -153,13 +153,6 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
 		assert localPlayerAccountType >= 0 && localPlayerAccountType <= 10;
 
-		log.debug("Loading heatmaps...");
-		log.debug("Local account hash: {}", currentLocalAccountHash);
-		log.debug("Local player account type: {}", localPlayerAccountType);
-		log.debug("Local player combat level: {}", localPlayerCombatLevel);
-		log.debug("Local player name: {}", localPlayerName);
-		log.debug("Seasonal type: {}", currentSeasonalType);
-
 		// Perform V1.6.1 fix on file naming scheme if necessary
 		HeatmapNew.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType);
 
@@ -388,7 +381,6 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	@Subscribe
 	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event){
-		log.debug("Expecting a new local player soon...");
 		localPlayerUpdatedFuture = new CompletableFuture<>();
 	}
 
@@ -650,7 +642,6 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		String seasonalType = getEnabledHeatmaps().iterator().next().getSeasonalType();
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
-		log.debug("Current seasonal type: {}", seasonalType);
 		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
 
 		// If there is no latest file, create a new file
@@ -663,19 +654,11 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		// Rename the latest file to be the current date and time
 		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType);
-		boolean latestFileExisted = latestFile.exists();
-		boolean newFileExisted = newFile.exists();
-		log.debug("Renaming latest heatmap file ({}) to {}", latestFile.getName(), newFile.getName());
 		if (latestFile.renameTo(newFile)) {
-			log.debug("Successfully renamed latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
-			// Log whether each file already exists
-			log.debug("{} did {}exist", latestFile.getName(), latestFileExisted ? "" : "not ");
-			log.debug("{} did {}exist", newFile.getName(), newFileExisted ? "" : "not ");
+			log.debug("Renamed latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
 		}
 		else {
 			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
-			log.debug("{} did {}exist", latestFile.getName(), latestFileExisted ? "" : "not ");
-			log.debug("{} did {}exist", newFile.getName(), newFileExisted ? "" : "not ");
 		}
     }
 
@@ -905,7 +888,6 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // Upload the heatmaps
         if (shouldUpload && uploadHeatmaps()){
-			log.info("Uploading heatmaps...");
             log.info("Heatmaps uploaded successfully");
         }
     }
