@@ -293,9 +293,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-09: Changed saveHeatmaps() to obtain the account metadata from the heatmaps being saved rather than the plugin
 	fields, which may be out of date. In fact, I wonder if such plugin fields should even exist.
 
-----You are Here----
+2025-01-09: Fixed file naming scheme fix overwriting files
 
-TODO: file naming scheme fix suddenly seems to be deleting files
+----You are Here----
 
 TODO: Perhaps change the expected non-seasonal value for seasonalType to "" instead of null so you can differentiate
 	it not having been loaded from it not being a seasonal world

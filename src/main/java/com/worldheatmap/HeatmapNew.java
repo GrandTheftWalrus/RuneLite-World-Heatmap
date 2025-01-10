@@ -506,13 +506,13 @@ public class HeatmapNew
 				}
 			}
 
-			// Sort the files by parseable date
+			// Sort the files by parseable date descending
 			heatmapFiles.sort((f1, f2) -> {
 				String name1 = f1.getName().split("\\.")[0];
 				String name2 = f2.getName().split("\\.")[0];
 				LocalDateTime f1Date = LocalDateTime.parse(name1, HeatmapFile.dateFormat);
 				LocalDateTime f2Date = LocalDateTime.parse(name2, HeatmapFile.dateFormat);
-				return f1Date.compareTo(f2Date);
+				return f2Date.compareTo(f1Date);
 			});
 
 			// Cycle through them, renaming them after their date modified
@@ -527,8 +527,11 @@ public class HeatmapNew
 				File newFile = new File(directory, newName + ".heatmaps");
 
 				// Rename the file
-				if (!file.renameTo(newFile)) {
-					System.err.println("Could not rename file '" + file.getName() + "' to '" + newFile.getName() + "'");
+				if (file.renameTo(newFile)) {
+					log.info("Renamed {} to {}", file.getName(), newFile.getName());
+				}
+				else {
+					log.error("Could not rename file '{}' to '{}'", file.getName(), newFile.getName());
 				}
 			}
 		}
