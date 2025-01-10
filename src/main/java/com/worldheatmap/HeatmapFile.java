@@ -42,7 +42,7 @@ public class HeatmapFile {
     protected final static File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final static File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
     protected final static File HEATMAP_IMAGE_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Images").toFile();
-	protected final static LocalDate startOfLeaguesV = LocalDate.of(2024, 11, 26);
+	protected final static ZonedDateTime startOfLeaguesV = ZonedDateTime.of(LocalDateTime.of(2024, 11, 27, 12, 0), ZoneId.of("GMT"));
 	protected final static LocalDate endOfLeaguesV = LocalDate.of(2025, 1, 23);
 	protected final static DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
 
@@ -189,7 +189,7 @@ public class HeatmapFile {
 				String name = originFile.getName();
 				int pos = name.lastIndexOf(".");
 				name = name.substring(0, pos);
-				LocalDate fileDate = LocalDate.parse(name, dateFormat);
+				ZonedDateTime fileDate = ZonedDateTime.of(LocalDateTime.parse(name, dateFormat), ZoneId.systemDefault());
 				if (fileDate.isAfter(startOfLeaguesV)) {
 					try {
 						// Move it to the seasonal directory, updating its metadata

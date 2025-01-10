@@ -307,13 +307,12 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-09: Heatmap files are now rewritten during the Leagues-decontamination process to update metadata
 
-----You are Here----
+2025-01-09: Went back to loading on first game tick because apparently it just works
 
-TODO: Apparently it's a safe bet that the player will be loaded on the first game tick, so we can scrap the
-	asynchronous Future nonsense I was doing. Gameticks won't happen during LOADING or HOPPING.
-
-TODO: I suppoooose I should add a time zone calculation based on the local time to the leagues V beginning date
+2025-01-09: Added a time zone calculation based on the local time to the leagues V beginning date
 	to minimize the chance of somebody's data getting quarantined for no reason
+
+----You are Here----
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
 
