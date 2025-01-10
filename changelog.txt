@@ -298,6 +298,9 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-09: Changed regular gamemode value for seasonalType to be "" instead of null, so that we can differentiate
 	it from being normal or unknown
 
+2025-01-09: Added transient field `readVersion` to HeatmapNew that lets you know the serialization version it was read
+	from. Also refactored HeatmapNew.fileNamingSchemeFix(). P.S no idea why that function is in HeatmapNew and not HeatmapFile
+
 ----You are Here----
 
 TODO: When contaminated files are moved to the leagues folder, their metadata is not updated. This will need to be fixed

@@ -26,7 +26,9 @@ public class HeatmapNew
 	@Getter
 	private final HashMap<Point, Integer> heatmapHashMap;
 	@Getter
-	private final int heatmapVersion = 102;
+	private final static int heatmapVersion = 102;
+	@Getter @Setter
+	private transient int readFileVersion = -1;
 	@Getter
 	private long totalValue = 0;
 	@Getter
@@ -390,7 +392,8 @@ public class HeatmapNew
 						fieldMap.put(fieldNames[i], fieldValues[i]);
 					}
 					long userID = Long.parseLong(fieldMap.getOrDefault("userID", "-1"));
-					String heatmapTypeString = fieldMap.get("heatmapType");
+					int heatmapVersion = Integer.parseInt(fieldMap.getOrDefault("heatmapVersion", "-1"));
+					String allegedHeatmapType = fieldMap.get("heatmapType");
 					int gameTimeTicks = Integer.parseInt(fieldMap.getOrDefault("gameTimeTicks", "-1"));
 					// The following fields exist only in version 101 and later
 					int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
@@ -399,19 +402,21 @@ public class HeatmapNew
 					String seasonalType = fieldMap.getOrDefault("seasonalType", null);
 
 					// Get HeatmapType from field value if legit
-					HeatmapType recognizedHeatmapType;
-					if (Arrays.stream(HeatmapType.values()).noneMatch(type -> type.toString().equals(heatmapTypeString))) {
-                        log.debug("Heatmap type '{}' from ZipEntry '{}' is not a valid Heatmap type (at least in this program version). Ignoring...", heatmapTypeString, curHeatmapPath);
+					HeatmapType heatmapType;
+					try {
+						heatmapType = HeatmapNew.HeatmapType.valueOf(allegedHeatmapType);
+					}
+					catch (IllegalArgumentException e) {
+						log.debug("Heatmap type '{}' from ZipEntry '{}' is not a valid Heatmap type (at least in this program version). Ignoring...", allegedHeatmapType, curHeatmapPath);
 						// Stop reading and go to next Heatmap type
 						continue;
-					} else {
-						recognizedHeatmapType = HeatmapType.valueOf(heatmapTypeString);
 					}
 
 					// Make ze Heatmap and set metadata
 					HeatmapNew heatmap = new HeatmapNew();
-					heatmap.setHeatmapType(recognizedHeatmapType);
 					heatmap.setUserID(userID);
+					heatmap.setReadFileVersion(heatmapVersion);
+					heatmap.setHeatmapType(heatmapType);
 					heatmap.setAccountType(accountType);
 					heatmap.setGameTimeTicks(gameTimeTicks);
 					heatmap.setCurrentCombatLevel(currentCombatLevel);
@@ -430,10 +435,10 @@ public class HeatmapNew
 						}
 					});
 					if (errorCount[0] != 0) {
-                        log.error("{} errors occurred during {} heatmap file read.", errorCount[0], recognizedHeatmapType);
+                        log.error("{} errors occurred during {} heatmap file read.", errorCount[0], heatmapType);
 					}
-					loggingOutput.append(recognizedHeatmapType + " (" + numTiles + " tiles), ");
-					heatmapsRead.put(recognizedHeatmapType, heatmap);
+					loggingOutput.append(heatmapType + " (" + numTiles + " tiles), ");
+					heatmapsRead.put(heatmapType, heatmap);
 				} catch (IOException e) {
                     log.error("Error reading {} heatmap from .heatmaps entry '{}'", curType, curHeatmapPath);
 				}
@@ -453,7 +458,7 @@ public class HeatmapNew
 	 * @param userId The user ID
 	 * @param seasonalType The seasonal type
 	 */
-	protected static void fileNamingSchemeFix(long userId, @Nullable String seasonalType) {
+	protected static void fileNamingSchemeFix(long userId, String seasonalType) {
 		// Get latest .heatmaps file in the directory
 		File latestHeatmap = HeatmapFile.getLatestHeatmapFile(userId, seasonalType);
 		if (latestHeatmap == null) {
@@ -461,38 +466,18 @@ public class HeatmapNew
 		}
 		File directory = latestHeatmap.getParentFile();
 
-		// Find the latest heatmap version
+		// Find the latest heatmap version of the latest .heatmaps file
 		long latestVersion = -1;
-		Map<String, String> env = new HashMap<>();
-		env.put("create", "true");
-		HeatmapType[] types = HeatmapType.values();
-		URI uri = URI.create("jar:" + latestHeatmap.toURI());
-		try (FileSystem fs = FileSystems.newFileSystem(uri, env)) {
-			for (HeatmapType curType : types) {
-				Path curHeatmapPath = fs.getPath("/" + curType.toString() + "_HEATMAP.csv");
-				if (!Files.exists(curHeatmapPath)) {
-					continue;
-				}
-
-				// Read the heatmap
-				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
-					 BufferedReader reader = new BufferedReader(isr)) {
-					// Read them field variables
-					String[] fieldNames = reader.readLine().split(",", -1);
-					String[] fieldValues = reader.readLine().split(",", -1);
-					Map<String, String> fieldMap = new HashMap<>();
-					for (int i = 0; i < fieldNames.length; i++) {
-						fieldMap.put(fieldNames[i], fieldValues[i]);
-					}
-					long heatmapVersion = Long.parseLong(fieldMap.getOrDefault("heatmapVersion", "-1"));
-					if (heatmapVersion > latestVersion) {
-						latestVersion = heatmapVersion;
-					}
-				} catch (IOException e) {
-					log.error("Error reading {} heatmap from .heatmaps entry '{}'", curType, curHeatmapPath);
+		try {
+			Map<HeatmapType, HeatmapNew> heatmaps = HeatmapNew.readHeatmapsFromFile(latestHeatmap, List.of(HeatmapType.values()));
+			for (HeatmapNew heatmap : heatmaps.values()) {
+//				log.debug("Read heatmap version {} ({})", heatmap.getReadFileVersion(), heatmap.getHeatmapType());
+				if (heatmap.getReadFileVersion() > latestVersion) {
+					latestVersion = heatmap.getReadFileVersion();
 				}
 			}
-		} catch (IOException e) {
+		}
+		catch (FileNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 
