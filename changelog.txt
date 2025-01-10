@@ -285,13 +285,13 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-07: Fixed how turning the plugin on for the first time mid-game wasn't working again, by adding a debounce for
 	loading player metadata on ze client thread
 
-2025-01-07: Fixed how switching gamemods would result in the jump in location being counted as a teleport, by
+2025-01-07: Fixed how switching gamemodes would result in the jump in location being counted as a teleport, by
 	reinitializing field variables on unload
 
-2025-01-09: Made loadHeatmaps() wait for the player metadata to be updated before continuing
+2025-01-09: Made loadHeatmaps() wait for the player metadata to be up-to-date via a Future instead of a debounce
 
 2025-01-09: Changed saveHeatmaps() to obtain the account metadata from the heatmaps being saved rather than the plugin
-	fields, which may be out of date. In fact, I wonder if such plugin fields should even exist.
+	fields, which may be out of sync
 
 2025-01-09: Fixed file naming scheme fix overwriting files
 
@@ -300,11 +300,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ----You are Here----
 
-TODO: I suppoooose I should add a time zone calculation based on the local time to the leagues V beginning date
-	to minimize the chance of somebody's data getting quarantined for no reason
-
 TODO: When contaminated files are moved to the leagues folder, their metadata is not updated. This will need to be fixed
 	because the global heatmap will require the "seasonalType" field and stuff to be set
+
+TODO: I suppoooose I should add a time zone calculation based on the local time to the leagues V beginning date
+	to minimize the chance of somebody's data getting quarantined for no reason
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
 

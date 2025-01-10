@@ -281,6 +281,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		clientThread.invoke(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
+			currentLocalAccountHash = client.getAccountHash();
+			SwingUtilities.invokeLater(panel::updatePlayerID);
 			clientThread.invoke(this::updatePlayerMetadata);
 			clientThread.invoke(this::updateSeasonalType);
 			executor.execute(this::loadHeatmaps);
@@ -364,7 +366,6 @@ public class WorldHeatmapPlugin extends Plugin {
 	}
 
 	public void updateSeasonalType() {
-		log.debug("Updating seasonal type...");
 		String seasonalType;
 		boolean isSeasonal = client.getWorldType().contains(WorldType.SEASONAL) ||
 			client.getWorldType().contains(WorldType.BETA_WORLD) ||
@@ -427,7 +428,6 @@ public class WorldHeatmapPlugin extends Plugin {
 	 */
 	@Subscribe
 	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event){
-		// TODO: Verify that this doesn't happen on logout, or loadHeatmaps() will wait forever
 		localPlayerUpdate = new CompletableFuture<>();
 	}
 
