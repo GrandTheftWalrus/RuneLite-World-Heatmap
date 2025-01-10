@@ -4,7 +4,6 @@ import java.awt.Point;
 import java.io.*;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.InflaterInputStream;
 
 import lombok.Getter;
@@ -26,7 +25,6 @@ public class HeatmapNew
 	private int tileCount = 0;
 	@Getter @Setter
 	private int gameTimeTicks = 0;
-	private int[] maxVal = {1, 0, 0}, minVal = {1, 0, 0}; // {val, x, y}
 	private static final int
 		HEATMAP_WIDTH = 2752,       //never change these
 		HEATMAP_HEIGHT = 1664,      //never change these
@@ -237,39 +235,10 @@ public class HeatmapNew
 			totalValue += (newValue - oldValue);
 		}
 
-		//Error checking for not keeping track of unstepped-on tiles
+		// For not keeping track of unstepped-on tiles
 		if (newValue == 0)
 		{
 			heatmapHashMap.remove(new Point(x, y));
-			// If the removed tile was the most stepped on, then we have
-			// no choice but to recalculate the new most stepped on tile
-			if (x == maxVal[1] && y == maxVal[2])
-			{
-				int[] newMax = {1, 0, 0};
-				for (Entry<Point, Integer> e : heatmapHashMap.entrySet())
-				{
-					if (newMax[0] >= e.getValue())
-					{
-						newMax[0] = e.getValue();
-						newMax[1] = e.getKey().x;
-						newMax[2] = e.getKey().y;
-					}
-				}
-				maxVal = newMax;
-			}
-			// It's super unlikely that a removed tile will have been the least
-			// stepped on, so I'm just not even gon bother writing error checking for it lul
-			return;
-		}
-
-		//Update min/max vals
-		if (newValue > maxVal[0])
-		{
-			maxVal = new int[]{newValue, x, y};
-		}
-		if (newValue <= minVal[0])
-		{
-			minVal = new int[]{newValue, x, y};
 		}
 	}
 
@@ -299,22 +268,6 @@ public class HeatmapNew
 	protected int get(int x, int y)
 	{
 		return heatmapHashMap.getOrDefault(new Point(x, y), 0);
-	}
-
-	/**
-	 * @return int array holding {maxVal, maxX, maxY} where the latter two are the coordinate at which the max value exists
-	 */
-	protected int[] getMaxVal()
-	{
-		return maxVal;
-	}
-
-	/**
-	 * @return int array holding {minVal, minX, minY} where the latter two are the coordinate at which the minimum NON-ZERO value exists
-	 */
-	protected int[] getMinVal()
-	{
-		return minVal;
 	}
 
 	/**
