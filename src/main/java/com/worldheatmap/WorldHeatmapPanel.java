@@ -50,11 +50,11 @@ public class WorldHeatmapPanel extends PluginPanel {
         add(mainPanel);
 
         //Player ID label
-        if (plugin.localAccountHash == 0 || plugin.localAccountHash == -1){
+        if (plugin.currentLocalAccountHash == 0 || plugin.currentLocalAccountHash == -1){
             playerIDLabel = new JLabel("Player ID: unknown");
         }
         else{
-            playerIDLabel = new JLabel("Player ID: " + plugin.localAccountHash);
+            playerIDLabel = new JLabel("Player ID: " + plugin.currentLocalAccountHash);
         }
         playerIDLabel.setHorizontalAlignment(SwingConstants.CENTER);
         mainPanel.add(playerIDLabel);
@@ -215,11 +215,11 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     protected void updatePlayerID() {
-        this.plugin.localAccountHash = plugin.localAccountHash;
-        if (this.plugin.localAccountHash == -1 || this.plugin.localAccountHash == 0) {
+        this.plugin.currentLocalAccountHash = plugin.currentLocalAccountHash;
+        if (this.plugin.currentLocalAccountHash == -1 || this.plugin.currentLocalAccountHash == 0) {
             playerIDLabel = new JLabel("Player ID: unavailable");
         } else {
-            playerIDLabel.setText("Player ID: " + this.plugin.localAccountHash);
+            playerIDLabel.setText("Player ID: " + this.plugin.currentLocalAccountHash);
         }
         updateUI();
     }
@@ -281,18 +281,19 @@ public class WorldHeatmapPanel extends PluginPanel {
         // Save all heatmap data
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
-		File imageFile = HeatmapFile.getNewImageFile(plugin.localAccountHash, heatmapType, heatmap.getSeasonalType());
+		File imageFile = HeatmapFile.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
         plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
     private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
 		log.info("Clearing heatmap: {}", heatmapType);
+
 		// Update the latest heatmap data file
 		plugin.executor.execute(plugin::saveHeatmapsFile);
 
         // Replace the heatmap with a new one
 		plugin.executor.execute(() -> {
-			plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.localAccountHash, plugin.localPlayerAccountType, plugin.seasonalType));
+			plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.currentLocalAccountHash, plugin.localPlayerAccountType, plugin.currentSeasonalType));
 		});
 
         // Start a new .heatmaps data file, so the pre-clearing data is not lost

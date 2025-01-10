@@ -288,6 +288,12 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-07: Fixed how switching gamemods would result in the jump in location being counted as a teleport, by
 	reinitializing field variables on unload
 
+2025-01-09: Made a Future that is initialized in onRuneScapeProfileChanged(), finished in onPlayerChanged(), and then used in
+	loadHeatmaps() to wait for the player metadata to be updated before loading the heatmaps.
+
+2025-01-09: Changed saveHeatmaps() to obtain the account metadata from the heatmaps being saved rather than the plugin
+	fields, which may be out of date. In fact, I wonder if such plugin fields should even exist.
+
 ----You are Here----
 
 TODO: During loadHeatmaps() after world hop from normal to leagues (and probs vice versa), player metadata such as
@@ -295,6 +301,15 @@ TODO: During loadHeatmaps() after world hop from normal to leagues (and probs vi
 	consistantly for the local player metadata (account type, combat level, and name), whilst the world activity does
 	seem to have updated. Perhaps I should update the debouncer to know when to wait for a change in these fields
 	or something?
+
+TODO: file naming scheme fix suddenly seems to be deleting files
+
+TODO: Refactor the heatmap file management because it kinda make no sense now. All the file-related stuff should be in
+	HeatmapFile. Perhaps all HeatmapNew needs is the .toCSV() and .fromCSV(). Or, perhaps I should just implement
+	Serializable properly this time, and change .toCSV() and .fromCSV() to
+
+TODO: Perhaps change the expected non-seasonal value for seasonalType to "" instead of null so you can differentiate
+	it not having been loaded from it not being a seasonal world
 
 TODO: I suppoooose I should add a time zone calculation based on the local time to the leagues V beginning date
 	to minimize the chance of somebody's data getting quarantined for no reason
@@ -308,6 +323,10 @@ TODO: When contaminated files are moved to the leagues folder, their metadata is
 	because the global heatmap will require the "seasonalType" field and stuff to be set
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
+
+TODO: Test for carrying over V1 heatmaps (and V2 ig)
+
+TODO: Test for switching actual accounts (I Say)
 
 TODO: Remove any temporary log.debugs()
 
