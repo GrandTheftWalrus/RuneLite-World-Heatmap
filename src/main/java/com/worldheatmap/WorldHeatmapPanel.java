@@ -293,7 +293,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 
         // Replace the heatmap with a new one
 		plugin.executor.execute(() -> {
-			plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.currentLocalAccountHash, plugin.localPlayerAccountType, plugin.currentSeasonalType));
+			plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.currentLocalAccountHash, plugin.currentPlayerAccountType, plugin.currentSeasonalType));
 		});
 
         // Start a new .heatmaps data file, so the pre-clearing data is not lost

@@ -61,8 +61,8 @@ public class WorldHeatmapPlugin extends Plugin {
 	protected GameState previousGameState, previousPreviousGameState = GameState.UNKNOWN;
     protected long currentLocalAccountHash;
 	protected String currentSeasonalType;
-    protected int localPlayerAccountType;
-    protected int localPlayerCombatLevel;
+    protected int currentPlayerAccountType;
+    protected int currentPlayerCombatLevel;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
@@ -104,9 +104,10 @@ public class WorldHeatmapPlugin extends Plugin {
     @Inject
     ItemManager itemManager;
     private int[] previousXP = new int[Skill.values().length];
-    protected String localPlayerName;
+    protected String currentPlayerName;
     private final String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
-	private CompletableFuture<Void> localPlayerUpdatedFuture = new CompletableFuture<>();
+	private CompletableFuture<Void> localPlayerUpdate = new CompletableFuture<>();
+	private CompletableFuture<Void> seasonalTypeUpdate = new CompletableFuture<>();
 
 	@Inject
     private Client client;
@@ -137,26 +138,40 @@ public class WorldHeatmapPlugin extends Plugin {
         return configManager.getConfig(WorldHeatmapConfig.class);
     }
 
-	protected void loadHeatmaps()
-	{
-		// Wait for local player to be updated
-		try {
-			localPlayerUpdatedFuture.get(2, TimeUnit.SECONDS);
+	protected void loadHeatmaps() {
+		// Wait for local player to be updated, if necessary
+		if (!localPlayerUpdate.isDone()) {
+			try {
+				localPlayerUpdate.get(2, TimeUnit.SECONDS);
+			}
+			catch (InterruptedException | ExecutionException | TimeoutException e) {
+				log.error("Took too long to wait for local player to be updated", e);
+				return;
+			}
 		}
-		catch (InterruptedException | ExecutionException | TimeoutException e) {
-			log.error("Failed to wait for local player to be updated", e);
-			return;
+
+		// Wait for seasonal type to be updated, if necessary
+		if (!seasonalTypeUpdate.isDone()) {
+			try {
+				seasonalTypeUpdate.get(2, TimeUnit.SECONDS);
+			}
+			catch (InterruptedException | ExecutionException | TimeoutException e) {
+				log.error("Took too long to wait for gamemode type to be updated", e);
+				return;
+			}
 		}
+
 		// Make sure player metadata is loaded and up to date
 		assert currentLocalAccountHash != 0 && currentLocalAccountHash != -1;
-		assert localPlayerName != null;
-		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
-		assert localPlayerAccountType >= 0 && localPlayerAccountType <= 10;
+		assert currentPlayerName != null;
+		assert currentPlayerCombatLevel != 0 && currentPlayerCombatLevel != -1;
+		assert currentPlayerAccountType >= 0 && currentPlayerAccountType <= 10;
+		assert currentSeasonalType != null;
 
 		// Perform V1.6.1 fix on file naming scheme if necessary
 		HeatmapNew.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType);
 
-        log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType == null ? "" : currentSeasonalType + " ", currentLocalAccountHash);
+        log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType.isBlank() ? "" : currentSeasonalType + " ", currentLocalAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType);
 
         // Load all heatmaps from the file
@@ -170,8 +185,8 @@ public class WorldHeatmapPlugin extends Plugin {
 			for (HeatmapNew heatmap : heatmaps.values()){
 				// Set metadata for each heatmap in case they were wrong or missing
                 heatmap.setUserID(currentLocalAccountHash);
-                heatmap.setAccountType(localPlayerAccountType);
-                heatmap.setCurrentCombatLevel(localPlayerCombatLevel);
+                heatmap.setAccountType(currentPlayerAccountType);
+                heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
 				heatmap.setSeasonalType(currentSeasonalType);
             }
         }
@@ -191,18 +206,18 @@ public class WorldHeatmapPlugin extends Plugin {
      */
     private void handleLegacyV1HeatmapFiles() {
 		assert currentLocalAccountHash != -1 && currentLocalAccountHash != 0;
-		assert localPlayerName != null;
-		assert localPlayerCombatLevel != 0 && localPlayerCombatLevel != -1;
-		assert localPlayerAccountType >= 0 && localPlayerAccountType <= 10;
+		assert currentPlayerName != null;
+		assert currentPlayerCombatLevel != 0 && currentPlayerCombatLevel != -1;
+		assert currentPlayerAccountType >= 0 && currentPlayerAccountType <= 10;
 
-        File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), localPlayerName + "_TypeA.heatmap");
+        File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
         if (filepathTypeAUsername.exists()) {
             // Load and convert the legacy heatmap file
             HeatmapNew legacyHeatmapTypeA = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeAUsername);
             legacyHeatmapTypeA.setUserID(currentLocalAccountHash);
-            legacyHeatmapTypeA.setAccountType(localPlayerAccountType);
+            legacyHeatmapTypeA.setAccountType(currentPlayerAccountType);
             legacyHeatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
-            legacyHeatmapTypeA.setCurrentCombatLevel(localPlayerCombatLevel);
+            legacyHeatmapTypeA.setCurrentCombatLevel(currentPlayerCombatLevel);
 
             // Check if heatmap has already been loaded
             boolean typeAAlreadyLoaded = heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null;
@@ -219,14 +234,14 @@ public class WorldHeatmapPlugin extends Plugin {
         }
 
         // Repeat for Type B
-        File filepathTypeBUsername = new File(HEATMAP_FILES_DIR.toString(), localPlayerName + "_TypeB.heatmap");
+        File filepathTypeBUsername = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeB.heatmap");
         if (filepathTypeBUsername.exists()) {
             // Load and convert the legacy heatmap file
             HeatmapNew legacyHeatmapTypeB = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeBUsername);
             legacyHeatmapTypeB.setUserID(currentLocalAccountHash);
-            legacyHeatmapTypeB.setAccountType(localPlayerAccountType);
+            legacyHeatmapTypeB.setAccountType(currentPlayerAccountType);
             legacyHeatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
-            legacyHeatmapTypeB.setCurrentCombatLevel(localPlayerCombatLevel);
+            legacyHeatmapTypeB.setCurrentCombatLevel(currentPlayerCombatLevel);
 
             // Check if heatmap has already been loaded
             boolean newerTypeBExists = heatmaps.get(HeatmapNew.HeatmapType.TYPE_B) != null;
@@ -263,9 +278,11 @@ public class WorldHeatmapPlugin extends Plugin {
                 .build();
         clientToolbar.addNavigation(toolbarButton);
         panel.setEnabledHeatmapButtons(false);
-		clientThread.invokeLater(this::displayUpdateMessage);
+		clientThread.invoke(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
+			clientThread.invoke(this::updatePlayerMetadata);
+			clientThread.invoke(this::updateSeasonalType);
 			executor.execute(this::loadHeatmaps);
 		}
     }
@@ -307,6 +324,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		// This is when to load the heatmaps
 		if (justLoggedIn || justHopped) {
 			// Schedule the loading of the heatmap files
+			clientThread.invoke(this::updatePlayerMetadata);
+			clientThread.invoke(this::updateSeasonalType);
 			executor.execute(this::loadHeatmaps);
 		}
 
@@ -341,7 +360,12 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	@Subscribe
 	public void onWorldChanged(WorldChanged event) {
-		// This is where seasonalType gets updated
+		updateSeasonalType();
+	}
+
+	public void updateSeasonalType() {
+		log.debug("Updating seasonal type...");
+		String seasonalType;
 		boolean isSeasonal = client.getWorldType().contains(WorldType.SEASONAL) ||
 			client.getWorldType().contains(WorldType.BETA_WORLD) ||
 			client.getWorldType().contains(WorldType.TOURNAMENT_WORLD);
@@ -352,36 +376,59 @@ public class WorldHeatmapPlugin extends Plugin {
 			assert world != null;
 			String worldActivity = world.getActivity();
 			if (worldActivity != null && !worldActivity.isBlank()) {
-				currentSeasonalType = worldActivity.split(" - ")[0].replaceAll("\\s", "_").toUpperCase();
+				seasonalType = worldActivity.split(" - ")[0].replaceAll("\\s", "_").toUpperCase();
 			}
 			else {
-				currentSeasonalType = "UNKNOWN_SEASONAL";
+				seasonalType = "UNKNOWN_SEASONAL";
 			}
 		}
 		else {
-			currentSeasonalType = null;
+			seasonalType = "";
 		}
+		currentSeasonalType = seasonalType;
+		seasonalTypeUpdate.complete(null);
 	}
 
 	@Subscribe
 	public void onPlayerChanged(PlayerChanged event) {
-		if (client.getLocalPlayer() != null && event.getPlayer() == client.getLocalPlayer()) {
-			localPlayerName = client.getLocalPlayer().getName();
-			localPlayerCombatLevel = client.getLocalPlayer().getCombatLevel();
-			localPlayerAccountType = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
-
-			// Asserts
-			assert localPlayerName != null && !localPlayerName.isBlank();
-			assert localPlayerCombatLevel >= 3;
-			assert localPlayerAccountType >= 0 && localPlayerAccountType <= 10;
-
-			localPlayerUpdatedFuture.complete(null);
+		// Only update if local player is expected to be out of date
+		if (!localPlayerUpdate.isDone() && event.getPlayer() == client.getLocalPlayer() && client.getLocalPlayer() != null) {
+			updatePlayerMetadata();
 		}
 	}
 
+	public void updatePlayerMetadata() {
+		Player localPlayer = client.getLocalPlayer();
+		if (localPlayer == null) {
+			return;
+		}
+		currentPlayerName = localPlayer.getName();
+		currentPlayerCombatLevel = localPlayer.getCombatLevel();
+		currentPlayerAccountType = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
+
+		// Check that it's legit
+		if (currentPlayerName != null &&
+			!currentPlayerName.isBlank() &&
+			currentPlayerCombatLevel >= 3 &&
+			currentPlayerAccountType >= 0 &&
+			currentPlayerAccountType <= 10)
+		{
+			// Mark that local player data is up-to-date
+			localPlayerUpdate.complete(null);
+		}
+		else {
+			log.debug("Local player metadata was updated but is invalid: name={}, combatLevel={}, accountType={}", currentPlayerName, currentPlayerCombatLevel, currentPlayerAccountType);
+		}
+	}
+
+	/**
+	 * This happens when the user switches accounts by logging in or switching to leagues/seasonal
+	 * @param event
+	 */
 	@Subscribe
 	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event){
-		localPlayerUpdatedFuture = new CompletableFuture<>();
+		// TODO: Verify that this doesn't happen on logout, or loadHeatmaps() will wait forever
+		localPlayerUpdate = new CompletableFuture<>();
 	}
 
     @Subscribe
@@ -654,10 +701,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		// Rename the latest file to be the current date and time
 		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType);
-		if (latestFile.renameTo(newFile)) {
-			log.debug("Renamed latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
-		}
-		else {
+		if (!latestFile.renameTo(newFile)) {
 			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
 		}
     }
@@ -770,7 +814,7 @@ public class WorldHeatmapPlugin extends Plugin {
         }
         log.debug("Initializing missing heatmaps: {}", String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
-            heatmaps.put(type, new HeatmapNew(type, currentLocalAccountHash, localPlayerAccountType, currentSeasonalType));
+            heatmaps.put(type, new HeatmapNew(type, currentLocalAccountHash, currentPlayerAccountType, currentSeasonalType));
         }
     }
 
@@ -850,8 +894,8 @@ public class WorldHeatmapPlugin extends Plugin {
                 try {
                     heatmap = HeatmapNew.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
                     heatmap.setUserID(currentLocalAccountHash);
-                    heatmap.setAccountType(localPlayerAccountType);
-                    heatmap.setCurrentCombatLevel(localPlayerCombatLevel);
+                    heatmap.setAccountType(currentPlayerAccountType);
+                    heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }

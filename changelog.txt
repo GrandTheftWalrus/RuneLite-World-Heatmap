@@ -295,18 +295,13 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-09: Fixed file naming scheme fix overwriting files
 
-----You are Here----
+2025-01-09: Changed regular gamemode value for seasonalType to be "" instead of null, so that we can differentiate
+	it from being normal or unknown
 
-TODO: Perhaps change the expected non-seasonal value for seasonalType to "" instead of null so you can differentiate
-	it not having been loaded from it not being a seasonal world
+----You are Here----
 
 TODO: I suppoooose I should add a time zone calculation based on the local time to the leagues V beginning date
 	to minimize the chance of somebody's data getting quarantined for no reason
-
-TODO: Sometimes an assertion error is showing that a file rename is failing in saveHeatmaps(). Not sure why
-	A ha: It seems to happen when I log into a normal acc at first and then hop to Leagues. Not sure why
-	A ha: Seems to be because the file being renamed doesn't exist for some reason. Not sure why
-	A ha: It seems to be because the Leagues V decontamination happens after saving to file instead of before. Not sure why
 
 TODO: When contaminated files are moved to the leagues folder, their metadata is not updated. This will need to be fixed
 	because the global heatmap will require the "seasonalType" field and stuff to be set
@@ -316,6 +311,8 @@ TODO: check out how LootManager sent their in-game update message to the chatbox
 TODO: Test for carrying over V1 heatmaps (and V2 ig)
 
 TODO: Test for switching actual accounts (I Say)
+
+TODO: Test on Windows
 
 TODO: Test logging into Leagues V first and then switching to a normal account
 

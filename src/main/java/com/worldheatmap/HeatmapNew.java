@@ -50,7 +50,7 @@ public class HeatmapNew
 	@Getter @Setter
 	private int currentCombatLevel = -1;
 	@Getter @Setter
-	private String seasonalType = null;
+	private String seasonalType;
 
 	/**
 	 * Constructor for HeatmapNew object with no arguments.
@@ -383,8 +383,8 @@ public class HeatmapNew
 				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
 					 BufferedReader reader = new BufferedReader(isr)) {
 					// Read them field variables
-					String[] fieldNames = reader.readLine().split(",");
-					String[] fieldValues = reader.readLine().split(",");
+					String[] fieldNames = reader.readLine().split(",", -1);
+					String[] fieldValues = reader.readLine().split(",", -1);
 					Map<String, String> fieldMap = new HashMap<>();
 					for (int i = 0; i < fieldNames.length; i++) {
 						fieldMap.put(fieldNames[i], fieldValues[i]);
@@ -396,7 +396,7 @@ public class HeatmapNew
 					int accountType = Integer.parseInt(fieldMap.getOrDefault("accountType", "-1"));;
 					int currentCombatLevel = Integer.parseInt(fieldMap.getOrDefault("currentCombatLevel", "-1"));
 					// The following fields exist only in version 102 and later
-					String seasonalType = fieldMap.getOrDefault("seasonalType", "");
+					String seasonalType = fieldMap.getOrDefault("seasonalType", null);
 
 					// Get HeatmapType from field value if legit
 					HeatmapType recognizedHeatmapType;
@@ -478,8 +478,8 @@ public class HeatmapNew
 				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
 					 BufferedReader reader = new BufferedReader(isr)) {
 					// Read them field variables
-					String[] fieldNames = reader.readLine().split(",");
-					String[] fieldValues = reader.readLine().split(",");
+					String[] fieldNames = reader.readLine().split(",", -1);
+					String[] fieldValues = reader.readLine().split(",", -1);
 					Map<String, String> fieldMap = new HashMap<>();
 					for (int i = 0; i < fieldNames.length; i++) {
 						fieldMap.put(fieldNames[i], fieldValues[i]);

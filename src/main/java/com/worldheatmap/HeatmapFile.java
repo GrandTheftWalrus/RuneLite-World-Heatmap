@@ -36,8 +36,8 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getHeatmapFile(long userId, @Nullable String seasonalType, int onConflictOffset) {
-		boolean isSeasonal = seasonalType != null;
+	public static File getHeatmapFile(long userId, String seasonalType, int onConflictOffset) {
+		boolean isSeasonal = !seasonalType.isBlank();
 		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 		// Find the next available filename
 		File latestFile = getLatestHeatmapFile(userId, seasonalType);
@@ -69,7 +69,7 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-    public static File getNewHeatmapFile(long userId, @Nullable String seasonalType) {
+    public static File getNewHeatmapFile(long userId, String seasonalType) {
 		return getHeatmapFile(userId, seasonalType, 1);
     }
 
@@ -80,7 +80,7 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getCurrentHeatmapFile(long userId, @Nullable String seasonalType) {
+	public static File getCurrentHeatmapFile(long userId, String seasonalType) {
 		return getHeatmapFile(userId, seasonalType, 0);
 	}
 
@@ -91,8 +91,8 @@ public class HeatmapFile {
 	 * @param seasonalType The seasonal type, or null if not seasonal
 	 * @return
 	 */
-    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, @Nullable String seasonalType) {
-		boolean isSeasonal = seasonalType != null;
+    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
+		boolean isSeasonal = !seasonalType.isBlank();
         String dateString = formatDate(LocalDateTime.now());
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 
@@ -106,8 +106,8 @@ public class HeatmapFile {
 	 * @param seasonalType the seasonal type, or null if not seasonal
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long accountHash, @Nullable String seasonalType) {
-		boolean isSeasonal = seasonalType != null;
+    public static File getLatestHeatmapFile(long accountHash, String seasonalType) {
+		boolean isSeasonal = !seasonalType.isBlank();
         File heatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash) + (isSeasonal ? "_" + seasonalType : ""));
 
 		// Carry out the leagues decontamination process if necessary
@@ -172,7 +172,7 @@ public class HeatmapFile {
 				name = name.substring(0, pos);
 				LocalDate fileDate = LocalDate.parse(name, dateFormat);
 				if (fileDate.isAfter(startOfLeaguesV)) {
-					log.debug("File {} is contaminated by Leagues V, moving to seasonal directory", file.getName());
+					log.info("File {} is contaminated by Leagues V, moving to seasonal directory", file.getName());
 					// Move it to the seasonal directory
 					File destination = new File(seasonalHeatmapsDir, file.getName());
 					try {
@@ -181,9 +181,6 @@ public class HeatmapFile {
 					{
 						log.error("Failed to move file to seasonal directory: {}", e.toString());
 					}
-				}
-				else{
-					log.debug("File {} is before {}, leaving in normal directory", file.getName(), startOfLeaguesV);
 				}
 			}
 		}
