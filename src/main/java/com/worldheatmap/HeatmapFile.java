@@ -120,6 +120,8 @@ public class HeatmapFile {
     /**
      * Get the File that contains the latest heatmaps based on the filename being a date.
      * Returns null if no such file exists.
+	 * This method should only be performed via the executor thread because it may do some heavy I/O for
+	 * fixing previous files due to bad planning
 	 * @param accountHash the user ID/account hash
 	 * @param seasonalType the seasonal type, or null if not seasonal
 	 * @param username the player's username. Used for detecting legacy files.
@@ -131,9 +133,13 @@ public class HeatmapFile {
         File heatmapsDir = new File(HEATMAP_FILES_DIR, accountHash + (isSeasonal ? "_" + seasonalType : ""));
 		File normalHeatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
 
-		// Modernize any legacy heatmap files, stashing them in the regular directory (since they won't have seasonal type encoded)
-		convertAndMoveV1_0HeatmapFiles(username, accountHash, normalHeatmapsDir);
+		// Modernize any legacy heatmap files, stashing them in the regular directory
+		// (since they won't have seasonal type encoded)
+		convertAndMoveV1_0HeatmapFiles(username, normalHeatmapsDir);
 		moveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
+
+		// Perform V1.6.1 file naming scheme fix on normal directory if necessary
+		HeatmapFile.fileNamingSchemeFix(normalHeatmapsDir);
 
 		// Carry out the leagues decontamination process if necessary
 		if (!heatmapsDir.exists() && isSeasonal) {
@@ -175,11 +181,14 @@ public class HeatmapFile {
 				// Set its date modified to what it was before
 				movedLegacyV1_2File.setLastModified(epochMillis);
 
-				// Make a second copy of the moved file, named one minute later,
+				// If the moved file is the latest one in the folder,
+				// make a second copy of the moved file, named one minute later,
 				// so we can keep the other one as an updated backup
-				File newFile2 = new File(newDir, dateFormat.format(lastModified.plusMinutes(1)) + HEATMAP_EXTENSION);
-				Files.copy(movedLegacyV1_2File.toPath(), newFile2.toPath());
-				newFile2.setLastModified(lastModified.plusMinutes(1).toInstant().toEpochMilli());
+				if (getLatestFile(newDir) == movedLegacyV1_2File) {
+					File newFile2 = new File(newDir, dateFormat.format(lastModified.plusMinutes(1)) + HEATMAP_EXTENSION);
+					Files.copy(movedLegacyV1_2File.toPath(), newFile2.toPath());
+					newFile2.setLastModified(lastModified.plusMinutes(1).toInstant().toEpochMilli());
+				}
 			} catch (IOException e) {
 				log.error("Moving heatmaps file from legacy (V1.2) location failed");
 			}
@@ -195,10 +204,9 @@ public class HeatmapFile {
 	 * Also renames the old 'Backups' directory to 'Backups.old' if it exists
 	 *
 	 * @param currentPlayerName The player name
-	 * @param currentPlayerId   The player ID
 	 * @param newDir            The new directory to move the files to
 	 */
-	private static void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, long currentPlayerId, File newDir) {
+	private static void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, File newDir) {
 		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
 		// rename the old file to .old, and write the new file
 		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
@@ -221,7 +229,7 @@ public class HeatmapFile {
 
 		// Repeat for Type B
 		File typeBFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeB.heatmap");
-		HeatmapNew typeBHeatmap = new HeatmapNew(HeatmapNew.HeatmapType.TYPE_B, currentPlayerId, -1, null, -1);
+		HeatmapNew typeBHeatmap = new HeatmapNew(HeatmapNew.HeatmapType.TYPE_B, -1, -1, null, -1);
 		ZonedDateTime typeBModified = null;
 		boolean typeBExisted = false;
 		if (typeBFile.exists()) {
@@ -263,14 +271,17 @@ public class HeatmapFile {
 			HeatmapFile.writeHeatmapsToFile(List.of(typeAHeatmap, typeBHeatmap), newFile);
 			newFile.setLastModified(latestModified.toInstant().toEpochMilli());
 
+			// If the new file is the latest one in the folder,
 			// Make a second copy of the moved file, named one minute later
 			// so we can keep the other one as an updated backup
-			File newFile2 = new File(newDir, dateFormat.format(latestModified.plusMinutes(1)) + HEATMAP_EXTENSION);
-			try {
-				Files.copy(newFile.toPath(), newFile2.toPath());
-				newFile2.setLastModified(latestModified.plusMinutes(1).toInstant().toEpochMilli());
-			} catch (IOException e) {
-				log.error("Failed to make extra copy of converted legacy shmeatmap file: {}", e.toString());
+			if (getLatestFile(newDir) == newFile) {
+				File newFile2 = new File(newDir, dateFormat.format(latestModified.plusMinutes(1)) + HEATMAP_EXTENSION);
+				try {
+					Files.copy(newFile.toPath(), newFile2.toPath());
+					newFile2.setLastModified(latestModified.plusMinutes(1).toInstant().toEpochMilli());
+				} catch (IOException e) {
+					log.error("Failed to make extra copy of converted legacy shmeatmap file: {}", e.toString());
+				}
 			}
 
 		}
@@ -296,6 +307,7 @@ public class HeatmapFile {
 
 		// Move potentially contaminated files from the normal heatmap directory to the seasonal directory
 		File[] files = getSortedFiles(regularHeatmapsDir);
+		int filesMoved = 0;
 		if (files != null) {
 			for (File originFile : files) {
 				String name = originFile.getName();
@@ -315,6 +327,7 @@ public class HeatmapFile {
 
 						// Delete the original file
 						Files.delete(originFile.toPath());
+						filesMoved++;
 					}
 					catch (IOException e)
 					{
@@ -563,16 +576,14 @@ public class HeatmapFile {
 	/**
 	 * V1.6.0 fix for file naming scheme. Checks the latest heatmap version in the directory, and if it's version 101 or
 	 * earlier, renames the files after their dates modified.
-	 * @param userId The user ID
-	 * @param seasonalType The seasonal type
+	 * @param directory The directory to fix
 	 */
-	protected static void fileNamingSchemeFix(long userId, String seasonalType, String username) {
+	protected static void fileNamingSchemeFix(File directory) {
 		// Get latest .heatmaps file in the directory
-		File latestHeatmap = getLatestHeatmapFile(userId, seasonalType, username);
+		File latestHeatmap = getLatestFile(directory);
 		if (latestHeatmap == null) {
 			return;
 		}
-		File directory = latestHeatmap.getParentFile();
 
 		// Find the latest heatmap version of the latest .heatmaps file
 		long latestVersion = -1;

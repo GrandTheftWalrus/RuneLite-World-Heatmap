@@ -145,9 +145,6 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert currentPlayerAccountType >= 0 && currentPlayerAccountType <= 10;
 		assert currentSeasonalType != null;
 
-		// Perform V1.6.1 fix on file naming scheme if necessary
-		HeatmapFile.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
-
         log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType.isBlank() ? "" : currentSeasonalType + " ", currentLocalAccountHash);
         File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
 
@@ -788,7 +785,7 @@ public class WorldHeatmapPlugin extends Plugin {
         HeatmapNew.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
         if (toggledHeatmapType != null) {
             boolean isEnabled = event.getNewValue() != null && event.getNewValue().equals("true");
-            handleHeatmapToggled(isEnabled, toggledHeatmapType);
+            executor.execute(() -> handleHeatmapToggled(isEnabled, toggledHeatmapType));
         }
     }
 
