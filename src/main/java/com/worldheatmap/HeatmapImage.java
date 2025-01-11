@@ -95,7 +95,7 @@ public class HeatmapImage implements RenderedImage
 
 	protected static void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
 	{
-		log.debug("Saving {} image to disk...", imageFileOut);
+		log.info("Saving {} image to disk...", imageFileOut);
 		long startTime = System.nanoTime();
 		if (!imageFileOut.getName().endsWith(".tif"))
 		{
@@ -175,7 +175,7 @@ public class HeatmapImage implements RenderedImage
 				reader.dispose();
 				writer.dispose();
 			}
-			log.debug("Finished writing {} image to disk after {} ms", imageFileOut, (System.nanoTime() - startTime) / 1_000_000);
+			log.info("Finished writing {} image to disk after {} ms", imageFileOut, (System.nanoTime() - startTime) / 1_000_000);
 		}
 		catch (OutOfMemoryError e)
 		{

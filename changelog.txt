@@ -330,20 +330,20 @@ TODO: Remove any temporary log.debugs()
 
 ** UPDATE TO BE RELEASED **
 
-TODO: Refactor the heatmap file management because it kinda make no sense now. All the file-related stuff should be in
-	HeatmapFile. Perhaps all HeatmapNew needs is the .toCSV() and .fromCSV(). Or, perhaps I should just implement
-	Serializable properly this time, and change .toCSV() and .fromCSV() to
-
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
 
+TODO: Implement memory-saving method where:
+	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
+		- This means I'd have to re-include them in toCSV()
+	- only the newly incremented tiles are kept in memory
+	- on save, the rest of the heatmap is loaded from disk, the new tiles are added to it, then it is rewritten
+		- this means that the working file cannot be modified meanwhile. I suppose that was always the case doe
+	- on image write and data upload, the file will be reloaded too
+
 TODO: Update world map image
 
-TODO: Large: Start tracking heatmaps in 3 dimensions? Would have to convert existing heatmaps, and the existing data would be mucked.
-
 TODO: Make it so that the button that opens the website includes some user-agent/referrer deets about where the user was referred from (the plugin)
-
-TODO: Add PLAYERS_KILLED
 
 TODO: Make HeatmapNew.estimateSize not a static method
 

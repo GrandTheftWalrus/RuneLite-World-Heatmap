@@ -792,7 +792,7 @@ public class WorldHeatmapPlugin extends Plugin {
         for (HeatmapNew.HeatmapType type : missingTypes) {
             missingTypesNames.add(type.toString());
         }
-        log.debug("Initializing missing heatmaps: {}", String.join(", ", missingTypesNames));
+        log.info("Initializing missing heatmaps: {}", String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
             heatmaps.put(type, new HeatmapNew(type, currentLocalAccountHash, currentPlayerAccountType, currentSeasonalType));
         }

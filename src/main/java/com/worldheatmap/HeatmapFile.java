@@ -156,8 +156,8 @@ public class HeatmapFile {
                 log.info("Moving heatmaps file from legacy (V2) location {} to new location {}", legacyHeatmapsFile, destination);
                 Files.move(legacyHeatmapsFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                log.error("Moving heatmaps file from legacy (V2) location failed:");
-                log.debug(e.toString());
+                log.error("Moving heatmaps file from legacy (V2) location failed");
+//                log.debug(e.toString());
                 return legacyHeatmapsFile;
             }
 
@@ -175,7 +175,6 @@ public class HeatmapFile {
 	 * @param seasonalHeatmapsDir the directory to move the contaminated heatmaps to
 	 */
 	private static void handleLeaguesDecontamination(File regularHeatmapsDir, File seasonalHeatmapsDir) {
-		log.debug("Handling leagues decontamination");
 		// Create seasonal directory
 		if (!seasonalHeatmapsDir.mkdirs()) {
 			log.error("Failed to create seasonal heatmaps directory");
@@ -342,7 +341,7 @@ public class HeatmapFile {
 	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile, boolean verbose) {
 		// Preamble
 		if (verbose) {
-			log.debug("Saving heatmaps to file '{}'...", heatmapsFile.getName());
+			log.info("Saving heatmaps to file '{}'...", heatmapsFile.getName());
 		}
 
 		long startTime = System.nanoTime();
@@ -438,7 +437,7 @@ public class HeatmapFile {
 				}
 			}
 			if (verbose) {
-				log.debug(loggingOutput.toString());
+				log.info(loggingOutput.toString());
 			}
 			return heatmapsRead;
 		} catch (FileNotFoundException e) {
