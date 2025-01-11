@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -33,10 +35,17 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 
+import net.runelite.api.ChatMessageType;
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
+import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
+import net.runelite.client.config.ConfigManager;
 
 @Slf4j
-public class HeatmapFile {
+public class HeatmapFileManager
+{
     protected final static String HEATMAP_EXTENSION = ".heatmaps";
     protected final static File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected final static File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
@@ -44,6 +53,15 @@ public class HeatmapFile {
 	protected final static ZonedDateTime startOfLeaguesV = ZonedDateTime.of(LocalDateTime.of(2024, 11, 27, 12, 0), ZoneId.of("GMT"));
 	protected final static LocalDate endOfLeaguesV = LocalDate.of(2025, 1, 23);
 	protected final static DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
+
+	@Inject
+	private ClientThread clientThread;
+
+	@Inject
+	private ConfigManager configManager;
+
+	@Inject
+	private ChatMessageManager chatMessageManager;
 
 	/**
 	 * Return a File in the correct directory, either named after the current time or the latest file in the directory,
@@ -54,7 +72,7 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getHeatmapFile(long userId, String seasonalType, String username, int onConflictOffset) {
+	public File getHeatmapFile(long userId, String seasonalType, String username, int onConflictOffset) {
 		boolean isSeasonal = !seasonalType.isBlank();
 		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 		// Find the next available filename
@@ -87,7 +105,7 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-    public static File getNewHeatmapFile(long userId, String seasonalType, String username) {
+    public File getNewHeatmapFile(long userId, String seasonalType, String username) {
 		return getHeatmapFile(userId, seasonalType, username, 1);
     }
 
@@ -98,7 +116,7 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getCurrentHeatmapFile(long userId, String seasonalType, String username) {
+	public File getCurrentHeatmapFile(long userId, String seasonalType, String username) {
 		return getHeatmapFile(userId, seasonalType, username, 0);
 	}
 
@@ -109,7 +127,7 @@ public class HeatmapFile {
 	 * @param seasonalType The seasonal type, or null if not seasonal
 	 * @return
 	 */
-    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
+    public File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
 		boolean isSeasonal = !seasonalType.isBlank();
         String dateString = formatDate(LocalDateTime.now());
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
@@ -127,7 +145,7 @@ public class HeatmapFile {
 	 * @param username the player's username. Used for detecting legacy files.
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long accountHash, String seasonalType, String username) {
+    public File getLatestHeatmapFile(long accountHash, String seasonalType, String username) {
 		boolean isSeasonal = !seasonalType.isBlank();
 		// heatmapsDir may or may not be the seasonal dir
         File heatmapsDir = new File(HEATMAP_FILES_DIR, accountHash + (isSeasonal ? "_" + seasonalType : ""));
@@ -139,7 +157,7 @@ public class HeatmapFile {
 		moveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
 
 		// Perform V1.6.1 file naming scheme fix on normal directory if necessary
-		HeatmapFile.fileNamingSchemeFix(normalHeatmapsDir);
+		this.fileNamingSchemeFix(normalHeatmapsDir);
 
 		// Carry out the leagues decontamination process if necessary
 		if (!heatmapsDir.exists() && isSeasonal) {
@@ -158,7 +176,7 @@ public class HeatmapFile {
 	 * @param accountHash The user ID/account hash
 	 * @param newDir      The new directory to move the files to
 	 */
-	private static void moveV1_2HeatmapFiles(long accountHash, File newDir) {
+	private void moveV1_2HeatmapFiles(long accountHash, File newDir) {
 		File v1_2File = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
 		if (v1_2File.exists()) {
 			// Move the old file to the new location, naming it after its date modified
@@ -206,7 +224,7 @@ public class HeatmapFile {
 	 * @param currentPlayerName The player name
 	 * @param newDir            The new directory to move the files to
 	 */
-	private static void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, File newDir) {
+	private void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, File newDir) {
 		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
 		// rename the old file to .old, and write the new file
 		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
@@ -268,7 +286,7 @@ public class HeatmapFile {
 			}
 
 			File newFile = new File(newDir, dateFormat.format(latestModified) + HEATMAP_EXTENSION);
-			HeatmapFile.writeHeatmapsToFile(List.of(typeAHeatmap, typeBHeatmap), newFile);
+			this.writeHeatmapsToFile(List.of(typeAHeatmap, typeBHeatmap), newFile);
 			newFile.setLastModified(latestModified.toInstant().toEpochMilli());
 
 			// If the new file is the latest one in the folder,
@@ -298,7 +316,7 @@ public class HeatmapFile {
 	 * @param regularHeatmapsDir the directory containing the regular heatmaps
 	 * @param seasonalHeatmapsDir the directory to move the contaminated heatmaps to
 	 */
-	private static void handleLeaguesDecontamination(File regularHeatmapsDir, File seasonalHeatmapsDir) {
+	private void handleLeaguesDecontamination(File regularHeatmapsDir, File seasonalHeatmapsDir) {
 		// Create seasonal directory
 		if (!seasonalHeatmapsDir.mkdirs()) {
 			log.error("Failed to create seasonal heatmaps directory");
@@ -337,15 +355,19 @@ public class HeatmapFile {
 			}
 		}
 
+		if (filesMoved > 0) {
+			clientThread.invoke(this::displayLeaguesVNotice);
+		}
+
 		// Create a text file explaining the situation, for when the user eventually investigates
 		String today = formatDate(LocalDateTime.now());
 		File leaguesExplanationFile = new File(seasonalHeatmapsDir, today + "_leagues_incident.txt");
 		try {
 			Files.write(leaguesExplanationFile.toPath(), (
-					"This directory contains regular account heatmaps that were contaminated by Leagues V data.\n" +
+					"This directory contains heatmaps that are possibly contaminated by Leagues V data.\n" +
 					"Version 1.5.1 of the plugin didn't keep separate heatmaps for Leagues/seasonal\n" +
 					"accounts and regular accounts because I didn't realize that each player's\n" +
-					"Leagues/seasonal account would have the same Account ID and Account Type code\n" +
+					"Leagues/seasonal account would have the same Account ID code\n" +
 					"(regular/ironman/group ironman etc.) as their regular account. So, data being\n" +
 					"uploaded to the website https://osrsworldheatmap.com was looking kinda sus\n" +
 					"such as how TELEPORTED_TO had a bunch of entries that would normally be impossibru\n" +
@@ -357,8 +379,9 @@ public class HeatmapFile {
 					"a long time collecting wouldn't be lost, whilst somewhat unfugging the global heatmap.\n" +
 					"In the future (or perhaps in the past?) I'm  thinking that I'll add a feature to the \n" +
 					"website where you can open a local .heatmaps file for visualization, so you can more\n" +
-					"easily take a gander at your old data in this folder. If you have any questions or \n" +
-					"concerns, please contact me somehow or make an issue on the GitHub page for the plugin:\n" +
+					"easily take a gander at your old data in this folder. I'll probs make a Leagues V category\n" +
+					"on the global heatmap before it's over, too. If you have any questions or concerns,\n" +
+					"please contact me somehow or make an issue on the GitHub page for the plugin:\n" +
 					"https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap\n"+
 					"\n" +
 					"P.S. If you're absolutely certain that you didn't play Leagues V until a certain date\n" +
@@ -372,7 +395,7 @@ public class HeatmapFile {
 		}
 	}
 
-	private static String formatDate(LocalDateTime dateTime) {
+	private String formatDate(LocalDateTime dateTime) {
 		return dateTime.format(dateFormat);
 	}
 
@@ -381,7 +404,7 @@ public class HeatmapFile {
 	 * @param path the directory to search
 	 * @return the file with the most recent date in its filename, or null if no such file exists
 	 */
-	private static File getLatestFile(File path) {
+	private File getLatestFile(File path) {
 		File[] files = getSortedFiles(path);
 		if (files == null || files.length == 0) {
 			return null;
@@ -395,7 +418,7 @@ public class HeatmapFile {
      * @param path the directory to search
      * @return the file with the most recent date in its filename, or null if no such file exists
      */
-	private static File[] getSortedFiles(File path) {
+	private File[] getSortedFiles(File path) {
 		File[] files = path.listFiles(File::isFile);
 		if (files == null || files.length == 0) {
 			return null;
@@ -438,11 +461,11 @@ public class HeatmapFile {
 		return files;
 	}
 
-	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
+	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, previousHeatmapsFile, true);
 	}
 
-	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
+	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null, true);
 	}
 
@@ -452,7 +475,7 @@ public class HeatmapFile {
 	 * @param heatmapsToWrite The heatmaps to write
 	 * @param heatmapsFile The .heatmaps file
 	 */
-	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, boolean verbose) {
+	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, boolean verbose) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null, verbose);
 	}
 
@@ -464,7 +487,7 @@ public class HeatmapFile {
 	 * @param heatmapsFile The .heatmaps file
 	 * @param previousHeatmapsFile The previous .heatmaps file.
 	 */
-	protected static void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile, boolean verbose) {
+	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, File heatmapsFile, @Nullable File previousHeatmapsFile, boolean verbose) {
 		// Preamble
 		if (verbose) {
 			log.info("Saving heatmaps to file '{}'...", heatmapsFile.getName());
@@ -526,7 +549,7 @@ public class HeatmapFile {
 	 * @return HashMap of HeatmapNew objects
 	 * @throws FileNotFoundException If the file does not exist
 	 */
-	static HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
+	HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
 		return readHeatmapsFromFile(heatmapsFile, types, true);
 	}
 
@@ -539,7 +562,7 @@ public class HeatmapFile {
 	 * @return HashMap of HeatmapNew objects
 	 * @throws FileNotFoundException If the file does not exist
 	 */
-	static HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapNew.HeatmapType> types, boolean verbose) throws FileNotFoundException {
+	HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(File heatmapsFile, Collection<HeatmapNew.HeatmapType> types, boolean verbose) throws FileNotFoundException {
 		Map<String, String> env = new HashMap<>();
 		env.put("create", "true");
 		URI uri = URI.create("jar:" + heatmapsFile.toURI());
@@ -578,7 +601,7 @@ public class HeatmapFile {
 	 * earlier, renames the files after their dates modified.
 	 * @param directory The directory to fix
 	 */
-	protected static void fileNamingSchemeFix(File directory) {
+	protected void fileNamingSchemeFix(File directory) {
 		// Get latest .heatmaps file in the directory
 		File latestHeatmap = getLatestFile(directory);
 		if (latestHeatmap == null) {
@@ -637,6 +660,27 @@ public class HeatmapFile {
 					log.error("Could not rename file '{}' to '{}'", file.getName(), newFile.getName());
 				}
 			}
+		}
+	}
+
+	/**
+	 * Displays a message to the user about the latest update.
+	 * Only displays the message once per update.
+	 */
+	private void displayLeaguesVNotice() {
+		String noticeKey = "leaguesVDecontaminationNoticeeeewettewreeeeeeeeee";
+		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
+			// Send a message in game chat
+			final String message = new ChatMessageBuilder()
+				.append(Color.decode("#a100a1"), "An automatic fix has been applied to your World Heatmap data in " +
+					"order to separate Leagues V data from regular account data. Open your heatmaps folder via " +
+					"the side panel and check out the Leagues V folder for more information.")
+				.build();
+			chatMessageManager.queue(QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(message)
+				.build());
+			configManager.setConfiguration("worldheatmap", noticeKey, "shown");
 		}
 	}
 }

@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
@@ -30,6 +31,9 @@ public class WorldHeatmapPanel extends PluginPanel {
     Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
 	Map<HeatmapNew.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
 	protected long timeOfLastMemoryEstimate = -1;
+
+	@Inject
+	HeatmapFileManager heatmapFileManager;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -281,7 +285,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         // Save all heatmap data
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
-		File imageFile = HeatmapFile.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
+		File imageFile = heatmapFileManager.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
         plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 

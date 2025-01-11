@@ -316,19 +316,22 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-10: Got legacy heatmap conversion to work with leagues decontamination
 
+2025-01-10: Added update message
+
 ----You are Here----
 
-TODO: make sure that getLatestHeatmapFile() only runs in the executor because it can result in heavy I/O
+2025-01-10: Changed HeatmapFile to HeatmapFileManager which is to be instanced and injected instead of being all static
 
-TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
+TODO: naming scheme fix seems to happen repeatedly because it's not updating the version of old schmeatmaps,
+	at least when I'm logged into Leagues V and there are converted legacy heatmaps in the regular folder.
 
-TODO: Test for carrying over V1 heatmaps (and V2 ig)
+DONE: Tested for carrying over V1 heatmaps (and V2 ig)
+
+DONE: Test logging into Leagues V first and then switching to a normal account
 
 TODO: Test for switching actual accounts (I Say)
 
-TODO: Test on Windows
-
-TODO: Test logging into Leagues V first and then switching to a normal account
+TODO: Test on Windows via shadowjar
 
 ** UPDATE TO BE RELEASED **
 

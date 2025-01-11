@@ -20,6 +20,9 @@ import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -131,6 +134,12 @@ public class WorldHeatmapPlugin extends Plugin {
 	@Inject
 	private WorldService worldService;
 
+	@Inject
+	private ChatMessageManager chatMessageManager;
+
+	@Inject
+	private HeatmapFileManager heatmapFileManager;
+
 	@Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(WorldHeatmapConfig.class);
@@ -146,12 +155,12 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert currentSeasonalType != null;
 
         log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType.isBlank() ? "" : currentSeasonalType + " ", currentLocalAccountHash);
-        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
+        File latestHeatmapsFile = heatmapFileManager.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
 
         // Load all heatmaps from the file
         if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
 			try {
-				heatmaps = HeatmapFile.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
+				heatmaps = heatmapFileManager.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
 			}
 			catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
@@ -201,10 +210,19 @@ public class WorldHeatmapPlugin extends Plugin {
 	 * Only displays the message once per update.
 	 */
 	private void displayUpdateMessage() {
-		String noticeKey = "shownNoticeV1.6";
+		String noticeKey = "shownNoticeV1.6.0000sdfsdgsg0000000000";
 		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
 			// Send a message in game chat
-			client.addChatMessage(ChatMessageType.CONSOLE, "", "World Heatmap has been updated! We would love your help in crowdsourcing data for the global heatmap. Check out the new features and settings.", null);
+			final String message = new ChatMessageBuilder()
+				.img(11863)
+				.append(Color.decode("#00a12b"), "World Heatmap has been updated to 1.6.0! We would love your help in crowdsourcing data for " +
+					"the global heatmap by opting-in in the config. Also, if you've played Leagues V, please log into " +
+					"a Leagues V world again before it ends, if possible, in order for an automatic fix to occur.")
+				.build();
+			chatMessageManager.queue(QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(message)
+				.build());
 			configManager.setConfiguration("worldheatmap", noticeKey, "shown");
 		}
 	}
@@ -554,8 +572,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // Autosave the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do so
         if (shouldWriteImages) {
-            File typeAImageFile = HeatmapFile.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_A, currentSeasonalType);
-            File typeBImageFile = HeatmapFile.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_B, currentSeasonalType);
+            File typeAImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_A, currentSeasonalType);
+            File typeBImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_B, currentSeasonalType);
 
             // Write the image files
             if (config.isHeatmapTypeAEnabled()) {
@@ -599,7 +617,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		String seasonalType = getEnabledHeatmaps().iterator().next().getSeasonalType();
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
-		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
+		File latestFile = heatmapFileManager.getLatestHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
 
 		// If there is no latest file, create a new file
 		if (latestFile == null || !latestFile.exists()) {
@@ -607,10 +625,10 @@ public class WorldHeatmapPlugin extends Plugin {
 			return;
 		}
 
-		HeatmapFile.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
+		heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
 
 		// Rename the latest file to be the current date and time
-		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
+		File newFile = heatmapFileManager.getCurrentHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
 		if (!latestFile.renameTo(newFile)) {
 			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
 		}
@@ -624,9 +642,9 @@ public class WorldHeatmapPlugin extends Plugin {
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
 
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
-        File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
-        File newFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
-        HeatmapFile.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
+        File latestFile = heatmapFileManager.getLatestHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
+        File newFile = heatmapFileManager.getNewHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
+        heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 
     // Credit to https:// www.redblobgames.com/grids/line-drawing.html for where I figured out how to make the following linear interpolation functions
@@ -799,10 +817,10 @@ public class WorldHeatmapPlugin extends Plugin {
             log.debug("Enabling {} heatmap...", heatmapType);
             HeatmapNew heatmap = null;
             // Load the heatmap from the file if it exists
-			File heatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
+			File heatmapsFile = heatmapFileManager.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
-                    heatmap = HeatmapFile.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
+                    heatmap = heatmapFileManager.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
                     heatmap.setUserID(currentLocalAccountHash);
                     heatmap.setAccountType(currentPlayerAccountType);
                     heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
