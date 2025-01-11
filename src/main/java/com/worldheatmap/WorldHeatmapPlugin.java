@@ -106,9 +106,9 @@ public class WorldHeatmapPlugin extends Plugin {
     ItemManager itemManager;
     private int[] previousXP = new int[Skill.values().length];
     protected String currentPlayerName;
-    private final String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
 	private CompletableFuture<Void> loading = new CompletableFuture<>();
 	private boolean isLoading;
+	private final HeatmapFileManager heatmapFileManager = new HeatmapFileManager();
 
 	@Inject
     private Client client;
@@ -136,9 +136,6 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	@Inject
 	private ChatMessageManager chatMessageManager;
-
-	@Inject
-	private HeatmapFileManager heatmapFileManager;
 
 	@Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
@@ -874,6 +871,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			return false;
 		}
 
+		String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
 		try {
 			// Zip the CSV
 			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
