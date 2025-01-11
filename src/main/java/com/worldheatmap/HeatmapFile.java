@@ -132,8 +132,8 @@ public class HeatmapFile {
 		File normalHeatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
 
 		// Modernize any legacy heatmap files, stashing them in the regular directory (since they won't have seasonal type encoded)
-		 getMoveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
-		 getConvertMoveV1_0HeatmapFiles(username, accountHash, normalHeatmapsDir);
+		convertAndMoveV1_0HeatmapFiles(username, accountHash, normalHeatmapsDir);
+		moveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
 
 		// Carry out the leagues decontamination process if necessary
 		if (!heatmapsDir.exists() && isSeasonal) {
@@ -148,11 +148,11 @@ public class HeatmapFile {
 
 	/**
 	 * Detects V1.2 heatmaps files, moves them to the new location, and renames them after their date modified.
+	 *
 	 * @param accountHash The user ID/account hash
-	 * @param newDir The new directory to move the files to
-	 * @return the moved file, or null if it doesn't exist
+	 * @param newDir      The new directory to move the files to
 	 */
-	private static File getMoveV1_2HeatmapFiles(long accountHash, File newDir) {
+	private static void moveV1_2HeatmapFiles(long accountHash, File newDir) {
 		File v1_2File = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
 		if (v1_2File.exists()) {
 			// Move the old file to the new location, naming it after its date modified
@@ -161,38 +161,44 @@ public class HeatmapFile {
 			String newName = dateFormat.format(lastModified);
 			File movedLegacyV1_2File = new File(newDir, newName + HEATMAP_EXTENSION);
 
+			// Make the directory path if it doesn't exist
 			if (!movedLegacyV1_2File.mkdirs()) {
 				log.error("Couldn't make dirs to move heatmaps file from legacy V1.2 location. Aborting move operation, but returning the file.");
-				return v1_2File;
+				return;
 			}
+
+			// Move the file
 			try {
 				log.info("Moving heatmaps file from legacy (V1.2) location {} to new location {}", v1_2File, movedLegacyV1_2File);
 				Files.move(v1_2File.toPath(), movedLegacyV1_2File.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
 				// Set its date modified to what it was before
 				movedLegacyV1_2File.setLastModified(epochMillis);
+
+				// Make a second copy of the moved file, named one minute later,
+				// so we can keep the other one as an updated backup
+				File newFile2 = new File(newDir, dateFormat.format(lastModified.plusMinutes(1)) + HEATMAP_EXTENSION);
+				Files.copy(movedLegacyV1_2File.toPath(), newFile2.toPath());
+				newFile2.setLastModified(lastModified.plusMinutes(1).toInstant().toEpochMilli());
 			} catch (IOException e) {
 				log.error("Moving heatmaps file from legacy (V1.2) location failed");
-				return v1_2File;
 			}
 
-			return movedLegacyV1_2File;
 		}
 
 		// If the file doesn't exist, return null
-		return null;
 	}
 
 	/**
 	 * Returns V1.0 heatmap files if they exist, after having converted them to the new format and moving them to the new location.
 	 * Also keeps an '.old' copy of the old files
 	 * Also renames the old 'Backups' directory to 'Backups.old' if it exists
+	 *
 	 * @param currentPlayerName The player name
-	 * @param currentPlayerId The player ID
-	 * @param newDir The new directory to move the files to
-	 * @return the new file, or null if neither file exists
+	 * @param currentPlayerId   The player ID
+	 * @param newDir            The new directory to move the files to
 	 */
-	private static File getConvertMoveV1_0HeatmapFiles(String currentPlayerName, long currentPlayerId, File newDir) {
+	private static void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, long currentPlayerId, File newDir) {
 		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
 		// rename the old file to .old, and write the new file
 		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
@@ -200,18 +206,15 @@ public class HeatmapFile {
 		ZonedDateTime typeAModified = null;
 		boolean typeAExisted = false;
 		if (typeAFile.exists()) {
-			log.debug("Type A detected");
 			typeAExisted = true;
 			// Get date modified
 			typeAModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeAFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
 
 			// Load and convert the legacy heatmap file
-			log.debug("Loading type A heatmap...");
 			typeAHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeAFile);
 			typeAHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
 
 			// Append '.old' to legacy file name
-			log.debug("Renaming type A to '.old'...");
 			File dotOldTypeA = new File(typeAFile + ".old");
 			typeAFile.renameTo(dotOldTypeA);
 		}
@@ -222,18 +225,15 @@ public class HeatmapFile {
 		ZonedDateTime typeBModified = null;
 		boolean typeBExisted = false;
 		if (typeBFile.exists()) {
-			log.debug("Type B detected");
 			typeBExisted = true;
 			// Get date modified
 			typeBModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeBFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
 
 			// Load, rename, and rewrite the legacy heatmap file to the proper location
-			log.debug("Loading type B heatmap...");
 			typeBHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeBFile);
 			typeBHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
 
 			// Make '.old' copy
-			log.debug("Renaming type B to '.old'...");
 			File dotOldTypeB = new File(typeBFile + ".old");
 			typeBFile.renameTo(dotOldTypeB);
 		}
@@ -263,21 +263,19 @@ public class HeatmapFile {
 			HeatmapFile.writeHeatmapsToFile(List.of(typeAHeatmap, typeBHeatmap), newFile);
 			newFile.setLastModified(latestModified.toInstant().toEpochMilli());
 
-			// Make a second copy of the moved file, named 1 minute later,
+			// Make a second copy of the moved file, named one minute later
 			// so we can keep the other one as an updated backup
-			File newFile2 = new File(newDir, dateFormat.format(LocalDateTime.now()) + HEATMAP_EXTENSION);
+			File newFile2 = new File(newDir, dateFormat.format(latestModified.plusMinutes(1)) + HEATMAP_EXTENSION);
 			try {
-				log.debug("Copying extra file of converted legacy heatmap...");
 				Files.copy(newFile.toPath(), newFile2.toPath());
+				newFile2.setLastModified(latestModified.plusMinutes(1).toInstant().toEpochMilli());
 			} catch (IOException e) {
 				log.error("Failed to make extra copy of converted legacy shmeatmap file: {}", e.toString());
 			}
 
-			return newFile2;
 		}
 		// Else, return null
 		else {
-			return null;
 		}
 	}
 
