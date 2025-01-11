@@ -108,7 +108,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected String currentPlayerName;
 	private CompletableFuture<Void> loading = new CompletableFuture<>();
 	private boolean isLoading;
-	private final HeatmapFileManager heatmapFileManager = new HeatmapFileManager();
+	private HeatmapFileManager heatmapFileManager;
 
 	@Inject
     private Client client;
@@ -126,16 +126,16 @@ public class WorldHeatmapPlugin extends Plugin {
     private ClientToolbar clientToolbar;
 
 	@Inject
-	private ClientThread clientThread;
-
-	@Inject
-	private ConfigManager configManager;
-
-	@Inject
 	private WorldService worldService;
 
 	@Inject
-	private ChatMessageManager chatMessageManager;
+	protected ClientThread clientThread;
+
+	@Inject
+	protected ConfigManager configManager;
+
+	@Inject
+	protected ChatMessageManager chatMessageManager;
 
 	@Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
@@ -186,6 +186,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected void startUp() {
         panel = new WorldHeatmapPanel(this);
         panel.rebuild();
+		heatmapFileManager = new HeatmapFileManager(this);
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
         toolbarButton = NavigationButton.builder()
                 .tooltip("World Heatmap")
@@ -207,7 +208,7 @@ public class WorldHeatmapPlugin extends Plugin {
 	 * Only displays the message once per update.
 	 */
 	private void displayUpdateMessage() {
-		String noticeKey = "shownNoticeV1.6.0000sdfsdgsg00fff0ff0000000";
+		String noticeKey = "shownNoticeV1.6.0";
 		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
 			// Send a message in game chat
 			final String message = new ChatMessageBuilder()

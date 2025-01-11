@@ -30,11 +30,12 @@ public class WorldHeatmapPanel extends PluginPanel {
     Map<HeatmapNew.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
     Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
 	Map<HeatmapNew.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
-	private final HeatmapFileManager heatmapFileManager = new HeatmapFileManager();
+	private final HeatmapFileManager heatmapFileManager;
 	protected long timeOfLastMemoryEstimate = -1;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
+		this.heatmapFileManager = new HeatmapFileManager(plugin);
         rebuild();
     }
 

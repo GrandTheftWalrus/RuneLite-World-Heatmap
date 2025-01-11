@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -37,11 +36,8 @@ import java.util.Arrays;
 
 import net.runelite.api.ChatMessageType;
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
-import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
-import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
-import net.runelite.client.config.ConfigManager;
 
 @Slf4j
 public class HeatmapFileManager
@@ -53,15 +49,11 @@ public class HeatmapFileManager
 	protected final static ZonedDateTime startOfLeaguesV = ZonedDateTime.of(LocalDateTime.of(2024, 11, 27, 12, 0), ZoneId.of("GMT"));
 	protected final static LocalDate endOfLeaguesV = LocalDate.of(2025, 1, 23);
 	protected final static DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
+	private final WorldHeatmapPlugin plugin;
 
-	@Inject
-	private ClientThread clientThread;
-
-	@Inject
-	private ConfigManager configManager;
-
-	@Inject
-	private ChatMessageManager chatMessageManager;
+	public HeatmapFileManager(WorldHeatmapPlugin plugin){
+		this.plugin = plugin;
+	}
 
 	/**
 	 * Return a File in the correct directory, either named after the current time or the latest file in the directory,
@@ -363,7 +355,7 @@ public class HeatmapFileManager
 		}
 
 		if (filesMoved > 0) {
-			clientThread.invoke(this::displayLeaguesVNotice);
+			plugin.clientThread.invoke(this::displayLeaguesVNotice);
 		}
 
 		// Create a text file explaining the situation, for when the user eventually investigates
@@ -675,19 +667,19 @@ public class HeatmapFileManager
 	 * Only displays the message once per update.
 	 */
 	private void displayLeaguesVNotice() {
-		String noticeKey = "leaguesVDecontaminationNoticdddeeeewettedddwreeeeeeeeee";
-		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
+		String noticeKey = "leaguesVDecontaminationNotice";
+		if (plugin.configManager.getConfiguration("worldheatmap", noticeKey) == null) {
 			// Send a message in game chat
 			final String message = new ChatMessageBuilder()
 				.append(Color.decode("#a100a1"), "An automatic fix has been applied to your World Heatmap data in " +
 					"order to separate Leagues V data from regular account data. Open your heatmaps folder via " +
 					"the side panel and check out the Leagues V folder for more information.")
 				.build();
-			chatMessageManager.queue(QueuedMessage.builder()
+			plugin.chatMessageManager.queue(QueuedMessage.builder()
 				.type(ChatMessageType.CONSOLE)
 				.runeLiteFormattedMessage(message)
 				.build());
-			configManager.setConfiguration("worldheatmap", noticeKey, "shown");
+			plugin.configManager.setConfiguration("worldheatmap", noticeKey, "shown");
 		}
 	}
 }
