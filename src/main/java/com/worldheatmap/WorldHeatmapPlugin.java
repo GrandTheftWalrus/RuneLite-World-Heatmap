@@ -3,7 +3,6 @@ package com.worldheatmap;
 import com.google.inject.Provides;
 
 import java.awt.*;
-import java.awt.Point;
 import java.io.*;
 import java.nio.file.*;
 import java.time.Instant;
@@ -18,6 +17,7 @@ import javax.swing.*;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
 import net.runelite.client.callback.ClientThread;
@@ -57,6 +57,7 @@ import okhttp3.Response;
 public class WorldHeatmapPlugin extends Plugin {
     private int lastX = 0;
     private int lastY = 0;
+	private int lastZ = 0;
 	protected GameState previousGameState, previousPreviousGameState = GameState.UNKNOWN;
     protected long currentLocalAccountHash;
 	protected String currentSeasonalType;
@@ -390,12 +391,6 @@ public class WorldHeatmapPlugin extends Plugin {
 			SwingUtilities.invokeLater(panel::updatePlayerID);
 			updatePlayerMetadata();
 			updateSeasonalType();
-			log.debug("Loading has been scheduled and the first game tick has happened.");
-			log.debug("Local account hash: {}", currentLocalAccountHash);
-			log.debug("Player name: {}", currentPlayerName);
-			log.debug("Player combat level: {}", currentPlayerCombatLevel);
-			log.debug("Player account type: {}", currentPlayerAccountType);
-			log.debug("Seasonal type: {}", currentSeasonalType);
 			executor.execute(this::loadHeatmaps);
 		}
 		// The following code requires the heatmap files to have been loaded
@@ -411,48 +406,57 @@ public class WorldHeatmapPlugin extends Plugin {
         WorldPoint currentCoords = client.getLocalPlayer().getWorldLocation();
         int currentX = currentCoords.getX();
         int currentY = currentCoords.getY();
-        boolean playerMovedSinceLastTick = (currentX != lastX || currentY != lastY);
+		int currentZ = currentCoords.getPlane();
+        boolean playerMovedSinceLastTick = (currentX != lastX || currentY != lastY || currentZ != lastZ);
 
         /* When running, players cover more than one tile per tick, which creates spotty paths.
          * We fix this by drawing a line between the current coordinates and the previous coordinates,
          * but we have to be sure that the player indeed ran from point A to point B, differentiating the movement from teleportation.
          * Since it's too hard to check if the player is actually running, we'll just check if the distance covered since last tick
-         * was less than 5 tiles
+         * was less than 4 tiles
          */
         int diagDistance = diagonalDistance(new Point(lastX, lastY), new Point(currentX, currentY));
-        if (diagDistance <= 3) {
+        if (diagDistance <= 3 && currentZ == lastZ) {
             // Gets all the tiles between last position and new position
             for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                 // TYPE_A
                 if (playerMovedSinceLastTick && config.isHeatmapTypeAEnabled()) {
-                    heatmaps.get(HeatmapNew.HeatmapType.TYPE_A).increment(tile.x, tile.y);
+                    heatmaps.get(HeatmapNew.HeatmapType.TYPE_A).increment(tile.getX(), tile.getY(), currentZ);
                 }
 
                 // TYPE_B
                 if (config.isHeatmapTypeBEnabled()) {
-                    heatmaps.get(HeatmapNew.HeatmapType.TYPE_B).increment(tile.x, tile.y);
+                    heatmaps.get(HeatmapNew.HeatmapType.TYPE_B).increment(tile.getX(), tile.getY(), currentZ);
                 }
             }
         }
 
         // TELEPORT_PATHS
-        if (config.isHeatmapTeleportPathsEnabled() && diagDistance > 15 && isInOverworld(new Point(lastX, lastY)) && isInOverworld(new Point(currentX, currentY))) //we don't draw lines between the overworld and caves etc.
+        if (config.isHeatmapTeleportPathsEnabled() &&
+			diagDistance > 15 &&
+			isInOverworld(new Point(lastX, lastY)) &&
+			isInOverworld(new Point(currentX, currentY)) && //we don't draw lines between the overworld and caves etc.
+			currentZ == lastZ)
         {
             if (config.isHeatmapTeleportPathsEnabled()) {
                 for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
-                    heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS).increment(tile.x, tile.y);
+                    heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS).increment(tile.getX(), tile.getY(), currentZ);
                 }
             }
         }
 
         // TELEPORTED_TO and TELEPORTED_FROM
-        if (diagDistance > 15 && isInOverworld(new Point(lastX, lastY)) && isInOverworld(new Point(currentX, currentY))) //we only track teleports between overworld tiles
+		// We do count teleports between different planes for these, since in the overworld, the planes are (x, y)
+		// aligned, and unlike TELEPORT_PATHS, we wouldn't have to draw a line between planes
+        if (diagDistance > 15 &&
+			isInOverworld(new Point(lastX, lastY)) &&
+			isInOverworld(new Point(currentX, currentY))) //we only track teleports between overworld tiles
         {
             if (config.isHeatmapTeleportedToEnabled()) {
-                heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO).increment(currentX, currentY);
+                heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO).increment(currentX, currentY, currentZ);
             }
             if (config.isHeatmapTeleportedFromEnabled()) {
-                heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM).increment(lastX, lastY);
+                heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM).increment(lastX, lastY, lastZ);
             }
         }
 
@@ -470,22 +474,26 @@ public class WorldHeatmapPlugin extends Plugin {
         // Update last coords
         lastX = currentX;
         lastY = currentY;
+		lastZ = currentZ;
     }
 
     @Subscribe
     public void onActorDeath(ActorDeath actorDeath) {
         if (actorDeath.getActor() instanceof Player) {
-            Player actor = (Player) actorDeath.getActor();
-            if (actor.getId() == client.getLocalPlayer().getId()) {
+            Player deadPlayer = (Player) actorDeath.getActor();
+            if (deadPlayer.getId() == client.getLocalPlayer().getId()) {
                 // DEATHS
                 if (config.isHeatmapDeathsEnabled()) {
-                    heatmaps.get(HeatmapNew.HeatmapType.DEATHS).increment(actor.getWorldLocation().getX(), actor.getWorldLocation().getY());
+					WorldPoint loc = deadPlayer.getWorldLocation();
+                    heatmaps.get(HeatmapNew.HeatmapType.DEATHS).increment(loc.getX(), loc.getY(), loc.getPlane());
                 }
             }
         } else if (actorDeath.getActor() instanceof NPC) {
+			NPC deadNPC = (NPC) actorDeath.getActor();
             if (heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS) != null && config.isHeatmapNPCDeathsEnabled()) {
                 // NPC_DEATHS
-                heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS).increment(actorDeath.getActor().getWorldLocation().getX(), actorDeath.getActor().getWorldLocation().getY());
+				WorldPoint loc = deadNPC.getWorldLocation();
+                heatmaps.get(HeatmapNew.HeatmapType.NPC_DEATHS).increment(loc.getX(), loc.getY(), loc.getPlane());
             }
         }
     }
@@ -499,7 +507,8 @@ public class WorldHeatmapPlugin extends Plugin {
         if (hitsplatApplied.getHitsplat().getHitsplatType() == net.runelite.api.HitsplatID.DAMAGE_ME && hitsplatApplied.getActor() instanceof NPC) {
             NPC actor = (NPC) hitsplatApplied.getActor();
             if (config.isHeatmapDamageGivenEnabled()) {
-                heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN).increment(actor.getWorldLocation().getX(), actor.getWorldLocation().getY(), hitsplatApplied.getHitsplat().getAmount());
+				WorldPoint loc = actor.getWorldLocation();
+                heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN).increment(loc.getX(), loc.getY(), loc.getPlane(), hitsplatApplied.getHitsplat().getAmount());
             }
         }
 
@@ -508,7 +517,8 @@ public class WorldHeatmapPlugin extends Plugin {
             Player actor = (Player) hitsplatApplied.getActor();
             if (actor.getId() == client.getLocalPlayer().getId()) {
                 if (config.isHeatmapDamageTakenEnabled()) {
-                    heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN).increment(actor.getWorldLocation().getX(), actor.getWorldLocation().getY(), hitsplatApplied.getHitsplat().getAmount());
+					WorldPoint loc = actor.getWorldLocation();
+                    heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN).increment(loc.getX(), loc.getY(), loc.getPlane(), hitsplatApplied.getHitsplat().getAmount());
                 }
             }
         }
@@ -522,7 +532,8 @@ public class WorldHeatmapPlugin extends Plugin {
         if (chatMessage.getType() == ChatMessageType.PUBLICCHAT) {
             // PLACES_SPOKEN_AT
             if (config.isHeatmapPlacesSpokenAtEnabled() && heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT) != null) {
-                heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT).increment(client.getLocalPlayer().getWorldLocation().getX(), client.getLocalPlayer().getWorldLocation().getY());
+				WorldPoint loc = client.getLocalPlayer().getWorldLocation();
+                heatmaps.get(HeatmapNew.HeatmapType.PLACES_SPOKEN_AT).increment(loc.getX(), loc.getY(), loc.getPlane());
             }
         }
     }
@@ -539,7 +550,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // XP_GAINED
         if (config.isHeatmapXPGainedEnabled() && heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED) != null) {
-            heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED).increment(client.getLocalPlayer().getWorldLocation().getX(), client.getLocalPlayer().getWorldLocation().getY(), xpDifference);
+			WorldPoint loc = client.getLocalPlayer().getWorldLocation();
+            heatmaps.get(HeatmapNew.HeatmapType.XP_GAINED).increment(loc.getX(), loc.getY(), loc.getPlane(), xpDifference);
         }
     }
 
@@ -549,16 +561,18 @@ public class WorldHeatmapPlugin extends Plugin {
         if (randomEventNPCIDs.contains(npcSpawned.getNpc().getId())) {
             // RANDOM_EVENT_SPAWNS
             if (config.isHeatmapRandomEventSpawnsEnabled() && heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS) != null) {
-                heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS).increment(npcSpawned.getNpc().getWorldLocation().getX(), npcSpawned.getNpc().getWorldLocation().getY());
+				WorldPoint loc = npcSpawned.getNpc().getWorldLocation();
+                heatmaps.get(HeatmapNew.HeatmapType.RANDOM_EVENT_SPAWNS).increment(loc.getX(), loc.getY(), loc.getPlane());
             }
         }
 
         // BOB_THE_CAT_SIGHTING
         if (config.isHeatmapBobTheCatSightingEnabled() && npcSpawned.getNpc().getId() == NpcID.BOB_8034) {
-            // Only count Bob the Cat sightings once per hour at most
+            // Only count Bob the Cat sightings once per hour per world
             if (timeLastSeenBobTheCatPerWorld.get(client.getWorld()) == null || Instant.now().isAfter(timeLastSeenBobTheCatPerWorld.get(client.getWorld()).plusSeconds(3600))) {
                 if (heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING) != null) {
-                    heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING).increment(npcSpawned.getNpc().getWorldLocation().getX(), npcSpawned.getNpc().getWorldLocation().getY());
+					WorldPoint loc = npcSpawned.getNpc().getWorldLocation();
+                    heatmaps.get(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING).increment(loc.getX(), loc.getY(), loc.getPlane());
                     timeLastSeenBobTheCatPerWorld.put(client.getWorld(), Instant.now());
                 }
             }
@@ -573,10 +587,11 @@ public class WorldHeatmapPlugin extends Plugin {
                 WorldPoint location = npcLootReceived.getNpc().getWorldLocation();
                 int x = location.getX();
                 int y = location.getY();
+				int z = location.getPlane();
 
                 int totalValue = itemStack.getQuantity() * itemManager.getItemPrice(itemStack.getId());
                 if (heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE) != null) {
-                    heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(x, y, totalValue);
+                    heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(x, y, z, totalValue);
                 }
             }
         }
@@ -714,8 +729,8 @@ public class WorldHeatmapPlugin extends Plugin {
      * @return The diagonal distance
      */
     private int diagonalDistance(Point p0, Point p1) {
-        int dx = Math.abs(p1.x - p0.x);
-        int dy = Math.abs(p1.y - p0.y);
+        int dx = Math.abs(p1.getX() - p0.getX());
+        int dy = Math.abs(p1.getY() - p0.getY());
         return Math.max(dx, dy);
     }
 
@@ -738,7 +753,7 @@ public class WorldHeatmapPlugin extends Plugin {
      * @return Coordinate that is t% of the way from A to B
      */
     private float[] lerp_point(Point p0, Point p1, float t) {
-        return new float[]{lerp(p0.x, p1.x, t), lerp(p0.y, p1.y, t)};
+        return new float[]{lerp(p0.getX(), p1.getX(), t), lerp(p0.getY(), p1.getY(), t)};
     }
 
     /**
@@ -754,7 +769,7 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     public boolean isInOverworld(Point point) {
-        return point.y < Constants.OVERWORLD_MAX_Y && point.y > 2500 && point.x >= 1024 && point.x < 3960;
+        return point.getY() < Constants.OVERWORLD_MAX_Y && point.getY() > 2500 && point.getX() >= 1024 && point.getX() < 3960;
     }
 
     /**
@@ -861,6 +876,7 @@ public class WorldHeatmapPlugin extends Plugin {
                     heatmap.setUserID(currentLocalAccountHash);
                     heatmap.setAccountType(currentPlayerAccountType);
                     heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
+					heatmap.setSeasonalType(currentSeasonalType);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }

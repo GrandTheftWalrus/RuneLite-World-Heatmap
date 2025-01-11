@@ -312,12 +312,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-09: Added a time zone calculation based on the local time to the leagues V beginning date
 	to minimize the chance of somebody's data getting quarantined for no reason
 
+2025-01-10: Implemented 3D tile tracking. Older heatmap files will be converted as if all of their coords are on plane 0
+
 ----You are Here----
 
 TODO: check out how LootManager sent their in-game update message to the chatbox in all red	text
-
-TODO: Just realized that this is a good time to implement the 3D tile tracking, because a lot of heatmaps will be reset
-	or backed up.
 
 TODO: Test for carrying over V1 heatmaps (and V2 ig)
 

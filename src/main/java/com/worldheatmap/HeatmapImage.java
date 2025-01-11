@@ -17,6 +17,7 @@ import java.awt.image.WritableRaster;
 import java.io.*;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.imageio.*;
 import javax.imageio.event.IIOWriteProgressListener;
@@ -24,6 +25,7 @@ import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.coords.WorldPoint;
 
 /**
  * Class which calculates osrs heatmap image data on demand
@@ -245,9 +247,10 @@ public class HeatmapImage implements RenderedImage
 		{
 			return new int[]{0, 0};
 		}
-		for (Map.Entry<Point, Integer> tile : heatmap.getEntrySet())
+		for (Map.Entry<WorldPoint, Integer> tile : heatmap.getEntrySet())
 		{
-			if (isGameTileInImageBounds(tile.getKey()))
+			Point point = new Point(tile.getKey().getX(), tile.getKey().getY());
+			if (isGameTileInImageBounds(point))
 			{
 				if (tile.getValue() > maxVal)
 				{
@@ -474,12 +477,15 @@ public class HeatmapImage implements RenderedImage
 		heatmapMinVal = maxMin[1];
 
 		// Create sorted heatmap tiles array (sorted left-to-right top-to-bottom)
-		sortedHeatmapTiles = new LinkedList<>(heatmap.getEntrySet());
-		sortedHeatmapTiles.sort((tile1, tile2) -> {
-			Point coords1 = tile1.getKey();
-			Point coords2 = tile2.getKey();
-			return compareNaturalReadingOrder(coords1.x, -coords1.y, coords2.x, -coords2.y);
-		});
+		// Converting Points to WorldPoints
+		sortedHeatmapTiles = heatmap.getEntrySet().stream()
+			.filter(e -> e.getKey().getPlane() == 0) // Keep only plane 0 overworld tiles
+			.map(e -> new AbstractMap.SimpleEntry<>(new Point(e.getKey().getX(), e.getKey().getY()), e.getValue()))
+			.sorted((tile1, tile2) -> {
+				Point coords1 = tile1.getKey();
+				Point coords2 = tile2.getKey();
+				return compareNaturalReadingOrder(coords1.x, -coords1.y, coords2.x, -coords2.y);
+			}).collect(Collectors.toCollection(LinkedList::new));
 	}
 
 	/**
