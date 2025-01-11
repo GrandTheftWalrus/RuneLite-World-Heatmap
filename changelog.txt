@@ -318,12 +318,11 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-10: Added update message
 
-----You are Here----
-
 2025-01-10: Changed HeatmapFile to HeatmapFileManager which is to be instanced and injected instead of being all static
 
-TODO: naming scheme fix seems to happen repeatedly because it's not updating the version of old schmeatmaps,
-	at least when I'm logged into Leagues V and there are converted legacy heatmaps in the regular folder.
+2025-01-10: Got the legacy V1.2 heatmap handling to update the version so the naming scheme fix doesn't happen repeatedly
+
+----You are Here----
 
 DONE: Tested for carrying over V1 heatmaps (and V2 ig)
 

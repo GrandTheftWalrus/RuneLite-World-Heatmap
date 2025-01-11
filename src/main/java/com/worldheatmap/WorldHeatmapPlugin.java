@@ -210,7 +210,7 @@ public class WorldHeatmapPlugin extends Plugin {
 	 * Only displays the message once per update.
 	 */
 	private void displayUpdateMessage() {
-		String noticeKey = "shownNoticeV1.6.0000sdfsdgsg0000000000";
+		String noticeKey = "shownNoticeV1.6.0000sdfsdgsg00fff0ff0000000";
 		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
 			// Send a message in game chat
 			final String message = new ChatMessageBuilder()

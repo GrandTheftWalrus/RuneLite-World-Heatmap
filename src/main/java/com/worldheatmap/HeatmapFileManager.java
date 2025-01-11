@@ -153,7 +153,7 @@ public class HeatmapFileManager
 
 		// Modernize any legacy heatmap files, stashing them in the regular directory
 		// (since they won't have seasonal type encoded)
-		convertAndMoveV1_0HeatmapFiles(username, normalHeatmapsDir);
+		convertAndMoveV1_0HeatmapFiles(username, accountHash, normalHeatmapsDir);
 		moveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
 
 		// Perform V1.6.1 file naming scheme fix on normal directory if necessary
@@ -177,34 +177,37 @@ public class HeatmapFileManager
 	 * @param newDir      The new directory to move the files to
 	 */
 	private void moveV1_2HeatmapFiles(long accountHash, File newDir) {
-		File v1_2File = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
-		if (v1_2File.exists()) {
+		File oldFile = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
+		if (oldFile.exists()) {
 			// Move the old file to the new location, naming it after its date modified
-			long epochMillis = v1_2File.lastModified();
+			long epochMillis = oldFile.lastModified();
 			ZonedDateTime lastModified = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault());
 			String newName = dateFormat.format(lastModified);
-			File movedLegacyV1_2File = new File(newDir, newName + HEATMAP_EXTENSION);
+			File newFile = new File(newDir, newName + HEATMAP_EXTENSION);
 
-			// Make the directory path if it doesn't exist
-			if (!movedLegacyV1_2File.mkdirs()) {
-				log.error("Couldn't make dirs to move heatmaps file from legacy V1.2 location. Aborting move operation, but returning the file.");
-				return;
-			}
-
-			// Move the file
+			// Move the file by rewriting it, to update its version
 			try {
-				log.info("Moving heatmaps file from legacy (V1.2) location {} to new location {}", v1_2File, movedLegacyV1_2File);
-				Files.move(v1_2File.toPath(), movedLegacyV1_2File.toPath(), StandardCopyOption.REPLACE_EXISTING);
+				log.info("Moving heatmaps file from legacy (V1.2) location {} to new location {}", oldFile, newFile);
+				HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(oldFile, List.of(HeatmapNew.HeatmapType.values()), false);
+				// Update the account hash cuz we have it available
+				heatmaps.values().forEach(h -> {
+					h.setUserID(accountHash);
+					h.setSeasonalType("");
+				});
+				writeHeatmapsToFile(heatmaps.values(), newFile, false);
+
+				// Delete the old file
+				Files.delete(oldFile.toPath());
 
 				// Set its date modified to what it was before
-				movedLegacyV1_2File.setLastModified(epochMillis);
+				newFile.setLastModified(epochMillis);
 
 				// If the moved file is the latest one in the folder,
 				// make a second copy of the moved file, named one minute later,
 				// so we can keep the other one as an updated backup
-				if (getLatestFile(newDir) == movedLegacyV1_2File) {
+				if (getLatestFile(newDir) == newFile) {
 					File newFile2 = new File(newDir, dateFormat.format(lastModified.plusMinutes(1)) + HEATMAP_EXTENSION);
-					Files.copy(movedLegacyV1_2File.toPath(), newFile2.toPath());
+					Files.copy(newFile.toPath(), newFile2.toPath());
 					newFile2.setLastModified(lastModified.plusMinutes(1).toInstant().toEpochMilli());
 				}
 			} catch (IOException e) {
@@ -224,7 +227,7 @@ public class HeatmapFileManager
 	 * @param currentPlayerName The player name
 	 * @param newDir            The new directory to move the files to
 	 */
-	private void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, File newDir) {
+	private void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, long accountHash, File newDir) {
 		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
 		// rename the old file to .old, and write the new file
 		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
@@ -238,6 +241,8 @@ public class HeatmapFileManager
 
 			// Load and convert the legacy heatmap file
 			typeAHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeAFile);
+			typeAHeatmap.setUserID(accountHash);
+			typeAHeatmap.setSeasonalType("");
 			typeAHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
 
 			// Append '.old' to legacy file name
@@ -257,6 +262,8 @@ public class HeatmapFileManager
 
 			// Load, rename, and rewrite the legacy heatmap file to the proper location
 			typeBHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeBFile);
+			typeBHeatmap.setUserID(accountHash);
+			typeBHeatmap.setSeasonalType("");
 			typeBHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
 
 			// Make '.old' copy
@@ -668,7 +675,7 @@ public class HeatmapFileManager
 	 * Only displays the message once per update.
 	 */
 	private void displayLeaguesVNotice() {
-		String noticeKey = "leaguesVDecontaminationNoticeeeewettewreeeeeeeeee";
+		String noticeKey = "leaguesVDecontaminationNoticdddeeeewettedddwreeeeeeeeee";
 		if (configManager.getConfiguration("worldheatmap", noticeKey) == null) {
 			// Send a message in game chat
 			final String message = new ChatMessageBuilder()
