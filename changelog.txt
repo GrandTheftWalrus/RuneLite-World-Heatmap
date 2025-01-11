@@ -322,17 +322,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-10: Got the legacy V1.2 heatmap handling to update the version so the naming scheme fix doesn't happen repeatedly
 
-----You are Here----
-
-DONE: Tested for carrying over V1 heatmaps (and V2 ig)
-
-DONE: Test logging into Leagues V first and then switching to a normal account
-
-TODO: Test for switching actual accounts (I Say)
-
-TODO: Test on Windows via shadowjar
-
-** UPDATE TO BE RELEASED **
+** UPDATE RELEASED **
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
