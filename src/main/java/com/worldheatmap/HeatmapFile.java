@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -55,11 +54,11 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getHeatmapFile(long userId, String seasonalType, int onConflictOffset) {
+	public static File getHeatmapFile(long userId, String seasonalType, String username, int onConflictOffset) {
 		boolean isSeasonal = !seasonalType.isBlank();
 		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 		// Find the next available filename
-		File latestFile = getLatestHeatmapFile(userId, seasonalType);
+		File latestFile = getLatestHeatmapFile(userId, seasonalType, username);
 		LocalDateTime dateOfLatestFile = null;
 		if (latestFile != null && latestFile.exists()) {
 			String name = latestFile.getName();
@@ -88,8 +87,8 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-    public static File getNewHeatmapFile(long userId, String seasonalType) {
-		return getHeatmapFile(userId, seasonalType, 1);
+    public static File getNewHeatmapFile(long userId, String seasonalType, String username) {
+		return getHeatmapFile(userId, seasonalType, username, 1);
     }
 
 	/**
@@ -99,8 +98,8 @@ public class HeatmapFile {
 	 * @param seasonalType
 	 * @return
 	 */
-	public static File getCurrentHeatmapFile(long userId, String seasonalType) {
-		return getHeatmapFile(userId, seasonalType, 0);
+	public static File getCurrentHeatmapFile(long userId, String seasonalType, String username) {
+		return getHeatmapFile(userId, seasonalType, username, 0);
 	}
 
 	/**
@@ -123,48 +122,164 @@ public class HeatmapFile {
      * Returns null if no such file exists.
 	 * @param accountHash the user ID/account hash
 	 * @param seasonalType the seasonal type, or null if not seasonal
+	 * @param username the player's username. Used for detecting legacy files.
      * @return the youngest heatmaps file.
      */
-    public static File getLatestHeatmapFile(long accountHash, String seasonalType) {
+    public static File getLatestHeatmapFile(long accountHash, String seasonalType, String username) {
 		boolean isSeasonal = !seasonalType.isBlank();
-        File heatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash) + (isSeasonal ? "_" + seasonalType : ""));
+		// heatmapsDir may or may not be the seasonal dir
+        File heatmapsDir = new File(HEATMAP_FILES_DIR, accountHash + (isSeasonal ? "_" + seasonalType : ""));
+		File normalHeatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
+
+		// Modernize any legacy heatmap files, stashing them in the regular directory (since they won't have seasonal type encoded)
+		 getMoveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
+		 getConvertMoveV1_0HeatmapFiles(username, accountHash, normalHeatmapsDir);
 
 		// Carry out the leagues decontamination process if necessary
 		if (!heatmapsDir.exists() && isSeasonal) {
-			File normalHeatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
 			if (normalHeatmapsDir.exists() && LocalDate.now().isBefore(endOfLeaguesV)) {
 				handleLeaguesDecontamination(normalHeatmapsDir, heatmapsDir);
 			}
 		}
-        File mostRecentFile = getMostRecentFile(heatmapsDir);
 
-        // Check legacy location if latest file not found
-        if (mostRecentFile == null) {
+		// If the latest file is found, return it
+		return getLatestFile(heatmapsDir);
+	}
 
-            File legacyHeatmapsFile = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
-            if (!legacyHeatmapsFile.exists()) {
-                return null;
-            }
+	/**
+	 * Detects V1.2 heatmaps files, moves them to the new location, and renames them after their date modified.
+	 * @param accountHash The user ID/account hash
+	 * @param newDir The new directory to move the files to
+	 * @return the moved file, or null if it doesn't exist
+	 */
+	private static File getMoveV1_2HeatmapFiles(long accountHash, File newDir) {
+		File v1_2File = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
+		if (v1_2File.exists()) {
+			// Move the old file to the new location, naming it after its date modified
+			long epochMillis = v1_2File.lastModified();
+			ZonedDateTime lastModified = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault());
+			String newName = dateFormat.format(lastModified);
+			File movedLegacyV1_2File = new File(newDir, newName + HEATMAP_EXTENSION);
 
-            // Move the old file to the new location
-            File destination = getNewHeatmapFile(accountHash, seasonalType);
-            if (!destination.mkdirs()) {
-                log.error("Couldn't make dirs to move heatmaps file from legacy (V2) location. Aborting move operation, but returning the file.");
-                return legacyHeatmapsFile;
-            }
-            try {
-                log.info("Moving heatmaps file from legacy (V2) location {} to new location {}", legacyHeatmapsFile, destination);
-                Files.move(legacyHeatmapsFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                log.error("Moving heatmaps file from legacy (V2) location failed");
-//                log.debug(e.toString());
-                return legacyHeatmapsFile;
-            }
+			if (!movedLegacyV1_2File.mkdirs()) {
+				log.error("Couldn't make dirs to move heatmaps file from legacy V1.2 location. Aborting move operation, but returning the file.");
+				return v1_2File;
+			}
+			try {
+				log.info("Moving heatmaps file from legacy (V1.2) location {} to new location {}", v1_2File, movedLegacyV1_2File);
+				Files.move(v1_2File.toPath(), movedLegacyV1_2File.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-            mostRecentFile = destination;
-        }
-        return mostRecentFile;
-    }
+				// Set its date modified to what it was before
+				movedLegacyV1_2File.setLastModified(epochMillis);
+			} catch (IOException e) {
+				log.error("Moving heatmaps file from legacy (V1.2) location failed");
+				return v1_2File;
+			}
+
+			return movedLegacyV1_2File;
+		}
+
+		// If the file doesn't exist, return null
+		return null;
+	}
+
+	/**
+	 * Returns V1.0 heatmap files if they exist, after having converted them to the new format and moving them to the new location.
+	 * Also keeps an '.old' copy of the old files
+	 * Also renames the old 'Backups' directory to 'Backups.old' if it exists
+	 * @param currentPlayerName The player name
+	 * @param currentPlayerId The player ID
+	 * @param newDir The new directory to move the files to
+	 * @return the new file, or null if neither file exists
+	 */
+	private static File getConvertMoveV1_0HeatmapFiles(String currentPlayerName, long currentPlayerId, File newDir) {
+		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
+		// rename the old file to .old, and write the new file
+		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
+		HeatmapNew typeAHeatmap = new HeatmapNew(HeatmapNew.HeatmapType.TYPE_A, -1, -1, null, -1);
+		ZonedDateTime typeAModified = null;
+		boolean typeAExisted = false;
+		if (typeAFile.exists()) {
+			log.debug("Type A detected");
+			typeAExisted = true;
+			// Get date modified
+			typeAModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeAFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
+
+			// Load and convert the legacy heatmap file
+			log.debug("Loading type A heatmap...");
+			typeAHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeAFile);
+			typeAHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
+
+			// Append '.old' to legacy file name
+			log.debug("Renaming type A to '.old'...");
+			File dotOldTypeA = new File(typeAFile + ".old");
+			typeAFile.renameTo(dotOldTypeA);
+		}
+
+		// Repeat for Type B
+		File typeBFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeB.heatmap");
+		HeatmapNew typeBHeatmap = new HeatmapNew(HeatmapNew.HeatmapType.TYPE_B, currentPlayerId, -1, null, -1);
+		ZonedDateTime typeBModified = null;
+		boolean typeBExisted = false;
+		if (typeBFile.exists()) {
+			log.debug("Type B detected");
+			typeBExisted = true;
+			// Get date modified
+			typeBModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeBFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
+
+			// Load, rename, and rewrite the legacy heatmap file to the proper location
+			log.debug("Loading type B heatmap...");
+			typeBHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeBFile);
+			typeBHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
+
+			// Make '.old' copy
+			log.debug("Renaming type B to '.old'...");
+			File dotOldTypeB = new File(typeBFile + ".old");
+			typeBFile.renameTo(dotOldTypeB);
+		}
+
+		// Append .old to Paths.get(HEATMAP_FILES_DIR, "Backups") folder if it exists
+		File backupDir = Paths.get(HEATMAP_FILES_DIR.toString(), "Backups").toFile();
+		if (backupDir.exists()) {
+			File oldBackupDir = new File(backupDir.toString() + ".old");
+			backupDir.renameTo(oldBackupDir);
+		}
+
+		// If either one existed, write them to a new file
+		if (typeAExisted || typeBExisted) {
+			// Set the new file's date modified to the latest of the two legacy files
+			ZonedDateTime latestModified;
+			if (typeAModified == null) {
+				latestModified = typeBModified;
+			}
+			else if (typeBModified == null) {
+				latestModified = typeAModified;
+			}
+			else {
+				latestModified = typeAModified.isAfter(typeBModified) ? typeAModified : typeBModified;
+			}
+
+			File newFile = new File(newDir, dateFormat.format(latestModified) + HEATMAP_EXTENSION);
+			HeatmapFile.writeHeatmapsToFile(List.of(typeAHeatmap, typeBHeatmap), newFile);
+			newFile.setLastModified(latestModified.toInstant().toEpochMilli());
+
+			// Make a second copy of the moved file, named 1 minute later,
+			// so we can keep the other one as an updated backup
+			File newFile2 = new File(newDir, dateFormat.format(LocalDateTime.now()) + HEATMAP_EXTENSION);
+			try {
+				log.debug("Copying extra file of converted legacy heatmap...");
+				Files.copy(newFile.toPath(), newFile2.toPath());
+			} catch (IOException e) {
+				log.error("Failed to make extra copy of converted legacy shmeatmap file: {}", e.toString());
+			}
+
+			return newFile2;
+		}
+		// Else, return null
+		else {
+			return null;
+		}
+	}
 
 	/**
 	 * The following is a fix for the realization that leagues (and all other world-based game modes)
@@ -217,7 +332,7 @@ public class HeatmapFile {
 		try {
 			Files.write(leaguesExplanationFile.toPath(), (
 					"This directory contains regular account heatmaps that were contaminated by Leagues V data.\n" +
-					"Version 1.6.0 of the plugin didn't keep separate heatmaps for Leagues/seasonal\n" +
+					"Version 1.5.1 of the plugin didn't keep separate heatmaps for Leagues/seasonal\n" +
 					"accounts and regular accounts because I didn't realize that each player's\n" +
 					"Leagues/seasonal account would have the same Account ID and Account Type code\n" +
 					"(regular/ironman/group ironman etc.) as their regular account. So, data being\n" +
@@ -225,7 +340,7 @@ public class HeatmapFile {
 					"such as how TELEPORTED_TO had a bunch of entries that would normally be impossibru\n" +
 					"for regular accounts. The only way to semi-fix it, that I could think of, was to\n" +
 					"designate the potentially contaminated .heatmaps files of anyone who logged into Leagues V\n" +
-					"between the release of WorldHeatmap v1.6.1 and the end of Leagues V (Jan 22nd, 2025), as a\n" +
+					"between the release of WorldHeatmap v1.6.0 and the end of Leagues V (Jan 22nd, 2025), as a\n" +
 					"leagues heatmap (which is why you're seeing this), and roll-back any regular heatmaps\n" +
 					"to the latest existing pre-leagues backup. That way, the personal data that players spent\n" +
 					"a long time collecting wouldn't be lost, whilst somewhat unfugging the global heatmap.\n" +
@@ -255,7 +370,7 @@ public class HeatmapFile {
 	 * @param path the directory to search
 	 * @return the file with the most recent date in its filename, or null if no such file exists
 	 */
-	private static File getMostRecentFile(File path) {
+	private static File getLatestFile(File path) {
 		File[] files = getSortedFiles(path);
 		if (files == null || files.length == 0) {
 			return null;
@@ -437,7 +552,7 @@ public class HeatmapFile {
 				}
 			}
 			if (verbose) {
-				log.info(loggingOutput.toString());
+				log.debug(loggingOutput.toString());
 			}
 			return heatmapsRead;
 		} catch (FileNotFoundException e) {
@@ -448,14 +563,14 @@ public class HeatmapFile {
 	}
 
 	/**
-	 * V1.6.1 fix for file naming scheme. Checks the latest heatmap version in the directory, and if it's version 101 or
+	 * V1.6.0 fix for file naming scheme. Checks the latest heatmap version in the directory, and if it's version 101 or
 	 * earlier, renames the files after their dates modified.
 	 * @param userId The user ID
 	 * @param seasonalType The seasonal type
 	 */
-	protected static void fileNamingSchemeFix(long userId, String seasonalType) {
+	protected static void fileNamingSchemeFix(long userId, String seasonalType, String username) {
 		// Get latest .heatmaps file in the directory
-		File latestHeatmap = getLatestHeatmapFile(userId, seasonalType);
+		File latestHeatmap = getLatestHeatmapFile(userId, seasonalType, username);
 		if (latestHeatmap == null) {
 			return;
 		}

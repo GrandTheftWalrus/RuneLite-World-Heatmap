@@ -4,7 +4,6 @@ import com.google.inject.Provides;
 
 import java.awt.*;
 import java.io.*;
-import java.nio.file.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
@@ -64,7 +63,6 @@ public class WorldHeatmapPlugin extends Plugin {
     protected int currentPlayerAccountType;
     protected int currentPlayerCombatLevel;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
-    protected final File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
     private NavigationButton toolbarButton;
     protected WorldHeatmapPanel panel;
@@ -148,10 +146,10 @@ public class WorldHeatmapPlugin extends Plugin {
 		assert currentSeasonalType != null;
 
 		// Perform V1.6.1 fix on file naming scheme if necessary
-		HeatmapFile.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType);
+		HeatmapFile.fileNamingSchemeFix(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
 
         log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType.isBlank() ? "" : currentSeasonalType + " ", currentLocalAccountHash);
-        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType);
+        File latestHeatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
 
         // Load all heatmaps from the file
         if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
@@ -170,7 +168,6 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         }
 
-        handleLegacyV1HeatmapFiles();
         initializeMissingHeatmaps(heatmaps);
         panel.setEnabledHeatmapButtons(true);
 		// Initialize previousXP values
@@ -180,70 +177,6 @@ public class WorldHeatmapPlugin extends Plugin {
 		panel.setEnabledHeatmapButtons(true);
 		loading.complete(null);
 		isLoading = false;
-    }
-
-    /**
-     * Handles loading of legacy V1 heatmap files by converting them to the new format, saving the new files, and renaming the old files to '.old'
-     */
-    private void handleLegacyV1HeatmapFiles() {
-		assert currentLocalAccountHash != -1 && currentLocalAccountHash != 0;
-		assert currentPlayerName != null;
-		assert currentPlayerCombatLevel != 0 && currentPlayerCombatLevel != -1;
-		assert currentPlayerAccountType >= 0 && currentPlayerAccountType <= 10;
-
-        File filepathTypeAUsername = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
-        if (filepathTypeAUsername.exists()) {
-            // Load and convert the legacy heatmap file
-            HeatmapNew legacyHeatmapTypeA = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeAUsername);
-            legacyHeatmapTypeA.setUserID(currentLocalAccountHash);
-            legacyHeatmapTypeA.setAccountType(currentPlayerAccountType);
-            legacyHeatmapTypeA.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
-            legacyHeatmapTypeA.setCurrentCombatLevel(currentPlayerCombatLevel);
-
-            // Check if heatmap has already been loaded
-            boolean typeAAlreadyLoaded = heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null;
-            if (!typeAAlreadyLoaded){
-                // Load heatmap from legacy file
-                log.info("Loading Type A legacy (V1) heatmap file for user ID {}...", currentLocalAccountHash);
-                heatmaps.put(HeatmapNew.HeatmapType.TYPE_A, legacyHeatmapTypeA);
-                // Save as new file type
-                executor.execute(this::saveNewHeatmapsFile);
-            }
-            // Append '.old' to legacy file name
-            File oldFile = new File(filepathTypeAUsername + ".old");
-            filepathTypeAUsername.renameTo(oldFile);
-        }
-
-        // Repeat for Type B
-        File filepathTypeBUsername = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeB.heatmap");
-        if (filepathTypeBUsername.exists()) {
-            // Load and convert the legacy heatmap file
-            HeatmapNew legacyHeatmapTypeB = HeatmapNew.readLegacyV1HeatmapFile(filepathTypeBUsername);
-            legacyHeatmapTypeB.setUserID(currentLocalAccountHash);
-            legacyHeatmapTypeB.setAccountType(currentPlayerAccountType);
-            legacyHeatmapTypeB.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
-            legacyHeatmapTypeB.setCurrentCombatLevel(currentPlayerCombatLevel);
-
-            // Check if heatmap has already been loaded
-            boolean newerTypeBExists = heatmaps.get(HeatmapNew.HeatmapType.TYPE_B) != null;
-            if (!newerTypeBExists){
-                // Load heatmap from legacy file
-                log.info("Loading Type B legacy (V1) heatmap file for user ID {}...", currentLocalAccountHash);
-                heatmaps.put(HeatmapNew.HeatmapType.TYPE_B, legacyHeatmapTypeB);
-                // Save as new file type
-                executor.execute(this::saveNewHeatmapsFile);
-            }
-            // Append '.old' to legacy file name
-            File oldFile = new File(filepathTypeBUsername + ".old");
-            filepathTypeBUsername.renameTo(oldFile);
-        }
-
-        // Append .old to Paths.get(HEATMAP_FILES_DIR, "Backups") folder if it exists
-        File backupDir = Paths.get(HEATMAP_FILES_DIR.toString(), "Backups").toFile();
-        if (backupDir.exists()) {
-            File oldBackupDir = new File(backupDir.toString() + ".old");
-            backupDir.renameTo(oldBackupDir);
-        }
     }
 
     @Override
@@ -669,7 +602,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		String seasonalType = getEnabledHeatmaps().iterator().next().getSeasonalType();
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
-		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
+		File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
 
 		// If there is no latest file, create a new file
 		if (latestFile == null || !latestFile.exists()) {
@@ -680,7 +613,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		HeatmapFile.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
 
 		// Rename the latest file to be the current date and time
-		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType);
+		File newFile = HeatmapFile.getCurrentHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
 		if (!latestFile.renameTo(newFile)) {
 			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
 		}
@@ -694,8 +627,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
 
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
-        File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType);
-        File newFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType);
+        File latestFile = HeatmapFile.getLatestHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
+        File newFile = HeatmapFile.getNewHeatmapFile(localAccountHash, seasonalType, currentPlayerName);
         HeatmapFile.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 
@@ -794,7 +727,7 @@ public class WorldHeatmapPlugin extends Plugin {
         }
         log.info("Initializing missing heatmaps: {}", String.join(", ", missingTypesNames));
         for (HeatmapNew.HeatmapType type : missingTypes) {
-            heatmaps.put(type, new HeatmapNew(type, currentLocalAccountHash, currentPlayerAccountType, currentSeasonalType));
+            heatmaps.put(type, new HeatmapNew(type, currentLocalAccountHash, currentPlayerAccountType, currentSeasonalType, currentPlayerCombatLevel));
         }
     }
 
@@ -869,7 +802,7 @@ public class WorldHeatmapPlugin extends Plugin {
             log.debug("Enabling {} heatmap...", heatmapType);
             HeatmapNew heatmap = null;
             // Load the heatmap from the file if it exists
-			File heatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType);
+			File heatmapsFile = HeatmapFile.getLatestHeatmapFile(currentLocalAccountHash, currentSeasonalType, currentPlayerName);
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
                     heatmap = HeatmapFile.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);

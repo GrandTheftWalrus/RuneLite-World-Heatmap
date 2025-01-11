@@ -127,13 +127,14 @@ public class HeatmapNew
 	 * @param userID
 	 * @param accountType
 	 */
-	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType, String seasonalType)
+	public HeatmapNew(HeatmapType heatmapType, long userID, int accountType, String seasonalType, int currentCombatLevel)
 	{
 		this.heatmapType = heatmapType;
 		this.heatmapHashMap = new HashMap<>();
 		this.userID = userID;
 		this.accountType = accountType;
 		this.seasonalType = seasonalType;
+		this.currentCombatLevel = currentCombatLevel;
 	}
 
 	/**
