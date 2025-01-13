@@ -322,6 +322,16 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-10: Got the legacy V1.2 heatmap handling to update the version so the naming scheme fix doesn't happen repeatedly
 
+2025-01-12: There was a huge bug where switching config profiles in RuneLite would wipe most, if not all, of the heatmaps
+	Because:
+	- There was race condition bug where disabling multiple heatmaps at once would reinitialize (aka wipe) all heatmaps
+		except for the one that was disabled first. Normally it would be impossible to disable multiple heatmaps at once
+		(since you'd have to manually click the checkboxes), but the code was interpreting an incoming config value
+		change via `newValue != null && newValue.equals("true")`, the != null being to avoid a null pointer exception.
+		However, it turns out that runelite sends a null value when a new profile is switched to, which the plugin
+		would interpret as "false", and give an opportunity for that wiping all heatmaps bug to happen.
+	I fixed it by just adding an `if (newValue == null) return;` to the handleToggle function.
+
 ** UPDATE RELEASED **
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.

@@ -366,12 +366,12 @@ public class WorldHeatmapPlugin extends Plugin {
             // Gets all the tiles between last position and new position
             for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                 // TYPE_A
-                if (playerMovedSinceLastTick && config.isHeatmapTypeAEnabled()) {
+                if (playerMovedSinceLastTick && config.isHeatmapTypeAEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null) {
                     heatmaps.get(HeatmapNew.HeatmapType.TYPE_A).increment(tile.getX(), tile.getY(), currentZ);
                 }
 
                 // TYPE_B
-                if (config.isHeatmapTypeBEnabled()) {
+                if (config.isHeatmapTypeBEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TYPE_B) != null) {
                     heatmaps.get(HeatmapNew.HeatmapType.TYPE_B).increment(tile.getX(), tile.getY(), currentZ);
                 }
             }
@@ -379,6 +379,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // TELEPORT_PATHS
         if (config.isHeatmapTeleportPathsEnabled() &&
+			heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS) != null &&
 			diagDistance > 15 &&
 			isInOverworld(new Point(lastX, lastY)) &&
 			isInOverworld(new Point(currentX, currentY)) && //we don't draw lines between the overworld and caves etc.
@@ -398,10 +399,10 @@ public class WorldHeatmapPlugin extends Plugin {
 			isInOverworld(new Point(lastX, lastY)) &&
 			isInOverworld(new Point(currentX, currentY))) //we only track teleports between overworld tiles
         {
-            if (config.isHeatmapTeleportedToEnabled()) {
+            if (config.isHeatmapTeleportedToEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO) != null) {
                 heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO).increment(currentX, currentY, currentZ);
             }
-            if (config.isHeatmapTeleportedFromEnabled()) {
+            if (config.isHeatmapTeleportedFromEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM) != null) {
                 heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM).increment(lastX, lastY, lastZ);
             }
         }
@@ -779,7 +780,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onConfigChanged(ConfigChanged event) {
-        if (!event.getGroup().equals("worldheatmap")) {
+        if (!event.getGroup().equals("worldheatmap") || event.getNewValue() == null) {
             return;
         }
         Map<String, HeatmapNew.HeatmapType> configNameToHeatmapType = new HashMap<>();
@@ -800,7 +801,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
         HeatmapNew.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
         if (toggledHeatmapType != null) {
-            boolean isEnabled = event.getNewValue() != null && event.getNewValue().equals("true");
+            boolean isEnabled = event.getNewValue().equals("true");
             executor.execute(() -> handleHeatmapToggled(isEnabled, toggledHeatmapType));
         }
     }
@@ -832,10 +833,10 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         } else {
             log.debug("Disabling {} heatmap...", heatmapType);
-            executor.execute(this::saveHeatmapsFile);
+            saveHeatmapsFile();
             heatmaps.remove(heatmapType);
         }
-        initializeMissingHeatmaps(heatmaps);
+
         panel.rebuild();
     }
 
