@@ -182,7 +182,7 @@ public interface WorldHeatmapConfig extends Config {
     }
 
     @ConfigItem(
-            keyName = "isHeatmapTelportedToEnabled",
+            keyName = "isHeatmapTeleportedToEnabled",
             name = "TELEPORTED_TO",
             position = 4,
             description = "Records the locations teleported to",
