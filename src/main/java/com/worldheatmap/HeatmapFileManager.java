@@ -411,7 +411,12 @@ public class HeatmapFileManager
 					writeHeatmapsToFile(heatmaps.values(), destinationFile, false);
 
 					// Delete the original file
-					Files.delete(originFile.toPath());
+					try {
+						Files.delete(originFile.toPath());
+					}
+					catch (IOException e) {
+						log.error("Failed to delete original heatmap file {} after moving to Leagues V directory: {}", originFile.getName(), e.toString());
+					}
 					filesMoved++;
 				}
 				catch (IOException e)
@@ -722,6 +727,11 @@ public class HeatmapFileManager
 				// Rename the file
 				if (file.renameTo(newFile)) {
 					log.info("Renamed {} to {}", file.getName(), newFile.getName());
+
+					// Set its date modified to what it was before
+					if (!newFile.setLastModified(epochMillis)){
+						log.error("Could not set last modified time of file '{}' back to what it was", newFile.getName());
+					}
 				}
 				else {
 					log.error("Could not rename file '{}' to '{}'", file.getName(), newFile.getName());
