@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import com.google.common.collect.Lists;
 import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -394,8 +395,7 @@ public class HeatmapFileManager
 		}
 
 		// Move potentially contaminated files from the normal heatmap directory to the seasonal directory;
-		int filesMoved = 0;
-		for (File originFile : getSortedFiles(normalDir)) {
+		int filesMoved = Arrays.asList(getSortedFiles(normalDir)).parallelStream().mapToInt(originFile -> {
 			String name = originFile.getName();
 			int pos = name.lastIndexOf(".");
 			name = name.substring(0, pos);
@@ -417,14 +417,15 @@ public class HeatmapFileManager
 					catch (IOException e) {
 						log.error("Failed to delete original heatmap file {} after moving to Leagues V directory: {}", originFile.getName(), e.toString());
 					}
-					filesMoved++;
+					return 1;
 				}
 				catch (IOException e)
 				{
 					log.error("Failed to move file to seasonal directory and/or update its metadata: {}", e.toString());
 				}
 			}
-		}
+			return 0;
+		}).sum();
 
 		if (filesMoved > 0) {
 			// Print a notice in the in-game chatbox
