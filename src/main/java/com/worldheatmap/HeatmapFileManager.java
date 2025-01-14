@@ -138,6 +138,7 @@ public class HeatmapFileManager
      * Returns null if no such file exists.
 	 * This method should only be performed via the executor thread because it may do some heavy I/O for
 	 * fixing previous files due to bad planning
+	 * (violates the single responsibility principle, but yolo)
 	 * @param accountHash the user ID/account hash
 	 * @param seasonalType the seasonal type, or null if not seasonal
 	 * @param username the player's username. Used for detecting legacy files.
@@ -167,7 +168,6 @@ public class HeatmapFileManager
 	 * @param leaguesVDir the Leagues V heatmaps directory
 	 */
 	private void runFixes(long accountHash, String username, File normalDir, File leaguesVDir) {
-		log.debug("Running check for heatmap file fixes for user {}...", username);
 		// Modernize any legacy heatmap files, stashing them in the regular directory
 		// (since they won't have seasonal type encoded)
 		carryOverV1_0Files(username, accountHash, normalDir);
@@ -184,7 +184,6 @@ public class HeatmapFileManager
 	{
 		if (hiscoreResults.get(username) != null)
 		{
-			log.debug("User {} already looked up on Leagues hiscores, and they do be on it", username);
 			return true;
 		}
 
@@ -198,7 +197,6 @@ public class HeatmapFileManager
 			return false;
 		}
 
-		log.debug("User {} is {} Leagues hiscores", username, hiscoreResults.get(username) != null ? "on" : "NOT on");
 		return hiscoreResults.get(username) != null;
 	}
 
@@ -209,7 +207,6 @@ public class HeatmapFileManager
 	 * @param newDir      The new directory to move the files to
 	 */
 	private void carryOverV1_2Files(long accountHash, File newDir) {
-		log.debug("Running check for V1.2 heatmap files for user {}...", "" + accountHash);
 		File oldFile = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
 		if (oldFile.exists()) {
 			// Move the old file to the new location, naming it after its date modified
@@ -261,7 +258,6 @@ public class HeatmapFileManager
 	 * @param newDir            The new directory to move the files to
 	 */
 	private void carryOverV1_0Files(String currentPlayerName, long accountHash, File newDir) {
-		log.debug("Running check for V1.0 heatmap files for user {}...", currentPlayerName);
 		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
 		// rename the old file to .old, and write the new file
 		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
@@ -269,7 +265,7 @@ public class HeatmapFileManager
 		ZonedDateTime typeAModified = null;
 		boolean typeAExisted = false;
 		if (typeAFile.exists()) {
-			log.debug("Found legacy Type A heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
+			log.info("Found legacy Type A heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
 			typeAExisted = true;
 			// Get date modified
 			typeAModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeAFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
@@ -291,7 +287,7 @@ public class HeatmapFileManager
 		ZonedDateTime typeBModified = null;
 		boolean typeBExisted = false;
 		if (typeBFile.exists()) {
-			log.debug("Found legacy Type B heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
+			log.info("Found legacy Type B heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
 			typeBExisted = true;
 			// Get date modified
 			typeBModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeBFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
@@ -360,12 +356,10 @@ public class HeatmapFileManager
 	 * @param leaguesVDir the directory to move the contaminated heatmaps to
 	 */
 	private void leaguesDecontaminationFix(File normalDir, File leaguesVDir, String username) {
-		log.debug("Running check for Leagues V contamination for user {}...", username);
 		if (username == null || username.isBlank()) {
 			return;
 		}
 		if (leaguesVDir.exists() || !normalDir.exists() || !userIsOnLeaguesHiscores(username)){
-			log.debug("User {} is not on Leagues V hiscores or has already been decontaminated", username);
 			return;
 		}
 
@@ -386,7 +380,7 @@ public class HeatmapFileManager
 			return;
 		}
 
-		log.debug("User {} has potentially contaminated heatmaps, moving to Leagues V directory and rolling back...", username);
+		log.info("User {} has potentially contaminated heatmaps, moving to Leagues V directory and rolling back...", username);
 
 		// Create seasonal directory
 		if (!leaguesVDir.mkdirs()) {
@@ -608,7 +602,7 @@ public class HeatmapFileManager
 		}
 
 		if (verbose) {
-			log.debug(loggingOutput.toString());
+			log.info(loggingOutput.toString());
 			log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
 		}
 	}
@@ -658,7 +652,7 @@ public class HeatmapFileManager
 				}
 			}
 			if (verbose) {
-				log.debug(loggingOutput.toString());
+				log.info(loggingOutput.toString());
 			}
 			return heatmapsRead;
 		} catch (FileNotFoundException e) {
@@ -674,7 +668,6 @@ public class HeatmapFileManager
 	 * @param directory The directory to fix
 	 */
 	protected void fileNamingSchemeFix(File directory) {
-		log.debug("Running check for pre-V1.6 file naming scheme fix on directory '{}'...", directory.getName());
 		// Get latest .heatmaps file in the directory
 		File latestHeatmap = getLatestFile(directory);
 		if (latestHeatmap == null) {

@@ -259,10 +259,10 @@ public class HeatmapNew
 	 * Returns the estimated total memory usage of the heatmap, in bytes, assuming 64 bit JVM and 8-byte alignment. Relatively expensive to run because it has to iterate through the entire hashmap.
 	 * @return size in bytes
 	 */
-	public static int estimateSize(HeatmapNew heatmap){
+	public int estimateSize(){
 		int estSize = 0;
 		// Get count of values above and below 128
-		for (Entry<WorldPoint, Integer> e : heatmap.getEntrySet())
+		for (Entry<WorldPoint, Integer> e : getEntrySet())
 		{
 			int nodeSize = 16 + 8 + 8 + 4 + 4; //16 bytes for Node  object, 8 and 8 for the key and value references, 4 for the hash value, then extra 4 for 8-byte alignment
 			int pointSize = 16 + 4 + 4 + 4; //16 bytes for WorldPoint object header, then 4 for each of the three int coords

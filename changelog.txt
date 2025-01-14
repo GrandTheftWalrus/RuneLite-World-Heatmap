@@ -330,13 +330,13 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 	better way of determining if they ever played leagues than relying on them logging onto Leagues in the very few
 	days between the release of V1.6 and the end of Leagues)
 
-** UPDATE RELEASED **
-
 2025-01-13: Made it so that the file naming scheme fix sets the dates modified back to huwhat they were before
 
 2025-01-13: Parallelized the file-moving during leagues decontamination
 
-TODO: Test it on le leagues
+2025-01-13: Made HeatmapNew.estimateSize not an instance method instead of static
+
+** UPDATE RELEASED **
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
@@ -352,8 +352,6 @@ TODO: Implement memory-saving method where:
 TODO: Update world map image
 
 TODO: Make it so that the button that opens the website includes some user-agent/referrer deets about where the user was referred from (the plugin)
-
-TODO: Make HeatmapNew.estimateSize not a static method
 
 TODO: Make an auto-image button for each heatmap type instead of only having the option for both Type A and Type B
 

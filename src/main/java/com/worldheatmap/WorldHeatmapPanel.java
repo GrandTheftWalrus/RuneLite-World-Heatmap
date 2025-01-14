@@ -65,7 +65,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         // Total Memory Usage estimate label
         int estimatedMemoryUsage = 0;
         for (HeatmapNew heatmap : plugin.heatmaps.values()) {
-            estimatedMemoryUsage += HeatmapNew.estimateSize(heatmap);
+            estimatedMemoryUsage += heatmap.estimateSize();
         }
 		if (estimatedMemoryUsage == 0) {
 			totalMemoryUsageLabel = new JLabel("Estimated Memory Usage: 0MB");
@@ -103,7 +103,7 @@ public class WorldHeatmapPanel extends PluginPanel {
             heatmapLabel.setForeground(Color.WHITE);
             heatmapLabel.setHorizontalAlignment(SwingConstants.CENTER);
             if (plugin.heatmaps.get(heatmapType) != null){
-                heatmapLabel.setToolTipText("Estimated memory usage: " + String.format("%.2f", HeatmapNew.estimateSize(plugin.heatmaps.get(heatmapType)) / 1024. / 1024) + "MB");
+                heatmapLabel.setToolTipText("Estimated memory usage: " + String.format("%.2f", plugin.heatmaps.get(heatmapType).estimateSize() / 1024. / 1024) + "MB");
             }
             else {
                 heatmapLabel.setToolTipText("Estimated memory usage: 0MB");
@@ -249,7 +249,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 			timeOfLastMemoryEstimate = System.currentTimeMillis();
 			int totalEstimatedMemoryUsage = 0;
 			for (HeatmapNew heatmap : plugin.heatmaps.values()) {
-				int estimatedMemoryUsage = HeatmapNew.estimateSize(heatmap); // TODO: Make this not a static method
+				int estimatedMemoryUsage = heatmap.estimateSize();
 				memoryUsageEstimates.put(heatmap.getHeatmapType(), estimatedMemoryUsage);
 				totalEstimatedMemoryUsage += estimatedMemoryUsage;
 			}
