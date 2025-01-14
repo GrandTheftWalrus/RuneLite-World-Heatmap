@@ -35,7 +35,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
-		this.heatmapFileManager = new HeatmapFileManager(plugin);
+		this.heatmapFileManager = new HeatmapFileManager(plugin, plugin.hiscoreManager);
         rebuild();
     }
 

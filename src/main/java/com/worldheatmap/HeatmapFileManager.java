@@ -12,7 +12,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -38,6 +37,9 @@ import net.runelite.api.ChatMessageType;
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.QueuedMessage;
+import net.runelite.client.hiscore.HiscoreEndpoint;
+import net.runelite.client.hiscore.HiscoreManager;
+import net.runelite.client.hiscore.HiscoreResult;
 
 @Slf4j
 public class HeatmapFileManager
@@ -47,12 +49,15 @@ public class HeatmapFileManager
     protected final static File HEATMAP_FILES_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Files").toFile();
     protected final static File HEATMAP_IMAGE_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Images").toFile();
 	protected final static ZonedDateTime startOfLeaguesV = ZonedDateTime.of(LocalDateTime.of(2024, 11, 27, 12, 0), ZoneId.of("GMT"));
-	protected final static LocalDate endOfLeaguesV = LocalDate.of(2025, 1, 23);
+	protected final static ZonedDateTime endOfLeaguesV = ZonedDateTime.of(LocalDateTime.of(2025, 1, 23, 0, 0), ZoneId.of("GMT"));
 	protected final static DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
 	private final WorldHeatmapPlugin plugin;
+	private final HiscoreManager hiscoreManager;
+	private final Map<String,  HiscoreResult> hiscoreResults = new HashMap<>();
 
-	public HeatmapFileManager(WorldHeatmapPlugin plugin){
+	public HeatmapFileManager(WorldHeatmapPlugin plugin, HiscoreManager hiscoreManager){
 		this.plugin = plugin;
+		this.hiscoreManager = hiscoreManager;
 	}
 
 	/**
@@ -139,27 +144,61 @@ public class HeatmapFileManager
      */
     public File getLatestHeatmapFile(long accountHash, String seasonalType, String username) {
 		boolean isSeasonal = !seasonalType.isBlank();
-		// heatmapsDir may or may not be the seasonal dir
-        File heatmapsDir = new File(HEATMAP_FILES_DIR, accountHash + (isSeasonal ? "_" + seasonalType : ""));
-		File normalHeatmapsDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
+		long startTime = System.nanoTime();
+		// currentDir may be normal or seasonal
+        File currentDir = new File(HEATMAP_FILES_DIR, accountHash + (isSeasonal ? "_" + seasonalType : ""));
+		File normalDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
+		File leaguesVDir = new File(HEATMAP_FILES_DIR, accountHash + "_LEAGUES_V");
 
+		runFixes(accountHash, username, normalDir, leaguesVDir);
+
+		long endTime = System.nanoTime();
+		log.debug("Time taken to get latest heatmap files (with fix checks): {} ms", (endTime - startTime) / 1_000_000);
+		// If the latest file is found, return it
+		return getLatestFile(currentDir);
+	}
+
+	/**
+	 * Runs fixes on the user's heatmaps files, if necessary, for backwards compatability.
+	 * @param accountHash the user ID/account hash
+	 * @param username the player's username
+	 * @param normalDir the normal heatmaps directory
+	 * @param leaguesVDir the Leagues V heatmaps directory
+	 */
+	private void runFixes(long accountHash, String username, File normalDir, File leaguesVDir) {
+		log.debug("Running check for heatmap file fixes for user {}...", username);
 		// Modernize any legacy heatmap files, stashing them in the regular directory
 		// (since they won't have seasonal type encoded)
-		convertAndMoveV1_0HeatmapFiles(username, accountHash, normalHeatmapsDir);
-		moveV1_2HeatmapFiles(accountHash, normalHeatmapsDir);
+		carryOverV1_0Files(username, accountHash, normalDir);
+		carryOverV1_2Files(accountHash, normalDir);
 
-		// Perform V1.6.1 file naming scheme fix on normal directory if necessary
-		this.fileNamingSchemeFix(normalHeatmapsDir);
+		// Perform V1.6 file naming scheme fix on normal directory if necessary
+		fileNamingSchemeFix(normalDir);
 
-		// Carry out the leagues decontamination process if necessary
-		if (!heatmapsDir.exists() && isSeasonal) {
-			if (normalHeatmapsDir.exists() && LocalDate.now().isBefore(endOfLeaguesV)) {
-				handleLeaguesDecontamination(normalHeatmapsDir, heatmapsDir);
-			}
+		// Check if Leagues V decontamination is needed, and perform if so
+		leaguesDecontaminationFix(normalDir, leaguesVDir, username);
+	}
+
+	private boolean userIsOnLeaguesHiscores(String username)
+	{
+		if (hiscoreResults.get(username) != null)
+		{
+			log.debug("User {} already looked up on Leagues hiscores, and they do be on it", username);
+			return true;
 		}
 
-		// If the latest file is found, return it
-		return getLatestFile(heatmapsDir);
+		try
+		{
+			hiscoreResults.put(username, hiscoreManager.lookup(username, HiscoreEndpoint.LEAGUE));
+		}
+		catch (IOException e)
+		{
+			log.error("Error looking up user on Leagues hiscores: {}", e.toString());
+			return false;
+		}
+
+		log.debug("User {} is {} Leagues hiscores", username, hiscoreResults.get(username) != null ? "on" : "NOT on");
+		return hiscoreResults.get(username) != null;
 	}
 
 	/**
@@ -168,7 +207,8 @@ public class HeatmapFileManager
 	 * @param accountHash The user ID/account hash
 	 * @param newDir      The new directory to move the files to
 	 */
-	private void moveV1_2HeatmapFiles(long accountHash, File newDir) {
+	private void carryOverV1_2Files(long accountHash, File newDir) {
+		log.debug("Running check for V1.2 heatmap files for user {}...", "" + accountHash);
 		File oldFile = new File(HEATMAP_FILES_DIR, accountHash + HEATMAP_EXTENSION);
 		if (oldFile.exists()) {
 			// Move the old file to the new location, naming it after its date modified
@@ -219,7 +259,8 @@ public class HeatmapFileManager
 	 * @param currentPlayerName The player name
 	 * @param newDir            The new directory to move the files to
 	 */
-	private void convertAndMoveV1_0HeatmapFiles(String currentPlayerName, long accountHash, File newDir) {
+	private void carryOverV1_0Files(String currentPlayerName, long accountHash, File newDir) {
+		log.debug("Running check for V1.0 heatmap files for user {}...", currentPlayerName);
 		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
 		// rename the old file to .old, and write the new file
 		File typeAFile = new File(HEATMAP_FILES_DIR.toString(), currentPlayerName + "_TypeA.heatmap");
@@ -227,6 +268,7 @@ public class HeatmapFileManager
 		ZonedDateTime typeAModified = null;
 		boolean typeAExisted = false;
 		if (typeAFile.exists()) {
+			log.debug("Found legacy Type A heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
 			typeAExisted = true;
 			// Get date modified
 			typeAModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeAFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
@@ -248,6 +290,7 @@ public class HeatmapFileManager
 		ZonedDateTime typeBModified = null;
 		boolean typeBExisted = false;
 		if (typeBFile.exists()) {
+			log.debug("Found legacy Type B heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
 			typeBExisted = true;
 			// Get date modified
 			typeBModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeBFile.lastModified()), ZoneId.systemDefault()), ZoneId.systemDefault());
@@ -302,95 +345,120 @@ public class HeatmapFileManager
 			}
 
 		}
-		// Else, return null
-		else {
-		}
 	}
 
 	/**
 	 * The following is a fix for the realization that leagues (and all other world-based game modes)
-	 * were being permanently mixed with regular heatmaps. This fix moves all leagues-contaminated
-	 * heatmap files into a "seasonal" directory, and rolls back normal heatmaps to a state before the
-	 * leagues contamination. It also creates a text file explaining the situation.
-	 * @param regularHeatmapsDir the directory containing the regular heatmaps
-	 * @param seasonalHeatmapsDir the directory to move the contaminated heatmaps to
+	 * were being permanently mixed with regular heatmaps. This fix moves all post-leagues V
+	 * heatmap files into a "LEAGUES_V" directory, and rolls back normal heatmaps to a state before the
+	 * leagues contamination, on the criteria that the user is on the Leagues V hiscores, has any "normal"
+	 * heatmaps dated during Leagues V, and has no Leagues V dir (aka this process hasn't run yet).
+	 * It also creates a text file explaining the situation.
+	 * The criteria for possible contamination
+	 * @param normalDir the directory containing the regular heatmaps
+	 * @param leaguesVDir the directory to move the contaminated heatmaps to
 	 */
-	private void handleLeaguesDecontamination(File regularHeatmapsDir, File seasonalHeatmapsDir) {
+	private void leaguesDecontaminationFix(File normalDir, File leaguesVDir, String username) {
+		log.debug("Running check for Leagues V contamination for user {}...", username);
+		if (username == null || username.isBlank()) {
+			return;
+		}
+		if (leaguesVDir.exists() || !normalDir.exists() || !userIsOnLeaguesHiscores(username)){
+			log.debug("User {} is not on Leagues V hiscores or has already been decontaminated", username);
+			return;
+		}
+
+		// Check if they have any files dated during Leagues V
+		boolean hasPossiblyContaminatedFiles = false;
+		for (File file : getSortedFiles(normalDir)){
+			String name = file.getName();
+			int pos = name.lastIndexOf(".");
+			name = name.substring(0, pos);
+			ZonedDateTime fileDate = ZonedDateTime.of(LocalDateTime.parse(name, dateFormat), ZoneId.systemDefault());
+			if (fileDate.isAfter(startOfLeaguesV) && fileDate.isBefore(endOfLeaguesV)){
+				hasPossiblyContaminatedFiles = true;
+				break;
+			}
+		}
+
+		if (!hasPossiblyContaminatedFiles){
+			return;
+		}
+
+		log.debug("User {} has potentially contaminated heatmaps, moving to Leagues V directory and rolling back...", username);
+
 		// Create seasonal directory
-		if (!seasonalHeatmapsDir.mkdirs()) {
+		if (!leaguesVDir.mkdirs()) {
 			log.error("Failed to create seasonal heatmaps directory");
 			return;
 		}
 
-		// Move potentially contaminated files from the normal heatmap directory to the seasonal directory
-		File[] files = getSortedFiles(regularHeatmapsDir);
+		// Move potentially contaminated files from the normal heatmap directory to the seasonal directory;
 		int filesMoved = 0;
-		if (files != null) {
-			for (File originFile : files) {
-				String name = originFile.getName();
-				int pos = name.lastIndexOf(".");
-				name = name.substring(0, pos);
-				ZonedDateTime fileDate = ZonedDateTime.of(LocalDateTime.parse(name, dateFormat), ZoneId.systemDefault());
-				if (fileDate.isAfter(startOfLeaguesV)) {
-					try {
-						// Move it to the seasonal directory, updating its metadata
-						log.info("File {} is contaminated by Leagues V, moving to Leagues V directory", originFile.getName());
-						HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(originFile, List.of(HeatmapNew.HeatmapType.values()), false);
-						heatmaps.values().stream().forEach(h -> {
-							h.setSeasonalType("LEAGUES_V");
-						});
-						File destinationFile = new File(seasonalHeatmapsDir, originFile.getName());
-						writeHeatmapsToFile(heatmaps.values(), destinationFile, false);
+		for (File originFile : getSortedFiles(normalDir)) {
+			String name = originFile.getName();
+			int pos = name.lastIndexOf(".");
+			name = name.substring(0, pos);
+			ZonedDateTime fileDate = ZonedDateTime.of(LocalDateTime.parse(name, dateFormat), ZoneId.systemDefault());
+			// Move everything dated after the start of Leagues V to the leagues folder
+			if (fileDate.isAfter(startOfLeaguesV)) {
+				try {
+					// Move it to the seasonal directory, updating its metadata
+					log.info("File {} is contaminated by Leagues V, moving to Leagues V directory", originFile.getName());
+					HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(originFile, List.of(HeatmapNew.HeatmapType.values()), false);
+					heatmaps.values().forEach(h -> h.setSeasonalType("LEAGUES_V"));
+					File destinationFile = new File(leaguesVDir, originFile.getName());
+					writeHeatmapsToFile(heatmaps.values(), destinationFile, false);
 
-						// Delete the original file
-						Files.delete(originFile.toPath());
-						filesMoved++;
-					}
-					catch (IOException e)
-					{
-						log.error("Failed to move file to seasonal directory and/or update its metadata: {}", e.toString());
-					}
+					// Delete the original file
+					Files.delete(originFile.toPath());
+					filesMoved++;
+				}
+				catch (IOException e)
+				{
+					log.error("Failed to move file to seasonal directory and/or update its metadata: {}", e.toString());
 				}
 			}
 		}
 
 		if (filesMoved > 0) {
+			// Print a notice in the in-game chatbox
 			plugin.clientThread.invoke(this::displayLeaguesVNotice);
-		}
 
-		// Create a text file explaining the situation, for when the user eventually investigates
-		String today = formatDate(LocalDateTime.now());
-		File leaguesExplanationFile = new File(seasonalHeatmapsDir, today + "_leagues_incident.txt");
-		try {
-			Files.write(leaguesExplanationFile.toPath(), (
+			// Create a text file explaining the situation, for if/when the user eventually investigates
+			String today = formatDate(LocalDateTime.now());
+			File leaguesExplanationFile = new File(leaguesVDir, today + "_leagues_incident.txt");
+			try {
+				Files.write(leaguesExplanationFile.toPath(), (
 					"This directory contains heatmaps that are possibly contaminated by Leagues V data.\n" +
-					"Version 1.5.1 of the plugin didn't keep separate heatmaps for Leagues/seasonal\n" +
-					"accounts and regular accounts because I didn't realize that each player's\n" +
-					"Leagues/seasonal account would have the same Account ID code\n" +
-					"(regular/ironman/group ironman etc.) as their regular account. So, data being\n" +
-					"uploaded to the website https://osrsworldheatmap.com was looking kinda sus\n" +
-					"such as how TELEPORTED_TO had a bunch of entries that would normally be impossibru\n" +
-					"for regular accounts. The only way to semi-fix it, that I could think of, was to\n" +
-					"designate the potentially contaminated .heatmaps files of anyone who logged into Leagues V\n" +
-					"between the release of WorldHeatmap v1.6.0 and the end of Leagues V (Jan 22nd, 2025), as a\n" +
-					"leagues heatmap (which is why you're seeing this), and roll-back any regular heatmaps\n" +
-					"to the latest existing pre-leagues backup. That way, the personal data that players spent\n" +
-					"a long time collecting wouldn't be lost, whilst somewhat unfugging the global heatmap.\n" +
-					"In the future (or perhaps in the past?) I'm  thinking that I'll add a feature to the \n" +
-					"website where you can open a local .heatmaps file for visualization, so you can more\n" +
-					"easily take a gander at your old data in this folder. I'll probs make a Leagues V category\n" +
-					"on the global heatmap before it's over, too. If you have any questions or concerns,\n" +
-					"please contact me somehow or make an issue on the GitHub page for the plugin:\n" +
-					"https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap\n"+
-					"\n" +
-					"P.S. If you're absolutely certain that you didn't play Leagues V until a certain date\n" +
-					"post-release, then I gueeeeesss you could move the allegedly unaffected .heatmap files from\n" +
-					"this folder back to the regular folder if you see this message in time \uD83E\uDD28 but\n" +
-					"you better be deadass or else you'll be messing up the global heatmap if you're opted-in\n" +
-					"to contributing to it. If not, then I spose you can whatever you want with your own data.\n"
-			).getBytes());
-		} catch (IOException e) {
-			log.error("Failed to write leagues explanation file: {}", e.toString());
+						"Version 1.5.1 of the plugin didn't keep separate heatmaps for Leagues/seasonal\n" +
+						"accounts and regular accounts because I didn't realize that each player's\n" +
+						"Leagues/seasonal account would have the same Account ID code\n" +
+						"(regular/ironman/group ironman etc.) as their regular account. So, data being\n" +
+						"uploaded to the website https://osrsworldheatmap.com was looking kinda sus\n" +
+						"such as how TELEPORTED_TO had a bunch of entries that would normally be impossibru\n" +
+						"for regular accounts. The only way to fix it, that I could think of, was to\n" +
+						"designate the potentially contaminated .heatmaps files (i.e. the ones dated after the start \n" +
+						"of Leagues V) of anyone who has a record on the Leagues V hiscores, and has any heatmap saves\n" +
+						"dated during Leaguees V, as a leagues heatmap (which is why you're seeing this), which\n" +
+						"effectively rolls-back any regular heatmaps to the latest existing pre-leagues backup.\n" +
+						"That way, the personal data that players spent a long time collecting wouldn't be\n" +
+						"lost, whilst somewhat unfugging the global heatmap. In the future (or perhaps in the\n" +
+						"past?) I'm  thinking that I'll add a feature to the website where you can open a local\n" +
+						".heatmaps file for visualization, so you can more easily take a gander at your old\n" +
+						"data in this folder. I'll probs make a Leagues V category on the global heatmap, too.\n" +
+						"If you have any questions or concerns, please contact me somehow or make an issue on\n" +
+						"the GitHub page for the plugin: https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap\n"+
+						"\n" +
+						"P.S. If you're absolutely certain that you didn't play Leagues V until a certain date\n" +
+						"post-release, then I gueeeeesss you could move the allegedly unaffected .heatmap files from\n" +
+						"this folder back to the regular folder if you see this message in time \uD83E\uDD28 but\n" +
+						"you better be deadass or else you'll be messing up the global heatmap if you're opted-in\n" +
+						"to contributing to it. If not, then I spose you can whatever you want with your own data.\n"
+				).getBytes());
+			} catch (IOException e) {
+				log.error("Failed to write leagues explanation file: {}", e.toString());
+			}
 		}
 	}
 
@@ -405,22 +473,21 @@ public class HeatmapFileManager
 	 */
 	private File getLatestFile(File path) {
 		File[] files = getSortedFiles(path);
-		if (files == null || files.length == 0) {
+		if (files.length == 0) {
 			return null;
 		}
 		return files[0];
 	}
 
     /**
-     * Returns the file in the given directory whose filename is the most recent parseable date string before the given date.
-     * If no such file is found, returns null.
-     * @param path the directory to search
-     * @return the file with the most recent date in its filename, or null if no such file exists
+	 * Returns an array of files in the given directory whose filenames are parseable date strings, sorted by date.
+	 * @param path the directory to search
+	 * @return an array of files with parseable dates in their filenames, sorted by date (most recent first)
      */
 	private File[] getSortedFiles(File path) {
 		File[] files = path.listFiles(File::isFile);
 		if (files == null || files.length == 0) {
-			return null;
+			return new File[0];
 		}
 
 		files = Arrays.stream(files)
@@ -601,6 +668,7 @@ public class HeatmapFileManager
 	 * @param directory The directory to fix
 	 */
 	protected void fileNamingSchemeFix(File directory) {
+		log.debug("Running check for pre-V1.6 file naming scheme fix on directory '{}'...", directory.getName());
 		// Get latest .heatmaps file in the directory
 		File latestHeatmap = getLatestFile(directory);
 		if (latestHeatmap == null) {

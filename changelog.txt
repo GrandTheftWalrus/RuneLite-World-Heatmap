@@ -326,7 +326,18 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 	heatmaps. It had something to do with how RuneLite sets the "isEnabled" checkbox values all to null at the same
 	time.
 
+2025-01-13: Leagues-decontamination is now performed if the user is on the Leagues hiscores (turns out to be a much
+	better way of determining if they ever played leagues than relying on them logging onto Leagues in the very few
+	days between the release of V1.6 and the end of Leagues)
+
 ** UPDATE RELEASED **
+
+TODO: Tink about whether there will be any bugs relating to how Leagues decontamination can now happen when the user
+	into their main account, not just when they log into Leagues. Gotsta make sure the inputs such as username + user id
+	are all good. I suppose those ones will be, since they're guaranteed to be the same for leagues and the main.
+
+TODO: Perhaps the file-moving during leagues decontamination can be done in parallel to speed things up. Currently
+	it takes like 7 seconds on an SSD, for 13 backups (which ain't even that many).
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.

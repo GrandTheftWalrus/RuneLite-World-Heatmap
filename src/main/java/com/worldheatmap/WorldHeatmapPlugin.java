@@ -29,6 +29,7 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NpcLootReceived;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.game.WorldService;
+import net.runelite.client.hiscore.HiscoreManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
@@ -137,6 +138,9 @@ public class WorldHeatmapPlugin extends Plugin {
 	@Inject
 	protected ChatMessageManager chatMessageManager;
 
+	@Inject
+	protected HiscoreManager hiscoreManager;
+
 	@Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(WorldHeatmapConfig.class);
@@ -186,7 +190,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected void startUp() {
         panel = new WorldHeatmapPanel(this);
         panel.rebuild();
-		heatmapFileManager = new HeatmapFileManager(this);
+		heatmapFileManager = new HeatmapFileManager(this, hiscoreManager);
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
         toolbarButton = NavigationButton.builder()
                 .tooltip("World Heatmap")
