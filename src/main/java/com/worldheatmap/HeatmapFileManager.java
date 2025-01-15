@@ -1,6 +1,5 @@
 package com.worldheatmap;
 
-import com.google.common.collect.Lists;
 import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -72,18 +71,20 @@ public class HeatmapFileManager
 
 	/**
 	 * Return a File in the correct directory, either named after the current time or the latest file in the directory,
-	 * whichever comes last. If they are equal, returns a new file named onConflictOffset minutes later than the
-	 * latest file. If onConflictOffset is zero, then it returns the latest file.
+	 * whichever comes last. If they are equal, returns a new file named mustReturnNewFile minutes later than the
+	 * latest file. If mustReturnNewFile is zero, then it returns the latest file.
 	 * Doesn't actually create the file, just a File object.
 	 * @param userId
 	 * @param seasonalType
 	 * @return
 	 */
-	public File getHeatmapFile(long userId, String seasonalType, String username, int onConflictOffset) {
+	private File getFile(long userId, String seasonalType, boolean mustReturnNewFile) {
 		boolean isSeasonal = !seasonalType.isBlank();
-		File userIdDir = new File(HEATMAP_FILES_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
-		// Find the next available filename
-		File latestFile = getLatestHeatmapFile(userId, seasonalType, username);
+		File userIdDir = new File(HEATMAP_FILES_DIR, userId + (isSeasonal ? "_" + seasonalType : ""));
+		// Find the most recent file
+		File latestFile = getLatestFile(userId, seasonalType);
+
+		// Parse its date
 		LocalDateTime dateOfLatestFile = null;
 		if (latestFile != null && latestFile.exists()) {
 			String name = latestFile.getName();
@@ -98,7 +99,7 @@ public class HeatmapFileManager
 			timeToUse = now;
 		}
 		else {
-			timeToUse = dateOfLatestFile.plus(Duration.ofMinutes(onConflictOffset));
+			timeToUse = dateOfLatestFile.plus(Duration.ofMinutes(mustReturnNewFile ? 1 : 0));
 		}
 		String fileName = timeToUse.format(dateFormat) + HEATMAP_EXTENSION;
 
@@ -106,25 +107,26 @@ public class HeatmapFileManager
 	}
 
 	/**
-	 * Returns a new heatmaps File named after the current time, or one minute past the latest file if it already exists.
+	 * Returns a new heatmaps File named after the current time, or one minute past the latest file, whichever comes last.
 	 * Doesn't actually create the file, just a File object.
-	 * @param userId
-	 * @param seasonalType
-	 * @return
+	 * @param userId The user ID
+	 * @param seasonalType The seasonal type, or empty string if not seasonal
+	 * @return The new heatmaps File
 	 */
-    public File getNewHeatmapFile(long userId, String seasonalType, String username) {
-		return getHeatmapFile(userId, seasonalType, username, 1);
+    public File getNewFile(long userId, String seasonalType) {
+		return getFile(userId, seasonalType, true);
     }
 
 	/**
-	 * Returns a new heatmaps File named after the current time, or the latest file if it already exists.
+	 * Returns a new heatmaps File named after the current time, or the latest heatmaps File if it's dated into the future
+	 * This is generally for updating the name of modified files.
 	 * Doesn't actually create the file, just a File object.
 	 * @param userId
 	 * @param seasonalType
 	 * @return
 	 */
-	public File getCurrentHeatmapFile(long userId, String seasonalType, String username) {
-		return getHeatmapFile(userId, seasonalType, username, 0);
+	public File getCurrentFile(long userId, String seasonalType) {
+		return getFile(userId, seasonalType, false);
 	}
 
 	/**
@@ -143,40 +145,42 @@ public class HeatmapFileManager
     }
 
     /**
-     * Get the File that contains the latest heatmaps based on the filename being a date.
+     * Returns the .heatmaps file in the given directory whose filename is the most recent parseable date string.
      * Returns null if no such file exists.
-	 * This method should only be performed via the executor thread because it may do some heavy I/O for
-	 * fixing previous files due to bad planning
-	 * (violates the single responsibility principle, but yolo)
 	 * @param accountHash the user ID/account hash
 	 * @param seasonalType the seasonal type, or null if not seasonal
-	 * @param username the player's username. Used for detecting legacy files.
-     * @return the youngest heatmaps file.
+     * @return the file with the most recent date in its filename, or null if no such file exists
      */
-    public File getLatestHeatmapFile(long accountHash, String seasonalType, String username) {
+    public File getLatestFile(long accountHash, String seasonalType) {
 		boolean isSeasonal = !seasonalType.isBlank();
-		long startTime = System.nanoTime();
 		// currentDir may be normal or seasonal
         File currentDir = new File(HEATMAP_FILES_DIR, accountHash + (isSeasonal ? "_" + seasonalType : ""));
-		File normalDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
-		File leaguesVDir = new File(HEATMAP_FILES_DIR, accountHash + "_LEAGUES_V");
-
-		runFixes(accountHash, username, normalDir, leaguesVDir);
-
-		long endTime = System.nanoTime();
-		log.debug("Time taken to get latest heatmap files (with fix checks): {} ms", (endTime - startTime) / 1_000_000);
-		// If the latest file is found, return it
 		return getLatestFile(currentDir);
+	}
+
+	/**
+	 * Returns the .heatmaps file in the given directory whose filename is the most recent parseable date string.
+	 * @param path the directory to search
+	 * @return the file with the most recent date in its filename, or null if no such file exists
+	 */
+	private File getLatestFile(File path) {
+		// If the latest file is found, return it
+		File[] files = getSortedFiles(path);
+		if (files.length == 0) {
+			return null;
+		}
+		return files[0];
 	}
 
 	/**
 	 * Runs fixes on the user's heatmaps files, if necessary, for backwards compatability.
 	 * @param accountHash the user ID/account hash
 	 * @param username the player's username
-	 * @param normalDir the normal heatmaps directory
-	 * @param leaguesVDir the Leagues V heatmaps directory
 	 */
-	private void runFixes(long accountHash, String username, File normalDir, File leaguesVDir) {
+	protected void fixHeatmapsFiles(long accountHash, String username) {
+		File normalDir = new File(HEATMAP_FILES_DIR, Long.toString(accountHash));
+		File leaguesVDir = new File(HEATMAP_FILES_DIR, accountHash + "_LEAGUES_V");
+
 		// Modernize any legacy heatmap files, stashing them in the regular directory
 		// (since they won't have seasonal type encoded)
 		carryOverV1_0Files(username, accountHash, normalDir);
@@ -349,7 +353,6 @@ public class HeatmapFileManager
 					log.error("Failed to make extra copy of converted legacy shmeatmap file: {}", e.toString());
 				}
 			}
-
 		}
 	}
 
@@ -429,6 +432,22 @@ public class HeatmapFileManager
 			}
 			return 0;
 		}).sum();
+
+		// Make a copy of the latest remaining file in the normal directory, named one minute later
+		// so we can keep the other one as an untouched backup
+		File latestFile = getLatestFile(normalDir);
+		if (latestFile != null) {
+			try {
+				long epochMillis = latestFile.lastModified();
+				// Convert from UTC to local time
+				ZonedDateTime lastModified = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault());
+				File newFile = new File(normalDir, dateFormat.format(lastModified.plusMinutes(1)) + HEATMAP_EXTENSION);
+				Files.copy(latestFile.toPath(), newFile.toPath());
+				newFile.setLastModified(lastModified.plusMinutes(1).toInstant().toEpochMilli());
+			} catch (IOException e) {
+				log.error("Failed to make extra copy of latest remaining heatmap file: {}", e.toString());
+			}
+		}
 
 		if (filesMoved > 0) {
 			// Print a notice in the in-game chatbox
@@ -517,19 +536,6 @@ public class HeatmapFileManager
 
 	private static String formatDate(LocalDateTime dateTime) {
 		return dateTime.format(dateFormat);
-	}
-
-	/**
-	 * Returns the file in the given directory whose filename is the most recent parseable date string.
-	 * @param path the directory to search
-	 * @return the file with the most recent date in its filename, or null if no such file exists
-	 */
-	private File getLatestFile(File path) {
-		File[] files = getSortedFiles(path);
-		if (files.length == 0) {
-			return null;
-		}
-		return files[0];
 	}
 
     /**
