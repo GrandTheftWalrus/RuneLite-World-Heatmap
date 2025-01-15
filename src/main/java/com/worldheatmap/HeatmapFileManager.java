@@ -416,6 +416,9 @@ public class HeatmapFileManager
 					File destinationFile = new File(leaguesVDir, originFile.getName());
 					writeHeatmapsToFile(heatmaps.values(), destinationFile, false);
 
+					// Set the last modified time to what it was before
+					destinationFile.setLastModified(originFile.lastModified());
+
 					// Delete the original file
 					try {
 						Files.delete(originFile.toPath());

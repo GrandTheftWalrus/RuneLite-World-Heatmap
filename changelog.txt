@@ -344,7 +344,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-14: Fixed how the moving of legacy files being performed before leagues decontamination could result in the
 	latest moved legacy file getting updated instead of kept as an untouched backup
-	
+
 ** UPDATE RELEASED **
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
