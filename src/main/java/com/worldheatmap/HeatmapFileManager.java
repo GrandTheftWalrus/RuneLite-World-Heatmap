@@ -492,7 +492,6 @@ public class HeatmapFileManager
 		// Upload the final leagues heatmap to the website, if opted-in
 		if (filesMoved > 0 && config.isUploadEnabled()) {
 			try {
-				log.debug("Attempting to upload Leagues V heatmaps to global heatmap...");
 				String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
 				File latestLeaguesHeatmap = getLatestFile(leaguesVDir);
 				byte[] leaguesHeatmapBytes = new byte[0];
@@ -504,7 +503,6 @@ public class HeatmapFileManager
 				}
 
 				if (leaguesHeatmapBytes.length == 0) {
-					log.error("Leagues V heatmap file is empty, not uploading");
 					return;
 				}
 
@@ -523,7 +521,7 @@ public class HeatmapFileManager
 				// Execute the request
 				try (Response response = okHttpClient.newCall(request).execute()) {
 					if (response.isSuccessful()) {
-						log.info("Uploaded Leagues V heatmaps to global heatmap");
+						log.info("Uploaded final Leagues V heatmaps to global heatmap");
 					} else {
 						log.error("Failed to upload Leagues V heatmaps: HTTP {} {}", response.code(), response.message());
 					}
@@ -662,7 +660,7 @@ public class HeatmapFileManager
 
 		if (verbose) {
 			log.info(loggingOutput.toString());
-			log.debug("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
+			log.info("Finished writing '{}' heatmap file to disk after {} ms", heatmapsFile.getName(), (System.nanoTime() - startTime) / 1_000_000);
 		}
 	}
 

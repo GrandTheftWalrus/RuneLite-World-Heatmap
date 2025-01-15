@@ -1,6 +1,5 @@
 package com.worldheatmap;
 
-import java.awt.Point;
 import java.io.*;
 import java.util.*;
 import java.util.Map.Entry;

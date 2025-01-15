@@ -336,8 +336,6 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-13: Made HeatmapNew.estimateSize not an instance method instead of static
 
-** UPDATE RELEASED **
-
 2025-01-14: The Leagues decontamination process now uploads the final Leagues V heatmaps (if opted-in) so that they
 	not lost forevs to the global shmeatmap
 
@@ -346,6 +344,8 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2025-01-14: Fixed how the moving of legacy files being performed before leagues decontamination could result in the
 	latest moved legacy file getting updated instead of kept as an untouched backup
+	
+** UPDATE RELEASED **
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
