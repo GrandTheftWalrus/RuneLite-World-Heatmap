@@ -338,6 +338,15 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ** UPDATE RELEASED **
 
+2025-01-14: The Leagues decontamination process now uploads the final Leagues V heatmaps (if opted-in) so that they
+	not lost forevs to the global shmeatmap
+
+TODO: refactor so that getLatestHeatmapsFile() is not separate from getLatestFile(), whilst also moving the fixing logic
+	out of getLatestHeatmapsFile() so we're not violating the single responsibility principle
+	- Move fixing logic outside of getLatestHeatmapsFile() so it's just called separately
+	- Move getLatestFile logic into getLatestHeatmapsFile()
+	- Replace calls to getLatestFile() with getLatestHeatmapsFile()
+
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
 

@@ -190,7 +190,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected void startUp() {
         panel = new WorldHeatmapPanel(this);
         panel.rebuild();
-		heatmapFileManager = new HeatmapFileManager(this, hiscoreManager);
+		heatmapFileManager = new HeatmapFileManager(this, hiscoreManager, okHttpClient);
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
         toolbarButton = NavigationButton.builder()
                 .tooltip("World Heatmap")

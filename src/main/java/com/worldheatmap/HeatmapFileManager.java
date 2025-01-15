@@ -41,6 +41,11 @@ import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.hiscore.HiscoreEndpoint;
 import net.runelite.client.hiscore.HiscoreManager;
 import net.runelite.client.hiscore.HiscoreResult;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 @Slf4j
 public class HeatmapFileManager
@@ -55,10 +60,14 @@ public class HeatmapFileManager
 	private final WorldHeatmapPlugin plugin;
 	private final HiscoreManager hiscoreManager;
 	private final Map<String,  HiscoreResult> hiscoreResults = new HashMap<>();
+	private final WorldHeatmapConfig config;
+	private final OkHttpClient okHttpClient;
 
-	public HeatmapFileManager(WorldHeatmapPlugin plugin, HiscoreManager hiscoreManager){
+	public HeatmapFileManager(WorldHeatmapPlugin plugin, HiscoreManager hiscoreManager, OkHttpClient okHttpClient){
 		this.plugin = plugin;
 		this.hiscoreManager = hiscoreManager;
+		this.config = plugin.config;
+		this.okHttpClient = okHttpClient;
 	}
 
 	/**
@@ -125,7 +134,7 @@ public class HeatmapFileManager
 	 * @param seasonalType The seasonal type, or null if not seasonal
 	 * @return
 	 */
-    public File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
+    public static File getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
 		boolean isSeasonal = !seasonalType.isBlank();
         String dateString = formatDate(LocalDateTime.now());
         File userIdDir = new File(HEATMAP_IMAGE_DIR, Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
@@ -460,9 +469,53 @@ public class HeatmapFileManager
 				log.error("Failed to write leagues explanation file: {}", e.toString());
 			}
 		}
+
+		// Upload the final leagues heatmap to the website, if opted-in
+		if (filesMoved > 0 && config.isUploadEnabled()) {
+			try {
+				log.debug("Attempting to upload Leagues V heatmaps to global heatmap...");
+				String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
+				File latestLeaguesHeatmap = getLatestFile(leaguesVDir);
+				byte[] leaguesHeatmapBytes = new byte[0];
+				try {
+					assert latestLeaguesHeatmap != null;
+					leaguesHeatmapBytes = Files.readAllBytes(latestLeaguesHeatmap.toPath());
+				} catch (IOException e) {
+					log.error("Failed to read latest Leagues V heatmap file for upload: {}", e.toString());
+				}
+
+				if (leaguesHeatmapBytes.length == 0) {
+					log.error("Leagues V heatmap file is empty, not uploading");
+					return;
+				}
+
+				// Prepare the request body
+				RequestBody requestBody = RequestBody.create(
+					MediaType.parse("application/zip"),
+					leaguesHeatmapBytes
+				);
+
+				// Build the request
+				Request request = new Request.Builder()
+					.url(HEATMAP_SITE_API_ENDPOINT)
+					.post(requestBody)
+					.build();
+
+				// Execute the request
+				try (Response response = okHttpClient.newCall(request).execute()) {
+					if (response.isSuccessful()) {
+						log.info("Uploaded Leagues V heatmaps to global heatmap");
+					} else {
+						log.error("Failed to upload Leagues V heatmaps: HTTP {} {}", response.code(), response.message());
+					}
+				}
+			} catch (Exception e) {
+				log.error("Failed to upload heatmaps: {}", e.toString());
+			}
+		}
 	}
 
-	private String formatDate(LocalDateTime dateTime) {
+	private static String formatDate(LocalDateTime dateTime) {
 		return dateTime.format(dateFormat);
 	}
 
