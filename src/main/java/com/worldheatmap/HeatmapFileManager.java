@@ -466,26 +466,26 @@ public class HeatmapFileManager
 						"accounts and regular accounts because I didn't realize that each player's\n" +
 						"Leagues/seasonal account would have the same Account ID code\n" +
 						"(regular/ironman/group ironman etc.) as their regular account. So, data being\n" +
-						"uploaded to the website https://osrsworldheatmap.com was looking kinda sus\n" +
-						"such as how TELEPORTED_TO had a bunch of entries that would normally be impossibru\n" +
+						"uploaded to the website https://osrsworldheatmap.com was looking kinda suspicious\n" +
+						"such as how TELEPORTED_TO had a bunch of entries that would normally be impossible\n" +
 						"for regular accounts. The only way to fix it, that I could think of, was to\n" +
 						"designate the potentially contaminated .heatmaps files (i.e. the ones dated after the start \n" +
 						"of Leagues V) of anyone who has a record on the Leagues V hiscores, and has any heatmap saves\n" +
-						"dated during Leaguees V, as a leagues heatmap (which is why you're seeing this), which\n" +
+						"dated during Leagues V, as a leagues heatmap (which is why you're seeing this), which\n" +
 						"effectively rolls-back any regular heatmaps to the latest existing pre-leagues backup.\n" +
 						"That way, the personal data that players spent a long time collecting wouldn't be\n" +
-						"lost, whilst somewhat unfugging the global heatmap. In the future (or perhaps in the\n" +
-						"past?) I'm  thinking that I'll add a feature to the website where you can open a local\n" +
+						"lost, whilst somewhat unmucking the global heatmap. In the future I'm  thinking that \n" +
+						"I'll add a feature to the website where you can open a local\n" +
 						".heatmaps file for visualization, so you can more easily take a gander at your old\n" +
-						"data in this folder. I'll probs make a Leagues V category on the global heatmap, too.\n" +
+						"data in this folder. I'll probably make a Leagues V category on the global heatmap, too.\n" +
 						"If you have any questions or concerns, please contact me somehow or make an issue on\n" +
 						"the GitHub page for the plugin: https://github.com/GrandTheftWalrus/RuneLite-World-Heatmap\n"+
 						"\n" +
 						"P.S. If you're absolutely certain that you didn't play Leagues V until a certain date\n" +
 						"post-release, then I gueeeeesss you could move the allegedly unaffected .heatmap files from\n" +
-						"this folder back to the regular folder if you see this message in time \uD83E\uDD28 but\n" +
-						"you better be deadass or else you'll be messing up the global heatmap if you're opted-in\n" +
-						"to contributing to it. If not, then I spose you can whatever you want with your own data.\n"
+						"this folder back to the regular folder if you see this message before too late \uD83E\uDD28 but\n" +
+						"you better be certain or else you'll be contaminating the global heatmap if you're opted-in\n" +
+						"to contributing to it. If you're not opted-in, then go ahead.\n"
 				).getBytes());
 			} catch (IOException e) {
 				log.error("Failed to write leagues explanation file: {}", e.toString());
