@@ -37,9 +37,11 @@ import net.runelite.api.ChatMessageType;
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.QueuedMessage;
+import net.runelite.client.game.WorldService;
 import net.runelite.client.hiscore.HiscoreEndpoint;
 import net.runelite.client.hiscore.HiscoreManager;
 import net.runelite.client.hiscore.HiscoreResult;
+import net.runelite.http.api.worlds.WorldResult;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -61,12 +63,15 @@ public class HeatmapFileManager
 	private final Map<String,  HiscoreResult> hiscoreResults = new HashMap<>();
 	private final WorldHeatmapConfig config;
 	private final OkHttpClient okHttpClient;
+	private final WorldService worldService;
 
-	public HeatmapFileManager(WorldHeatmapPlugin plugin, HiscoreManager hiscoreManager, OkHttpClient okHttpClient){
+	public HeatmapFileManager(WorldHeatmapPlugin plugin, HiscoreManager hiscoreManager, OkHttpClient okHttpClient, WorldService worldService){
 		this.plugin = plugin;
 		this.hiscoreManager = hiscoreManager;
 		this.config = plugin.config;
 		this.okHttpClient = okHttpClient;
+		this.worldService = worldService;
+
 	}
 
 	/**
@@ -193,8 +198,10 @@ public class HeatmapFileManager
 		leaguesDecontaminationFix(normalDir, leaguesVDir, username);
 	}
 
-	private boolean userIsOnLeaguesHiscores(String username)
+	private boolean userIsOnSeasonalHiscores(String username)
 	{
+
+		// If already looked up and found, return true
 		if (hiscoreResults.get(username) != null)
 		{
 			return true;
@@ -202,7 +209,7 @@ public class HeatmapFileManager
 
 		try
 		{
-			hiscoreResults.put(username, hiscoreManager.lookup(username, HiscoreEndpoint.LEAGUE));
+			hiscoreResults.put(username, hiscoreManager.lookup(username, HiscoreEndpoint.SEASONAL));
 		}
 		catch (IOException e)
 		{
@@ -371,7 +378,15 @@ public class HeatmapFileManager
 		if (username == null || username.isBlank()) {
 			return;
 		}
-		if (leaguesVDir.exists() || !normalDir.exists() || !userIsOnLeaguesHiscores(username)){
+
+		// Run check to see if Leagues VI has started yet,
+		// in which case we should no longer be running the fix for Leagues V data
+		// (otherwise it'll break a bunch of stuff)
+		if (isLeaguesVIStarted()) {
+			return;
+		}
+
+		if (leaguesVDir.exists() || !normalDir.exists() || ! userIsOnSeasonalHiscores(username)){
 			return;
 		}
 
@@ -533,6 +548,27 @@ public class HeatmapFileManager
 				log.error("Failed to upload heatmaps: {}", e.toString());
 			}
 		}
+	}
+
+	private boolean isLeaguesVIStarted()
+	{
+		boolean isLeaguesVIStarted = true;
+		StringBuilder sb = new StringBuilder();
+		WorldResult worlds = worldService.getWorlds();
+		if (worlds != null) {
+			worlds.getWorlds().forEach(world ->
+				sb.append(world.getActivity().toLowerCase() + " ")
+			);
+		}
+		if (sb.indexOf("leagues") == -1){
+			// In case this code fails to run due to a race condition or sum,
+			// isLeaguesVIStartedYet defaults to true
+			// I had to write this method weirdly in order for it to default
+			// to true
+			isLeaguesVIStarted = false;
+		}
+
+		return isLeaguesVIStarted;
 	}
 
 	private static String formatDate(LocalDateTime dateTime) {
