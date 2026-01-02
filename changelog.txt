@@ -347,18 +347,21 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ** UPDATE RELEASED **
 
+TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
+
+TODO: Update world map image (and update X offset by 64 tiles)
+
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
 
-TODO: Implement memory-saving method where:
+TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
 		- This means I'd have to re-include them in toCSV()
 	- only the newly incremented tiles are kept in memory
 	- on save, the rest of the heatmap is loaded from disk, the new tiles are added to it, then it is rewritten
 		- this means that the working file cannot be modified meanwhile. I suppose that was always the case doe
+		- or: can I not just have it scan through the file and update the entries?
 	- on image write and data upload, the file will be reloaded too
-
-TODO: Update world map image
 
 TODO: Make it so that the button that opens the website includes some user-agent/referrer deets about where the user was referred from (the plugin)
 
