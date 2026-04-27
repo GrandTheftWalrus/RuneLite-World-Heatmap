@@ -16,7 +16,7 @@ public class HeatmapNew
 	@Getter
 	private final HashMap<WorldPoint, Integer> heatmapHashMap;
 	@Getter
-	private final static int heatmapVersion = 102;
+	private final static int heatmapVersion = 103;
 	@Getter @Setter
 	private transient int versionReadFrom = -1;
 	@Getter
@@ -96,6 +96,18 @@ public class HeatmapNew
 		}
 
 		return heatmap;
+	}
+
+	public void subtract(HeatmapNew deaths, int minimum)
+	{
+		for (Entry<WorldPoint, Integer> e : deaths.getEntrySet())
+		{
+			int x = e.getKey().getX();
+			int y = e.getKey().getY();
+			int z = e.getKey().getPlane();
+			int val = e.getValue();
+			this.set(x, y, z, Math.max(this.get(x, y, z) - val, minimum));
+		}
 	}
 
 	public enum HeatmapType

@@ -29,7 +29,6 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NpcLootReceived;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.game.WorldService;
-import net.runelite.client.hiscore.HiscoreManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
@@ -61,15 +60,16 @@ public class WorldHeatmapPlugin extends Plugin {
     private int lastX = 0;
     private int lastY = 0;
 	private int lastZ = 0;
+	protected int currentPlayerAccountType;
+	protected int currentPlayerCombatLevel;
+	protected long currentLocalAccountHash;
 	protected GameState previousGameState, previousPreviousGameState = GameState.UNKNOWN;
-    protected long currentLocalAccountHash;
 	protected String currentSeasonalType;
-    protected int currentPlayerAccountType;
-    protected int currentPlayerCombatLevel;
     protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
     private NavigationButton toolbarButton;
     protected WorldHeatmapPanel panel;
+	private Instant timeLastDied;
     private final ArrayList<Integer> randomEventNPCIDs = new ArrayList<>(Arrays.asList(NpcID.BEE_KEEPER_6747,
             NpcID.CAPT_ARNAV,
             NpcID.DRUNKEN_DWARF,
@@ -138,9 +138,6 @@ public class WorldHeatmapPlugin extends Plugin {
 	@Inject
 	protected ChatMessageManager chatMessageManager;
 
-	@Inject
-	protected HiscoreManager hiscoreManager;
-
 	@Provides
     WorldHeatmapConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(WorldHeatmapConfig.class);
@@ -193,7 +190,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected void startUp() {
         panel = new WorldHeatmapPanel(this);
         panel.rebuild();
-		heatmapFileManager = new HeatmapFileManager(this, hiscoreManager, okHttpClient, worldService);
+		heatmapFileManager = new HeatmapFileManager(this);
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
         toolbarButton = NavigationButton.builder()
                 .tooltip("World Heatmap")
@@ -384,13 +381,17 @@ public class WorldHeatmapPlugin extends Plugin {
             }
         }
 
+		boolean isRecentlyDead = timeLastDied != null && Instant.now().isBefore(timeLastDied.plusSeconds(10));
+
         // TELEPORT_PATHS
         if (config.isHeatmapTeleportPathsEnabled() &&
 			heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS) != null &&
 			diagDistance > 15 &&
 			isInOverworld(new Point(lastX, lastY)) &&
 			isInOverworld(new Point(currentX, currentY)) && //we don't draw lines between the overworld and caves etc.
-			currentZ == lastZ)
+			currentZ == lastZ &&
+			!isRecentlyDead
+		)
         {
             if (config.isHeatmapTeleportPathsEnabled()) {
                 for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
@@ -404,7 +405,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		// aligned, and unlike TELEPORT_PATHS, we wouldn't have to draw a line between planes
         if (diagDistance > 15 &&
 			isInOverworld(new Point(lastX, lastY)) &&
-			isInOverworld(new Point(currentX, currentY))) //we only track teleports between overworld tiles
+			isInOverworld(new Point(currentX, currentY)) && //we only track teleports between overworld tiles
+			!isRecentlyDead)
         {
             if (config.isHeatmapTeleportedToEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO) != null) {
                 heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO).increment(currentX, currentY, currentZ);
@@ -436,6 +438,7 @@ public class WorldHeatmapPlugin extends Plugin {
         if (actorDeath.getActor() instanceof Player) {
             Player deadPlayer = (Player) actorDeath.getActor();
             if (deadPlayer.getId() == client.getLocalPlayer().getId()) {
+				timeLastDied = Instant.now();
                 // DEATHS
                 if (config.isHeatmapDeathsEnabled()) {
 					WorldPoint loc = deadPlayer.getWorldLocation();
@@ -578,8 +581,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // Autosave the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do so
         if (shouldWriteImages) {
-            File typeAImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_A, currentSeasonalType);
-            File typeBImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_B, currentSeasonalType);
+            File typeAImageFile = HeatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_A, currentSeasonalType);
+            File typeBImageFile = HeatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_B, currentSeasonalType);
 
             // Write the image files
             if (config.isHeatmapTypeAEnabled()) {
@@ -873,7 +876,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	/**
 	 * Serializes heatmap as CSV, zips it, and then uploads it to HEATMAP_SITE_API_ENDPOINT using OkHttpClient.
-	 * @return
+	 * @return Whether the upload was successful
 	 */
 	private boolean uploadHeatmaps() {
 		if (heatmaps.isEmpty()) {
@@ -916,7 +919,7 @@ public class WorldHeatmapPlugin extends Plugin {
 				}
 			}
 		} catch (IOException e) {
-			log.error("Error uploading heatmap to " + HEATMAP_SITE_API_ENDPOINT, e);
+			log.error("Error uploading heatmap to {}", HEATMAP_SITE_API_ENDPOINT, e);
 		}
 
 		log.error("Failed to upload heatmaps");

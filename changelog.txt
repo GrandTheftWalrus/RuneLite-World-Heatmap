@@ -347,12 +347,40 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 ** UPDATE RELEASED **
 
+TODO: Implement fix for DEATH events being also counted as TELEPORTED_FROM events
+
+TODO: Are logins being counted as TELEPORTED_TO and logouts being counted as TELEPORTED_FROM?
+
+TODO: Add LOGIN_LOGOUT heatmap type
+
 TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
+TODO: Remember what tf I meant by this^
 
 TODO: Update world map image (and update X offset by 64 tiles)
 
+IMPORTANT: Just realized that all DEATHs are being counted as TELEPORTED_FROM as well. Tsk tsk tsk so silly.
+    I need to release an update that:
+        - Within the TELEPORTED_FROM logic, skips incrementation if player death event has occurred in the last several ticks.
+    And performs this fix, which theoretically will propagate to the global heatmap, at least for active users:
+        - Subtracts the DEATHS heatmap from the TELEPORTED_FROM heatmap
+        - Make sure that the above doesn't result in negative numbers. Just cap at zero.
+    Worst case ontario, if somebody's DEATHS and TELEPORTED_FROM heatmaps are not the same age and thus don't have
+    the same overlaps, not all faux teleports will be fixed (but most will, in practice).
+    This will make the wilderness TELEPORTED_FROM map make more sense and look better. Currently there are pretty
+    lines right along lvl 20 and lvl 30 wildy, but also some random noise. This will fix the noise.
+When should this fix take place, so that it happens when the plugin starts on any version past 1.6.0, if the most
+recently ran version w as 1.6.0, and only runs once?
+- Could check heatmap versions in metadata of TELEPORTED_TO/FROM/PATHS
+
+I just realized we're going to want to subtract from TELEPORT_PATHS too, which is slightly more complicated and perhaps
+error-prone, but maybe not. We'll C.
+
+Actually just realized that it won't be possible to fix TELEPORT_PATHS because we won't know which to's and fro's to connect.
+
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
+
+TODO: New heatmap idea: Login/Logout locations. It would be interesting to see where people sneak into the chaos altar from.
 
 TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
