@@ -178,8 +178,8 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     /**
      * Get the button to visit the global heatmap website at osrsworldheatmap.com
-     * @param buttonFont
-     * @return
+     * @param buttonFont The font to use for the button
+     * @return The button to visit the global heatmap website
      */
     private static JButton getGlobalHeatmapButton(Font buttonFont) {
         JButton visitGlobalHeatmapButton = new JButton("Global Heatmap Website");
@@ -216,7 +216,6 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     protected void updatePlayerID() {
-        this.plugin.currentLocalAccountHash = plugin.currentLocalAccountHash;
         if (this.plugin.currentLocalAccountHash == -1 || this.plugin.currentLocalAccountHash == 0) {
             playerIDLabel = new JLabel("Player ID: unavailable");
         } else {

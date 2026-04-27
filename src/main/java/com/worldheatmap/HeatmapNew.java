@@ -61,14 +61,9 @@ public class HeatmapNew
 		}
 
 		// Make ze Heatmap and set metadata
-		HeatmapNew heatmap = new HeatmapNew();
-		heatmap.setUserID(userID);
+		HeatmapNew heatmap = new HeatmapNew(heatmapType, userID, accountType, seasonalType, currentCombatLevel);
 		heatmap.setVersionReadFrom(heatmapVersion);
-		heatmap.setHeatmapType(heatmapType);
 		heatmap.setGameTimeTicks(gameTimeTicks);
-		heatmap.setAccountType(accountType);
-		heatmap.setCurrentCombatLevel(currentCombatLevel);
-		heatmap.setSeasonalType(seasonalType);
 
 		// Read and load the tile values
 		final int[] errorCount = {0}; // Number of parsing errors occurred during read
@@ -98,9 +93,17 @@ public class HeatmapNew
 		return heatmap;
 	}
 
-	public void subtract(HeatmapNew deaths, int minimum)
+	/**
+	 * Subtracts the values of the given heatmap from this heatmap, tile by tile.
+	 * Negative results are capped at "minimum". Only tiles that exist in
+	 * otherHeatmap are iterated through.
+	 *
+	 * @param otherHeatmap the heatmap to subtract from this heatmap
+	 * @param minimum the minimum value that any tile can have after subtraction (e.g. 0 if you don't want negative values)
+	 */
+	public void subtract(HeatmapNew otherHeatmap, int minimum)
 	{
-		for (Entry<WorldPoint, Integer> e : deaths.getEntrySet())
+		for (Entry<WorldPoint, Integer> e : otherHeatmap.getEntrySet())
 		{
 			int x = e.getKey().getX();
 			int y = e.getKey().getY();

@@ -39,18 +39,12 @@ import net.runelite.http.api.worlds.World;
 
 import java.awt.image.BufferedImage;
 import java.util.concurrent.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import net.runelite.client.game.ItemManager;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
 import net.runelite.http.api.worlds.WorldResult;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 @Slf4j
 @PluginDescriptor(
@@ -365,10 +359,10 @@ public class WorldHeatmapPlugin extends Plugin {
          * Since it's too hard to check if the player is actually running, we'll just check if the distance covered since last tick
          * was less than 4 tiles
          */
-        int diagDistance = diagonalDistance(new Point(lastX, lastY), new Point(currentX, currentY));
+        int diagDistance = Utils.diagonalDistance(new Point(lastX, lastY), new Point(currentX, currentY));
         if (diagDistance <= 3 && currentZ == lastZ) {
             // Gets all the tiles between last position and new position
-            for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
+            for (Point tile : Utils.getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                 // TYPE_A
                 if (playerMovedSinceLastTick && config.isHeatmapTypeAEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TYPE_A) != null) {
                     heatmaps.get(HeatmapNew.HeatmapType.TYPE_A).increment(tile.getX(), tile.getY(), currentZ);
@@ -387,14 +381,14 @@ public class WorldHeatmapPlugin extends Plugin {
         if (config.isHeatmapTeleportPathsEnabled() &&
 			heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS) != null &&
 			diagDistance > 15 &&
-			isInOverworld(new Point(lastX, lastY)) &&
-			isInOverworld(new Point(currentX, currentY)) && //we don't draw lines between the overworld and caves etc.
+			Utils.isInOverworld(new Point(lastX, lastY)) &&
+			Utils.isInOverworld(new Point(currentX, currentY)) && //we don't draw lines between the overworld and caves etc.
 			currentZ == lastZ &&
 			!isRecentlyDead
 		)
         {
             if (config.isHeatmapTeleportPathsEnabled()) {
-                for (Point tile : getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
+                for (Point tile : Utils.getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                     heatmaps.get(HeatmapNew.HeatmapType.TELEPORT_PATHS).increment(tile.getX(), tile.getY(), currentZ);
                 }
             }
@@ -404,8 +398,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		// We do count teleports between different planes for these, since in the overworld, the planes are (x, y)
 		// aligned, and unlike TELEPORT_PATHS, we wouldn't have to draw a line between planes
         if (diagDistance > 15 &&
-			isInOverworld(new Point(lastX, lastY)) &&
-			isInOverworld(new Point(currentX, currentY)) && //we only track teleports between overworld tiles
+			Utils.isInOverworld(new Point(lastX, lastY)) &&
+			Utils.isInOverworld(new Point(currentX, currentY)) && //we only track teleports between overworld tiles
 			!isRecentlyDead)
         {
             if (config.isHeatmapTeleportedToEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_TO) != null) {
@@ -656,80 +650,7 @@ public class WorldHeatmapPlugin extends Plugin {
         heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 
-    // Credit to https:// www.redblobgames.com/grids/line-drawing.html for where I figured out how to make the following linear interpolation functions
-
-    /**
-     * Returns the list of discrete coordinates on the path between p0 and p1, as an array of Points
-     *
-     * @param p0 Point A
-     * @param p1 Point B
-     * @return Array of coordinates
-     */
-    private Point[] getPointsBetween(Point p0, Point p1) {
-        if (p0.equals(p1)) {
-            return new Point[]{p1};
-        }
-        int N = diagonalDistance(p0, p1);
-        Point[] points = new Point[N];
-        for (int step = 1; step <= N; step++) {
-            float t = step / (float) N;
-            points[step - 1] = roundPoint(lerp_point(p0, p1, t));
-        }
-        return points;
-    }
-
-    /**
-     * Returns the "diagonal distance" (the maximum of the horizontal and vertical distance) between two points
-     *
-     * @param p0 Point A
-     * @param p1 Point B
-     * @return The diagonal distance
-     */
-    private int diagonalDistance(Point p0, Point p1) {
-        int dx = Math.abs(p1.getX() - p0.getX());
-        int dy = Math.abs(p1.getY() - p0.getY());
-        return Math.max(dx, dy);
-    }
-
-    /**
-     * Rounds a floating point coordinate to its nearest integer coordinate.
-     *
-     * @param point The point to round
-     * @return Coordinates
-     */
-    private Point roundPoint(float[] point) {
-        return new Point(Math.round(point[0]), Math.round(point[1]));
-    }
-
-    /**
-     * Returns the floating point 2D coordinate that is t-percent of the way between p0 and p1
-     *
-     * @param p0 Point A
-     * @param p1 Point B
-     * @param t  Percent distance
-     * @return Coordinate that is t% of the way from A to B
-     */
-    private float[] lerp_point(Point p0, Point p1, float t) {
-        return new float[]{lerp(p0.getX(), p1.getX(), t), lerp(p0.getY(), p1.getY(), t)};
-    }
-
-    /**
-     * Returns the floating point number that is t-percent of the way between p0 and p1.
-     *
-     * @param p0 Point A
-     * @param p1 Point B
-     * @param t  Percent distance
-     * @return Point that is t-percent of the way from A to B
-     */
-    private float lerp(int p0, int p1, float t) {
-        return p0 + (p1 - p0) * t;
-    }
-
-    public boolean isInOverworld(Point point) {
-        return point.getY() < Constants.OVERWORLD_MAX_Y && point.getY() > 2500 && point.getX() >= 1024 && point.getX() < 3960;
-    }
-
-    /**
+	/**
      * Initializes any enabled Heatmap types in the given Map of Heatmaps that weren't loaded
      *
      * @param heatmaps HashMap of HeatmapNew objects
@@ -869,62 +790,10 @@ public class WorldHeatmapPlugin extends Plugin {
 		boolean shouldUpload = highestGameTimeTicks % uploadFrequency == 0 && highestGameTimeTicks != 0;
 
         // Upload the heatmaps
-        if (shouldUpload && uploadHeatmaps()){
+        if (shouldUpload && Utils.uploadHeatmaps(heatmaps, okHttpClient)){
             log.info("Heatmaps uploaded successfully");
         }
     }
-
-	/**
-	 * Serializes heatmap as CSV, zips it, and then uploads it to HEATMAP_SITE_API_ENDPOINT using OkHttpClient.
-	 * @return Whether the upload was successful
-	 */
-	private boolean uploadHeatmaps() {
-		if (heatmaps.isEmpty()) {
-			return false;
-		}
-
-		String HEATMAP_SITE_API_ENDPOINT = "https://osrsworldheatmap.com/api/upload-csv/";
-		try {
-			// Zip the CSV
-			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-			try (ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)) {
-				for (HeatmapNew heatmap : heatmaps.values()) {
-					ZipEntry zipEntry = new ZipEntry(heatmap.getHeatmapType() + "_HEATMAP.csv");
-					zipOutputStream.putNextEntry(zipEntry);
-					OutputStreamWriter osw = new OutputStreamWriter(zipOutputStream);
-					heatmap.toCSV(osw);
-					osw.flush();
-					zipOutputStream.closeEntry();
-				}
-			}
-
-			// Prepare the request body
-			RequestBody requestBody = RequestBody.create(
-				MediaType.parse("application/zip"),
-				byteArrayOutputStream.toByteArray()
-			);
-
-			// Build the request
-			Request request = new Request.Builder()
-				.url(HEATMAP_SITE_API_ENDPOINT)
-				.post(requestBody)
-				.build();
-
-			// Execute the request
-			try (Response response = okHttpClient.newCall(request).execute()) {
-				if (response.isSuccessful()) {
-					return true;
-				} else {
-					log.error("Failed to upload heatmaps: HTTP {} {}", response.code(), response.message());
-				}
-			}
-		} catch (IOException e) {
-			log.error("Error uploading heatmap to {}", HEATMAP_SITE_API_ENDPOINT, e);
-		}
-
-		log.error("Failed to upload heatmaps");
-		return false;
-	}
 
 
 	static class HeatmapProgressListener implements IIOWriteProgressListener {

@@ -23,7 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -37,10 +39,6 @@ import net.runelite.api.ChatMessageType;
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.QueuedMessage;
-import net.runelite.client.game.WorldService;
-import net.runelite.client.hiscore.HiscoreManager;
-import net.runelite.client.hiscore.HiscoreResult;
-import okhttp3.OkHttpClient;
 
 @Slf4j
 public class HeatmapFileManager
@@ -51,9 +49,11 @@ public class HeatmapFileManager
     protected final static File HEATMAP_IMAGE_DIR = Paths.get(WORLD_HEATMAP_DIR.toString(), "Heatmap Images").toFile();
 	protected final static DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
 	private final WorldHeatmapPlugin plugin;
+	private final WorldHeatmapConfig config;
 
 	public HeatmapFileManager(WorldHeatmapPlugin plugin){
 		this.plugin = plugin;
+		this.config = plugin.config;
 	}
 
 	/**
@@ -174,6 +174,7 @@ public class HeatmapFileManager
 
 		// Perform V1.6.0 file naming scheme fix on normal directory if necessary
 		Long latestHeatmapVersion = getLatestHeatmapVersion(normalDir);
+
 		if (latestHeatmapVersion != null && latestHeatmapVersion <= 101) {
 			fileNamingSchemeFix(normalDir);
 		}
@@ -198,6 +199,7 @@ public class HeatmapFileManager
 		File newFile = getCurrentFile(accountHash, seasonalType);
 
 		try {
+			log.info("Performing death-teleport fix for account {} (seasonal type: \"{}\") on file {}", accountHash, seasonalType, latestFile.getName());
 			// Read all heatmap types (because we want to rewrite even the ones not needing to be modified, to update their version)
 			HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(latestFile, List.of(HeatmapNew.HeatmapType.values()), false);
 			HeatmapNew deaths = heatmaps.get(HeatmapNew.HeatmapType.DEATHS);
@@ -209,9 +211,31 @@ public class HeatmapFileManager
 			}
 
 			writeHeatmapsToFile(heatmaps.values(), newFile, false);
-		} catch (IOException e) {
+
+			// Write new, fixed TELEPORTED_FROM image
+			File teleportedFromImageFile = getNewImageFile(accountHash, HeatmapNew.HeatmapType.TELEPORTED_FROM, seasonalType);
+			plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM), teleportedFromImageFile, config.isWriteFullImageEnabled(), config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, HeatmapNew.HeatmapType.TELEPORTED_FROM)));
+
+			// If enabled, trigger heatmap data upload to server.
+			// Theoretically this could fix most of the public data.
+			if (config.isUploadEnabled()) {
+				heatmaps.remove(HeatmapNew.HeatmapType.UNKNOWN); // I forget where this even comes from
+
+				plugin.executor.execute(() -> {
+					boolean uploadSuccessful = Utils.uploadHeatmaps(heatmaps, plugin.okHttpClient);
+					if (uploadSuccessful) {
+						log.info("Successfully uploaded heatmaps after applying deaths as teleports fix for account {} (seasonal type: \"{}\")", accountHash, seasonalType);
+					}
+					else {
+						log.error("Failed to upload heatmaps after applying deaths as teleports fix for account {} (seasonal type: \"{}\")", accountHash, seasonalType);
+					}
+				});
+			}
+
+		} catch (Exception e) {
 			log.error("Error applying deaths as teleports fix for account {} (seasonal type: \"{}\": {}", accountHash, seasonalType, e.toString());
 		}
+
 	}
 
 	/**
