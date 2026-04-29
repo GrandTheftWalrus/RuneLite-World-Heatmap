@@ -345,25 +345,15 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 2025-01-14: Fixed how the moving of legacy files being performed before leagues decontamination could result in the
 	latest moved legacy file getting updated instead of kept as an untouched backup
 
+** UPDATE RELEASED **
+
 2026-04-27: Implemented fix for DEATH events being also counted as TELEPORTED_FROM events
 
 2026-04-29: Added WORLD_HOPS and LOGIN_LOGOUT heatmap types
 
-** UPDATE RELEASED **
-
-TODO: Are logins being counted as TELEPORTED_TO and logouts being counted as TELEPORTED_FROM?
-	I'm not able to produce any bug where a login/logout is counted as a teleport.
-	I feel like I may have seen it a long time ago though, not sure.
-	I should run a query on the production zatabase to find out
-	what percentage of people have DEATHS (and other heatmaps) deactivated.
-	This could explain why there are a lot of impossible teleport-froms
-	in the wilderness not accounted for by mistracked deaths
+2026-04-29: Added a URL parameter to show when users are linked to the website via the plugin
 
 TODO: DAMAGE_GIVEN might not be counted on players for some reason (look at castle wars)
-
-TODO: Add new heatmap: LOGIN_LOGOUT locations. It would be interesting to see where people sneak into the chaos altar from.
-
-TODO: Make it so that the button that opens the website includes some user-agent/referrer deets about where the user was referred from (the plugin)
 
 TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
 TODO: Remember what tf I meant by this^

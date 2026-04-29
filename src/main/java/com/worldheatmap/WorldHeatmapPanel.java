@@ -187,7 +187,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         visitGlobalHeatmapButton.addActionListener(e -> {
             try {
                 // Try Desktop.browse first (might not work on Linux)
-                String url = "https://www.osrsworldheatmap.com";
+                String url = "https://www.osrsworldheatmap.com/?ref=plugin";
                 if (Desktop.isDesktopSupported()) {
                     Desktop desktop = Desktop.getDesktop();
                     if (desktop.isSupported(Desktop.Action.BROWSE)) {
