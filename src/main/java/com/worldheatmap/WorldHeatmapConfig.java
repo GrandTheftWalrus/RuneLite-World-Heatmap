@@ -291,4 +291,26 @@ public interface WorldHeatmapConfig extends Config {
         return true;
     }
 
+	@ConfigItem(
+		keyName = "isHeatmapWorldHopsEnabled",
+		name = "WORLD_HOPS",
+		position = 14,
+		description = "Records the number of times you've hopped worlds on each tile",
+		section = heatmapsOnOff
+	)
+	default boolean isHeatmapWorldHopsEnabled() {
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "isHeatmapLoginLogoutEnabled",
+		name = "LOGIN_LOGOUT",
+		position = 15,
+		description = "Records the tiles on which you've logged in/out",
+		section = heatmapsOnOff
+	)
+	default boolean isHeatmapLoginLogoutEnabled() {
+		return true;
+	}
+
 }

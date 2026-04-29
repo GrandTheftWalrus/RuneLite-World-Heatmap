@@ -54,6 +54,8 @@ public class WorldHeatmapPlugin extends Plugin {
     private int lastX = 0;
     private int lastY = 0;
 	private int lastZ = 0;
+	private boolean shouldIncrementLoginLogout;
+	private boolean shouldIncrementWorldHops;
 	protected int currentPlayerAccountType;
 	protected int currentPlayerCombatLevel;
 	protected long currentLocalAccountHash;
@@ -250,6 +252,16 @@ public class WorldHeatmapPlugin extends Plugin {
 			loading = new CompletableFuture<>();
 		}
 
+		// LOGIN_LOGOUT
+		if (justLoggedIn && config.isHeatmapLoginLogoutEnabled()) {
+			shouldIncrementLoginLogout = true;
+		}
+
+		// WORLD_HOPS
+		if (justHopped && config.isHeatmapWorldHopsEnabled()) {
+			shouldIncrementWorldHops = true;
+		}
+
 		// This is when to save & unload the heatmaps
 		boolean heatmapsLoaded = heatmaps != null && !heatmaps.isEmpty();
         if (heatmapsLoaded &&
@@ -352,6 +364,15 @@ public class WorldHeatmapPlugin extends Plugin {
         int currentY = currentCoords.getY();
 		int currentZ = currentCoords.getPlane();
         boolean playerMovedSinceLastTick = (currentX != lastX || currentY != lastY || currentZ != lastZ);
+
+		if (shouldIncrementLoginLogout && heatmaps.get(HeatmapNew.HeatmapType.LOGIN_LOGOUT) != null) {
+			heatmaps.get(HeatmapNew.HeatmapType.LOGIN_LOGOUT).increment(currentX, currentY, currentZ);
+			shouldIncrementLoginLogout = false;
+		}
+		if (shouldIncrementWorldHops && heatmaps.get(HeatmapNew.HeatmapType.WORLD_HOPS) != null) {
+			heatmaps.get(HeatmapNew.HeatmapType.WORLD_HOPS).increment(currentX, currentY, currentZ);
+			shouldIncrementWorldHops = false;
+		}
 
         /* When running, players cover more than one tile per tick, which creates spotty paths.
          * We fix this by drawing a line between the current coordinates and the previous coordinates,
@@ -706,6 +727,8 @@ public class WorldHeatmapPlugin extends Plugin {
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING, config::isHeatmapBobTheCatSightingEnabled);
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_TAKEN, config::isHeatmapDamageTakenEnabled);
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_GIVEN, config::isHeatmapDamageGivenEnabled);
+		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.WORLD_HOPS, config::isHeatmapWorldHopsEnabled);
+		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.LOGIN_LOGOUT, config::isHeatmapLoginLogoutEnabled);
         return (boolean) heatmapTypeSupplierMap.getOrDefault(type, () -> false).get();
     }
 
@@ -729,6 +752,8 @@ public class WorldHeatmapPlugin extends Plugin {
         configNameToHeatmapType.put("isHeatmapBobTheCatSightingEnabled", HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
         configNameToHeatmapType.put("isHeatmapDamageTakenEnabled", HeatmapNew.HeatmapType.DAMAGE_TAKEN);
         configNameToHeatmapType.put("isHeatmapDamageGivenEnabled", HeatmapNew.HeatmapType.DAMAGE_GIVEN);
+		configNameToHeatmapType.put("isHeatmapWorldHopsEnabled", HeatmapNew.HeatmapType.WORLD_HOPS);
+		configNameToHeatmapType.put("isHeatmapLoginLogoutEnabled", HeatmapNew.HeatmapType.LOGIN_LOGOUT);
 
         HeatmapNew.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
         if (toggledHeatmapType != null) {
