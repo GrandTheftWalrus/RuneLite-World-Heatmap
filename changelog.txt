@@ -359,12 +359,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-04-30: Deprecated DAMAGE_TAKEN and DAMAGE_GIVEN
 
-TODO: Replace underscores with spaces in the panel so it's more readable
-
-How to deprecate:
-	Just remove it from HeatmapNew.HEATMAP_TYPES and other logic. They
-	will no longer be loaded. I think they might get carried over on save?
-	I'm not sure.
+2026-04-30: Replaced underscores with spaces in the panel so it's more readable
 
 TODO: Just got a good ass heatmap idea: locations traded at
 

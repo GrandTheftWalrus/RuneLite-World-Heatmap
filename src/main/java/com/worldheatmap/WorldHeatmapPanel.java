@@ -95,7 +95,7 @@ public class WorldHeatmapPanel extends PluginPanel {
             heatmapPanels.put(heatmapType, heatmapPanel);
 
             //Label
-            JLabel heatmapLabel = new JLabel(heatmapType.toString());
+            JLabel heatmapLabel = new JLabel(heatmapType.toString().replace("_", " "));
             heatmapPanelLabels.put(heatmapType, heatmapLabel);
             heatmapLabel.setFont(sectionLabelFont);
             heatmapLabel.setForeground(Color.WHITE);
