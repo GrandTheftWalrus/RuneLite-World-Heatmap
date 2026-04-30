@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.events.*;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
@@ -448,6 +449,17 @@ public class WorldHeatmapPlugin extends Plugin {
 		lastZ = currentZ;
     }
 
+	@Subscribe
+	public void onWidgetClosed(WidgetClosed widgetClosed) {
+		// TRADES
+		if (widgetClosed.getGroupId() == InterfaceID.TRADECONFIRM) {
+			if (config.isHeatmapTradesEnabled() && heatmaps.get(HeatmapNew.HeatmapType.TRADES) != null) {
+				WorldPoint loc = client.getLocalPlayer().getWorldLocation();
+				heatmaps.get(HeatmapNew.HeatmapType.TRADES).increment(loc.getX(), loc.getY(), loc.getPlane());
+			}
+		}
+	}
+
     @Subscribe
     public void onActorDeath(ActorDeath actorDeath) {
         if (actorDeath.getActor() instanceof Player) {
@@ -756,6 +768,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN, config::isHeatmapPVPDamageTakenEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.WORLD_HOPS, config::isHeatmapWorldHopsEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.LOGIN_LOGOUT, config::isHeatmapLoginLogoutEnabled);
+		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.TRADES, config::isHeatmapTradesEnabled);
         return (boolean) heatmapTypeSupplierMap.getOrDefault(type, () -> false).get();
     }
 
@@ -783,6 +796,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		configNameToHeatmapType.put("isHeatmapPVPDamageGivenEnabled", HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN);
 		configNameToHeatmapType.put("isHeatmapWorldHopsEnabled", HeatmapNew.HeatmapType.WORLD_HOPS);
 		configNameToHeatmapType.put("isHeatmapLoginLogoutEnabled", HeatmapNew.HeatmapType.LOGIN_LOGOUT);
+		configNameToHeatmapType.put("isHeatmapTradesEnabled", HeatmapNew.HeatmapType.TRADES);
 
         HeatmapNew.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
         if (toggledHeatmapType != null) {

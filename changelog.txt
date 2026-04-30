@@ -361,7 +361,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-04-30: Replaced underscores with spaces in the panel so it's more readable
 
-TODO: Just got a good ass heatmap idea: locations traded at
+2026-04-30: Added TRADES heatmap type
 
 TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
 TODO: Remember what tf I meant by this^. might've been to make sure sailing xp is tracked

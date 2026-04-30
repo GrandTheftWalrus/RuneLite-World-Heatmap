@@ -335,4 +335,13 @@ public interface WorldHeatmapConfig extends Config {
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "isHeatmapTradesEnabled",
+		name = "TRADES",
+		position = 18,
+		description = "Records the tiles on which you've made trades with other players",
+		section = heatmapsOnOff
+	)
+	default boolean isHeatmapTradesEnabled() { return true;	}
+
 }
