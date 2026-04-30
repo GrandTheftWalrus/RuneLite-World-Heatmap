@@ -558,7 +558,7 @@ public class HeatmapFileManager
 				}
 				try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(curHeatmapPath), StandardCharsets.UTF_8);
 					 BufferedReader reader = new BufferedReader(isr)) {
-					HeatmapNew heatmap = HeatmapNew.fromCSV(curType, reader);
+					HeatmapNew heatmap = HeatmapNew.fromCSV(reader);
 					heatmapsRead.put(heatmap.getHeatmapType(), heatmap);
 					loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getTileCount() + " tiles), ");
 				} catch (IOException e) {

@@ -472,28 +472,57 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onHitsplatApplied(HitsplatApplied hitsplatApplied) {
-        if (hitsplatApplied.getHitsplat().getAmount() == 0) {
+		WorldPoint localPlayerLoc = client.getLocalPlayer().getWorldLocation();
+		Actor hitsplatActor = hitsplatApplied.getActor();
+		Hitsplat hitsplat = hitsplatApplied.getHitsplat();
+		int localId = client.getLocalPlayer().getId();
+		boolean isMeTakingDamage = hitsplatActor instanceof Player && ((Player) hitsplatActor).getId() == localId;
+        if (hitsplat.getAmount() == 0 || !hitsplat.isMine()) {
             return;
         }
-        // DAMAGE_GIVEN
-        if (hitsplatApplied.getHitsplat().getHitsplatType() == net.runelite.api.HitsplatID.DAMAGE_ME && hitsplatApplied.getActor() instanceof NPC) {
-            NPC actor = (NPC) hitsplatApplied.getActor();
-            if (config.isHeatmapDamageGivenEnabled()) {
-				WorldPoint loc = actor.getWorldLocation();
-                heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN).increment(loc.getX(), loc.getY(), loc.getPlane(), hitsplatApplied.getHitsplat().getAmount());
-            }
-        }
 
-        // DAMAGE_TAKEN
-        if (hitsplatApplied.getHitsplat().getHitsplatType() == HitsplatID.DAMAGE_ME && hitsplatApplied.getActor() instanceof Player) {
-            Player actor = (Player) hitsplatApplied.getActor();
-            if (actor.getId() == client.getLocalPlayer().getId()) {
-                if (config.isHeatmapDamageTakenEnabled()) {
-					WorldPoint loc = actor.getWorldLocation();
-                    heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN).increment(loc.getX(), loc.getY(), loc.getPlane(), hitsplatApplied.getHitsplat().getAmount());
-                }
-            }
-        }
+		// Get list of Players interacting with us (potentially attacking us)
+		IndexedObjectSet<? extends Player> players = client.getWorldView(WorldView.TOPLEVEL).players();
+		Player[] interactingPlayers = players.stream().filter(p -> {
+			if (p.getInteracting() instanceof Player){
+				return ((Player) p.getInteracting()).getId() == localId;
+			}
+			else {
+				return false;
+			}
+		}).toArray(Player[]::new);
+
+		// PVP_DAMAGE_TAKEN
+		if (isMeTakingDamage && interactingPlayers.length > 0) {
+			if (config.isHeatmapPVPDamageTakenEnabled()) {
+				heatmaps.get(HeatmapNew.HeatmapType.PVP_DAMAGE_TAKEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
+			}
+		}
+
+		// PVP_DAMAGE_GIVEN
+		if (hitsplatActor instanceof Player && hitsplat.isMine() && !isMeTakingDamage) {
+			if (config.isHeatmapPVPDamageGivenEnabled()) {
+				heatmaps.get(HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
+			}
+		}
+
+        // DAMAGE_TAKEN (NPC)
+		// Originally, this heatmap tracked both NPC and PVP damage.
+		// now it tracks only NPC damage.
+//		if (isMeTakingDamage & interactingPlayers.length == 0) { // temp commented out
+		if (isMeTakingDamage) {
+			if (config.isHeatmapDamageTakenEnabled()) {
+				heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
+			}
+		}
+
+		// DAMAGE_GIVEN (NPC)
+		if (hitsplatApplied.getActor() instanceof NPC && hitsplat.isMine()) {
+			localPlayerLoc = hitsplatActor.getWorldLocation(); //temp
+			if (config.isHeatmapDamageGivenEnabled()) {
+				heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
+			}
+		}
     }
 
     @Subscribe
@@ -512,7 +541,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Subscribe
     public void onStatChanged(StatChanged statChanged) {
-        // NOTE: this happens 23 times when you log in, and at such time, the heatmaps haven't been loaded in, so you can't call .get() on them
+        // NOTE: this happens 24 times when you log in, and at such time, the heatmaps haven't been loaded in, so you can't call .get() on them
         // Get difference between previous and current XP
         int skillIndex = statChanged.getSkill().ordinal();
         int xpDifference = client.getSkillExperience(statChanged.getSkill()) - previousXP[skillIndex];
@@ -727,6 +756,8 @@ public class WorldHeatmapPlugin extends Plugin {
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING, config::isHeatmapBobTheCatSightingEnabled);
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_TAKEN, config::isHeatmapDamageTakenEnabled);
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_GIVEN, config::isHeatmapDamageGivenEnabled);
+		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.PVP_DAMAGE_TAKEN, config::isHeatmapPVPDamageGivenEnabled);
+		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN, config::isHeatmapPVPDamageTakenEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.WORLD_HOPS, config::isHeatmapWorldHopsEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.LOGIN_LOGOUT, config::isHeatmapLoginLogoutEnabled);
         return (boolean) heatmapTypeSupplierMap.getOrDefault(type, () -> false).get();
@@ -752,6 +783,8 @@ public class WorldHeatmapPlugin extends Plugin {
         configNameToHeatmapType.put("isHeatmapBobTheCatSightingEnabled", HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
         configNameToHeatmapType.put("isHeatmapDamageTakenEnabled", HeatmapNew.HeatmapType.DAMAGE_TAKEN);
         configNameToHeatmapType.put("isHeatmapDamageGivenEnabled", HeatmapNew.HeatmapType.DAMAGE_GIVEN);
+		configNameToHeatmapType.put("isHeatmapPVPDamageTakenEnabled", HeatmapNew.HeatmapType.PVP_DAMAGE_TAKEN);
+		configNameToHeatmapType.put("isHeatmapPVPDamageGivenEnabled", HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN);
 		configNameToHeatmapType.put("isHeatmapWorldHopsEnabled", HeatmapNew.HeatmapType.WORLD_HOPS);
 		configNameToHeatmapType.put("isHeatmapLoginLogoutEnabled", HeatmapNew.HeatmapType.LOGIN_LOGOUT);
 

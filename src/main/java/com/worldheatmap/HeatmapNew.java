@@ -31,7 +31,7 @@ public class HeatmapNew
 		HEATMAP_OFFSET_X = -1152,   //never change these
 		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
 
-	public static HeatmapNew fromCSV(HeatmapType curType, BufferedReader reader) throws IOException
+	public static HeatmapNew fromCSV(BufferedReader reader) throws IOException
 	{
 		// Read them field variables
 		String[] fieldNames = reader.readLine().split(",", -1);
@@ -114,7 +114,7 @@ public class HeatmapNew
 	}
 
 	public enum HeatmapType
-	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, WORLD_HOPS, LOGIN_LOGOUT, UNKNOWN}
+	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, DAMAGE_TAKEN, DAMAGE_GIVEN, PVP_DAMAGE_GIVEN, PVP_DAMAGE_TAKEN, WORLD_HOPS, LOGIN_LOGOUT, UNKNOWN}
 	@Getter @Setter
 	private long userID = -1;
 	@Getter @Setter

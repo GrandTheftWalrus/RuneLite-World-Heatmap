@@ -271,9 +271,9 @@ public interface WorldHeatmapConfig extends Config {
 
     @ConfigItem(
             keyName = "isHeatmapDamageTakenEnabled",
-            name = "DAMAGE_TAKEN",
+            name = "NPC_DAMAGE_GIVEN",
             position = 12,
-            description = "Records the total you've damage taken on each tile",
+            description = "Records the total damage you've taken from NPC on each tile. Until May 2026 this heatmap tracked both NPC and PVP damage. Now it's only NPC damage",
             section = heatmapsOnOff
     )
     default boolean isHeatmapDamageTakenEnabled() {
@@ -282,9 +282,9 @@ public interface WorldHeatmapConfig extends Config {
 
     @ConfigItem(
             keyName = "isHeatmapDamageGivenEnabled",
-            name = "DAMAGE_GIVEN",
+            name = "NPC_DAMAGE_GIVEN",
             position = 13,
-            description = "Records the total damage you've dealt whilst standing on each tile",
+            description = "Records the total damage you've dealt to NPCs whilst standing on each tile",
             section = heatmapsOnOff
     )
     default boolean isHeatmapDamageGivenEnabled() {
@@ -292,9 +292,31 @@ public interface WorldHeatmapConfig extends Config {
     }
 
 	@ConfigItem(
+		keyName = "isHeatmapPVPDamageTakenEnabled",
+		name = "PVP_DAMAGE_TAKEN",
+		position = 14,
+		description = "Records the total damage you've dealt to other players whilst standing on each tile",
+		section = heatmapsOnOff
+	)
+	default boolean isHeatmapPVPDamageTakenEnabled() {
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "isHeatmapPVPDamageGivenEnabled",
+		name = "PVP_DAMAGE_GIVEN",
+		position = 15,
+		description = "Records the total damage you've taken from other players whilst standing on each tile",
+		section = heatmapsOnOff
+	)
+	default boolean isHeatmapPVPDamageGivenEnabled() {
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "isHeatmapWorldHopsEnabled",
 		name = "WORLD_HOPS",
-		position = 14,
+		position = 16,
 		description = "Records the number of times you've hopped worlds on each tile",
 		section = heatmapsOnOff
 	)
@@ -305,7 +327,7 @@ public interface WorldHeatmapConfig extends Config {
 	@ConfigItem(
 		keyName = "isHeatmapLoginLogoutEnabled",
 		name = "LOGIN_LOGOUT",
-		position = 15,
+		position = 17,
 		description = "Records the tiles on which you've logged in/out",
 		section = heatmapsOnOff
 	)

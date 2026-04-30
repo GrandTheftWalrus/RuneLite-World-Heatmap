@@ -353,6 +353,29 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-04-29: Added a URL parameter to show when users are linked to the website via the plugin
 
+2026-04-30: Added PVP_DAMAGE_TAKEN and PVP_DAMAGE_GIVEN heatmap types
+
+TODO: Test NPC_DAMAGE_TAKEN and NPC_DAMAGE_GIVEN heatmap types
+	deprecate the below 2 at ze same time
+
+TODO: Deprecate DAMAGE_TAKEN
+	Reason: It was tracking the right tile (the local player), but it was not differentiating
+	between PVP and PVM damage, and now that we have PVP_DAMAGE_TAKEN, this one should
+	only be for PVM. This heatmap type shouldn't take long to replenish data, so let's
+	do er.
+
+TODO: Deprecate DAMAGE_GIVEN
+	Reason: It was tracking the tiles that the NPC was standing on, instead of the local player.
+		This makes it kinda redundant compared to NPC_DEATHS. Instead, NPC_DAMAGE_GIVEN will
+		show the tiles that are advantageous to the local player for PVM and NPC_DAMAGE_TAKEN
+		will show the tiles that are dangerous, thus highlighting safespots positively and
+		negatively respectively.
+
+How to depricate:
+	Just remove it from HeatmapNew.HEATMAP_TYPES and other logic. They
+	will no longer be loaded. I think they might get carried over on save?
+	I'm not sure.
+
 TODO: DAMAGE_GIVEN might not be counted on players for some reason (look at castle wars)
 
 TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
