@@ -270,24 +270,24 @@ public interface WorldHeatmapConfig extends Config {
     }
 
     @ConfigItem(
-            keyName = "isHeatmapDamageTakenEnabled",
+            keyName = "isHeatmapNPCDamageTakenEnabled",
             name = "NPC_DAMAGE_GIVEN",
             position = 12,
             description = "Records the total damage you've taken from NPC on each tile. Until May 2026 this heatmap tracked both NPC and PVP damage. Now it's only NPC damage",
             section = heatmapsOnOff
     )
-    default boolean isHeatmapDamageTakenEnabled() {
+    default boolean isHeatmapNPCDamageTakenEnabled() {
         return true;
     }
 
     @ConfigItem(
-            keyName = "isHeatmapDamageGivenEnabled",
+            keyName = "isHeatmapNPCDamageGivenEnabled",
             name = "NPC_DAMAGE_GIVEN",
             position = 13,
             description = "Records the total damage you've dealt to NPCs whilst standing on each tile",
             section = heatmapsOnOff
     )
-    default boolean isHeatmapDamageGivenEnabled() {
+    default boolean isHeatmapNPCDamageGivenEnabled() {
         return true;
     }
 

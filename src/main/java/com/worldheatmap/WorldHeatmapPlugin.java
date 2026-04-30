@@ -506,21 +506,17 @@ public class WorldHeatmapPlugin extends Plugin {
 			}
 		}
 
-        // DAMAGE_TAKEN (NPC)
-		// Originally, this heatmap tracked both NPC and PVP damage.
-		// now it tracks only NPC damage.
-//		if (isMeTakingDamage & interactingPlayers.length == 0) { // temp commented out
-		if (isMeTakingDamage) {
-			if (config.isHeatmapDamageTakenEnabled()) {
-				heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_TAKEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
+        // NPC_DAMAGE_TAKEN
+		if (isMeTakingDamage & interactingPlayers.length == 0) {
+			if (config.isHeatmapNPCDamageTakenEnabled()) {
+				heatmaps.get(HeatmapNew.HeatmapType.NPC_DAMAGE_TAKEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
 			}
 		}
 
-		// DAMAGE_GIVEN (NPC)
+		// NPC_DAMAGE_GIVEN
 		if (hitsplatApplied.getActor() instanceof NPC && hitsplat.isMine()) {
-			localPlayerLoc = hitsplatActor.getWorldLocation(); //temp
-			if (config.isHeatmapDamageGivenEnabled()) {
-				heatmaps.get(HeatmapNew.HeatmapType.DAMAGE_GIVEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
+			if (config.isHeatmapNPCDamageGivenEnabled()) {
+				heatmaps.get(HeatmapNew.HeatmapType.NPC_DAMAGE_GIVEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
 			}
 		}
     }
@@ -754,8 +750,8 @@ public class WorldHeatmapPlugin extends Plugin {
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DEATHS, config::isHeatmapDeathsEnabled);
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.NPC_DEATHS, config::isHeatmapNPCDeathsEnabled);
         heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING, config::isHeatmapBobTheCatSightingEnabled);
-        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_TAKEN, config::isHeatmapDamageTakenEnabled);
-        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.DAMAGE_GIVEN, config::isHeatmapDamageGivenEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.NPC_DAMAGE_TAKEN, config::isHeatmapNPCDamageTakenEnabled);
+        heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.NPC_DAMAGE_GIVEN, config::isHeatmapNPCDamageGivenEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.PVP_DAMAGE_TAKEN, config::isHeatmapPVPDamageGivenEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN, config::isHeatmapPVPDamageTakenEnabled);
 		heatmapTypeSupplierMap.put(HeatmapNew.HeatmapType.WORLD_HOPS, config::isHeatmapWorldHopsEnabled);
@@ -781,8 +777,8 @@ public class WorldHeatmapPlugin extends Plugin {
         configNameToHeatmapType.put("isHeatmapDeathsEnabled", HeatmapNew.HeatmapType.DEATHS);
         configNameToHeatmapType.put("isHeatmapNPCDeathsEnabled", HeatmapNew.HeatmapType.NPC_DEATHS);
         configNameToHeatmapType.put("isHeatmapBobTheCatSightingEnabled", HeatmapNew.HeatmapType.BOB_THE_CAT_SIGHTING);
-        configNameToHeatmapType.put("isHeatmapDamageTakenEnabled", HeatmapNew.HeatmapType.DAMAGE_TAKEN);
-        configNameToHeatmapType.put("isHeatmapDamageGivenEnabled", HeatmapNew.HeatmapType.DAMAGE_GIVEN);
+        configNameToHeatmapType.put("isHeatmapNPCDamageTakenEnabled", HeatmapNew.HeatmapType.NPC_DAMAGE_TAKEN);
+        configNameToHeatmapType.put("isHeatmapNPCDamageGivenEnabled", HeatmapNew.HeatmapType.NPC_DAMAGE_GIVEN);
 		configNameToHeatmapType.put("isHeatmapPVPDamageTakenEnabled", HeatmapNew.HeatmapType.PVP_DAMAGE_TAKEN);
 		configNameToHeatmapType.put("isHeatmapPVPDamageGivenEnabled", HeatmapNew.HeatmapType.PVP_DAMAGE_GIVEN);
 		configNameToHeatmapType.put("isHeatmapWorldHopsEnabled", HeatmapNew.HeatmapType.WORLD_HOPS);

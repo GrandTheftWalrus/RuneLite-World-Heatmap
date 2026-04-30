@@ -355,31 +355,24 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-04-30: Added PVP_DAMAGE_TAKEN and PVP_DAMAGE_GIVEN heatmap types
 
-TODO: Test NPC_DAMAGE_TAKEN and NPC_DAMAGE_GIVEN heatmap types
-	deprecate the below 2 at ze same time
+2026-04-30: Added NPC_DAMAGE_TAKEN and NPC_DAMAGE_GIVEN heatmap types
 
-TODO: Deprecate DAMAGE_TAKEN
-	Reason: It was tracking the right tile (the local player), but it was not differentiating
-	between PVP and PVM damage, and now that we have PVP_DAMAGE_TAKEN, this one should
-	only be for PVM. This heatmap type shouldn't take long to replenish data, so let's
-	do er.
+2026-04-30: Deprecated DAMAGE_TAKEN and DAMAGE_GIVEN
 
-TODO: Deprecate DAMAGE_GIVEN
-	Reason: It was tracking the tiles that the NPC was standing on, instead of the local player.
-		This makes it kinda redundant compared to NPC_DEATHS. Instead, NPC_DAMAGE_GIVEN will
-		show the tiles that are advantageous to the local player for PVM and NPC_DAMAGE_TAKEN
-		will show the tiles that are dangerous, thus highlighting safespots positively and
-		negatively respectively.
+TODO: Replace underscores with spaces in the panel so it's more readable
 
-How to depricate:
+How to deprecate:
 	Just remove it from HeatmapNew.HEATMAP_TYPES and other logic. They
 	will no longer be loaded. I think they might get carried over on save?
 	I'm not sure.
 
-TODO: DAMAGE_GIVEN might not be counted on players for some reason (look at castle wars)
+TODO: Just got a good ass heatmap idea: locations traded at
 
 TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
-TODO: Remember what tf I meant by this^
+TODO: Remember what tf I meant by this^. might've been to make sure sailing xp is tracked
+	but it should be fine because the xp drop tracking isn't specific to any skill
+	However, I'm curious as to why nothing seems to be going on in the oceans.
+	is the entire ocean an instance?
 
 TODO: Update world map image (and update X offset by 64 tiles)
 
