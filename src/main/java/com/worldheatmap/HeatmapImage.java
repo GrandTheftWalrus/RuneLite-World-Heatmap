@@ -26,6 +26,7 @@ import javax.imageio.stream.ImageOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.util.ImageUtil;
 
 /**
  * Class which calculates osrs heatmap image data on demand
@@ -89,7 +90,7 @@ public class HeatmapImage implements RenderedImage
 			return new int[]{32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
 		}
 		else{
-			return new int[]{32, 64, 125, 150, 300, 600, 1600, 3200, 6400}[configSetting];
+			return new int[]{32, 64, 160, 320, 400, 800, 1600, 4000, 8000}[configSetting];
 		}
 	}
 

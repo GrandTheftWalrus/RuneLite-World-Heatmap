@@ -25,11 +25,6 @@ public class HeatmapNew
 	private int tileCount = 0;
 	@Getter @Setter
 	private int gameTimeTicks = 0;
-	private static final int
-		HEATMAP_WIDTH = 2752,       //never change these
-		HEATMAP_HEIGHT = 1664,      //never change these
-		HEATMAP_OFFSET_X = -1152,   //never change these
-		HEATMAP_OFFSET_Y = -2496;   //never change these (for backwards compatibility)
 
 	public static HeatmapNew fromCSV(BufferedReader reader) throws IOException
 	{
@@ -158,7 +153,12 @@ public class HeatmapNew
 	 */
 	public static HeatmapNew convertOldHeatmapToNew(Heatmap oldStyle)
 	{
+		final int HEATMAP_WIDTH = 2752;
+		final int HEATMAP_HEIGHT = 1664;
+		final int HEATMAP_OFFSET_X = -1152;
+		final int HEATMAP_OFFSET_Y = -2496;
 		HeatmapNew newStyle = new HeatmapNew();
+
 		for (int x = 0; x < HEATMAP_WIDTH; x++)
 		{
 			for (int y = 0; y < HEATMAP_HEIGHT; y++)

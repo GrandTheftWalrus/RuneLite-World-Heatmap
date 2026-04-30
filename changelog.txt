@@ -363,13 +363,7 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-04-30: Added TRADES heatmap type
 
-TODO: Add Sailing to the logic for XP_GAINED and other such heatmap types
-TODO: Remember what tf I meant by this^. might've been to make sure sailing xp is tracked
-	but it should be fine because the xp drop tracking isn't specific to any skill
-	However, I'm curious as to why nothing seems to be going on in the oceans.
-	is the entire ocean an instance?
-
-TODO: Update world map image (and update X offset by 64 tiles)
+2026-04-30: Updated world map image
 
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
