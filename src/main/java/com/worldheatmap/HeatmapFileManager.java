@@ -509,7 +509,6 @@ public class HeatmapFileManager
 				}
 			} catch (IOException e) {
                 log.error("World Heatmap was not able to save heatmap type '{}' to file '{}'", heatmap.getHeatmapType(), heatmapsFile.getName());
-				e.printStackTrace();
 				return;
 			}
 			loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getTileCount() + " tiles), ");
