@@ -5,7 +5,6 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
@@ -14,6 +13,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.io.File;
 import java.io.IOException;
+import net.runelite.client.util.LinkBrowser;
 
 @Slf4j
 public class WorldHeatmapPanel extends PluginPanel {
@@ -185,32 +185,8 @@ public class WorldHeatmapPanel extends PluginPanel {
         JButton visitGlobalHeatmapButton = new JButton("Global Heatmap Website");
         visitGlobalHeatmapButton.setFont(buttonFont);
         visitGlobalHeatmapButton.addActionListener(e -> {
-            try {
-                // Try Desktop.browse first (might not work on Linux)
-                String url = "https://www.osrsworldheatmap.com/?ref=plugin";
-                if (Desktop.isDesktopSupported()) {
-                    Desktop desktop = Desktop.getDesktop();
-                    if (desktop.isSupported(Desktop.Action.BROWSE)) {
-                        desktop.browse(new URI(url));
-                        return;
-                    }
-                }
-                boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux");
-                if (isLinux) {
-                    // Fallback to Runtime.exec or ProcessBuilder
-                    String[] browsers = {"xdg-open", "firefox", "google-chrome"};
-                    for (String browser : browsers) {
-                        try {
-                            new ProcessBuilder(browser, url).start();
-                            return; // Stop if we successfully open the URL
-                        } catch (IOException ignored) {
-                        }
-                    }
-                }
-                log.error("Unable to open browser, please visit {} manually", url);
-            } catch (Exception exception) {
-                log.error("Error: Exception thrown whilst opening browser: {}", exception.getMessage());
-            }
+			String url = "https://www.osrsworldheatmap.com/?ref=plugin";
+			LinkBrowser.browse(url);
         });
         return visitGlobalHeatmapButton;
     }
@@ -306,8 +282,8 @@ public class WorldHeatmapPanel extends PluginPanel {
                 log.error("Error: was not able to create worldheatmap folder");
             }
         }
-        Desktop.getDesktop().open(plugin.WORLD_HEATMAP_DIR);
-    }
+		LinkBrowser.open(plugin.WORLD_HEATMAP_DIR.toString());
+	}
 
     void setEnabledHeatmapButtons(boolean onOff) {
         // Disable write heatmap image buttons
