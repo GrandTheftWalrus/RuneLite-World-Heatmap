@@ -598,7 +598,7 @@ public class WorldHeatmapPlugin extends Plugin {
                 int y = location.getY();
 				int z = location.getPlane();
 
-                int totalValue = itemStack.getQuantity() * itemManager.getItemPrice(itemStack.getId());
+                long totalValue = itemStack.getQuantity() * itemManager.getItemPrice(itemStack.getId());
                 if (heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE) != null) {
                     heatmaps.get(HeatmapNew.HeatmapType.LOOT_VALUE).increment(x, y, z, totalValue);
                 }

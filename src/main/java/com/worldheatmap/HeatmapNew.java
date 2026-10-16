@@ -14,7 +14,7 @@ import net.runelite.api.coords.WorldPoint;
 public class HeatmapNew
 {
 	@Getter
-	private final HashMap<WorldPoint, Integer> heatmapHashMap;
+	private final HashMap<WorldPoint, Long> heatmapHashMap;
 	@Getter
 	private final static int heatmapVersion = 103;
 	@Getter @Setter
@@ -67,11 +67,11 @@ public class HeatmapNew
 			try {
 				if (tile.length == 3) {
 					// x, y, val (pre-V1.6.1)
-					heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), 0, Integer.parseInt(tile[2]));
+					heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), 0, Long.parseLong(tile[2]));
 				}
 				else if (tile.length == 4) {
 					// x, y, z, val
-					heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]), Integer.parseInt(tile[3]));
+					heatmap.set(Integer.parseInt(tile[0]), Integer.parseInt(tile[1]), Integer.parseInt(tile[2]), Long.parseLong(tile[3]));
 				}
 				else {
 					log.error("Invalid line in heatmap file: {}", s);
@@ -98,12 +98,12 @@ public class HeatmapNew
 	 */
 	public void subtract(HeatmapNew otherHeatmap, int minimum)
 	{
-		for (Entry<WorldPoint, Integer> e : otherHeatmap.getEntrySet())
+		for (Entry<WorldPoint, Long> e : otherHeatmap.getEntrySet())
 		{
 			int x = e.getKey().getX();
 			int y = e.getKey().getY();
 			int z = e.getKey().getPlane();
-			int val = e.getValue();
+			long val = e.getValue();
 			this.set(x, y, z, Math.max(this.get(x, y, z) - val, minimum));
 		}
 	}
@@ -191,7 +191,7 @@ public class HeatmapNew
 		}
 	}
 
-	protected Set<Entry<WorldPoint, Integer>> getEntrySet()
+	protected Set<Entry<WorldPoint, Long>> getEntrySet()
 	{
 		return heatmapHashMap.entrySet();
 	}
@@ -208,7 +208,7 @@ public class HeatmapNew
 	 * @param y      Original RuneScape y-coord
 	 * @param amount Amount to increment the value by
 	 */
-	protected void increment(int x, int y, int z, int amount)
+	protected void increment(int x, int y, int z, long amount)
 	{
 		set(x, y, z, get(x, y, z) + amount);
 	}
@@ -231,7 +231,7 @@ public class HeatmapNew
 	 * @param x        Original RuneScape x-coord
 	 * @param y        Original RuneScape y-coord
 	 */
-	protected void set(int x, int y, int z, int newValue)
+	protected void set(int x, int y, int z, long newValue)
 	{
 		// We don't keep track of negative values
 		if (newValue < 0)
@@ -240,7 +240,7 @@ public class HeatmapNew
 		}
 
 		//Set it & retrieve previous value
-		Integer oldValue = heatmapHashMap.put(new WorldPoint(x, y, z), newValue);
+		Long oldValue = heatmapHashMap.put(new WorldPoint(x, y, z), newValue);
 
 		//Update numTilesVisited
 		if (oldValue == null && newValue > 0)
@@ -276,13 +276,19 @@ public class HeatmapNew
 	public int estimateSize(){
 		int estSize = 0;
 		// Get count of values above and below 128
-		for (Entry<WorldPoint, Integer> e : getEntrySet())
+		for (Entry<WorldPoint, Long> e : getEntrySet())
 		{
-			int nodeSize = 16 + 8 + 8 + 4 + 4; //16 bytes for Node  object, 8 and 8 for the key and value references, 4 for the hash value, then extra 4 for 8-byte alignment
-			int pointSize = 16 + 4 + 4 + 4; //16 bytes for WorldPoint object header, then 4 for each of the three int coords
-			int integerSize = (e.getValue() < 128 ? 8 : 16 + 4 + 4); //8 bytes for just header of pooled Integer, or 12 bytes for non-pooled Integer header plus inner int plus 4 bytes for 8-byte alignment
-			estSize += nodeSize + pointSize + integerSize;
+			int entrySize = 32; // 32: 12 bytes for Entry object header, 4 for hash value, 4 and 4 for the key and value references, 4 for the 'next' reference, then extra 4 for 8-byte alignment
+			int pointSize = 24; // 24: 12 bytes for WorldPoint object header, then 4 for each of the three int coords
+			long val = e.getValue();
+			int longSize = (-128 <= val && val <= 127) ? 0 : 24; // 0 or 24: 0 bytes for Entry's ref to pooled Long, or 12 bytes for header, 8 for inner long plus 4 bytes for 8-byte alignment
+			estSize += entrySize + pointSize + longSize;
 		}
+
+		// HashMap overhead
+		estSize += 32; // 32: 12 bytes for HashMap object header, 4 for size, 4 for threshold, 4 for loadFactor, 4 for modCount, 4 for table reference, then extra 4 for 8-byte alignment
+		estSize += 4 * heatmapHashMap.size(); // 4 bytes for each reference in the table array (assuming 32-bit references)
+		
 		return estSize;
 	}
 
@@ -292,9 +298,9 @@ public class HeatmapNew
 	 * @param x Heatmap-style x-coord
 	 * @param y Heatmap-style y-coord
 	 */
-	protected int get(int x, int y, int z)
+	protected long get(int x, int y, int z)
 	{
-		return heatmapHashMap.getOrDefault(new WorldPoint(x, y, z), 0);
+		return heatmapHashMap.getOrDefault(new WorldPoint(x, y, z), 0L);
 	}
 
 	/**
@@ -313,12 +319,12 @@ public class HeatmapNew
 			"," + this.getSeasonalType() + "\n");
 
 		// Write the tile values
-		for (Entry<WorldPoint, Integer> e : this.getEntrySet()) {
+		for (Entry<WorldPoint, Long> e : this.getEntrySet()) {
 			int x = e.getKey().getX();
 			int y = e.getKey().getY();
 			int z = e.getKey().getPlane();
-			int stepVal = e.getValue();
-			bos.write(x + "," + y + "," + z + "," + stepVal + "\n");
+			long val = e.getValue();
+			bos.write(x + "," + y + "," + z + "," + val + "\n");
 		}
 	}
 

@@ -38,13 +38,13 @@ public class HeatmapImage implements RenderedImage
 
 	// A queue that holds the heatmap coordinates along
 	// with their values, to be sorted by coordinate left-to-right top-to-bottom
-	private static LinkedList<Map.Entry<Point, Integer>> sortedHeatmapTiles;
+	private static LinkedList<Map.Entry<Point, Long>> sortedHeatmapTiles;
 	private final float heatmapTransparency;
 	private final int heatmapSensitivity;
 	private final int numXTiles = 1;
 	private final int numYTiles;
-	private int heatmapMinVal;
-	private int heatmapMaxVal;
+	private long heatmapMinVal;
+	private long heatmapMaxVal;
 	int PIXEL_OFFSET_X;
 	int PIXEL_OFFSET_Y;
 
@@ -89,7 +89,7 @@ public class HeatmapImage implements RenderedImage
 			return new int[]{32, 64, 89, 178, 356, 712, 1424, 2848, 5696}[configSetting];
 		}
 		else{
-			return new int[]{32, 64, 160, 320, 400, 800, 1600, 4000, 8000}[configSetting];
+			return new int[]{32, 64, 160, 320, 400, 800, 1600, 3200, 6400}[configSetting];
 		}
 	}
 
@@ -239,15 +239,15 @@ public class HeatmapImage implements RenderedImage
 	 * @param heatmap The heatmap
 	 * @return An array of length 2, where the first element is the max value and the second element is the min value
 	 */
-	private int[] calculateMaxMinValues(HeatmapNew heatmap)
+	private long[] calculateMaxMinValues(HeatmapNew heatmap)
 	{
-		int maxVal = 0;
-		int minVal = Integer.MAX_VALUE;
+		long maxVal = 0;
+		long minVal = Long.MAX_VALUE;
 		if (heatmap.getEntrySet().isEmpty())
 		{
-			return new int[]{0, 0};
+			return new long[]{0, 0};
 		}
-		for (Map.Entry<WorldPoint, Integer> tile : heatmap.getEntrySet())
+		for (Map.Entry<WorldPoint, Long> tile : heatmap.getEntrySet())
 		{
 			Point point = new Point(tile.getKey().getX(), tile.getKey().getY());
 			if (isGameTileInImageBounds(point))
@@ -262,7 +262,7 @@ public class HeatmapImage implements RenderedImage
 				}
 			}
 		}
-		return new int[]{maxVal, minVal};
+		return new long[]{maxVal, minVal};
 	}
 
 	public boolean isGameTileInImageBounds(Point point)
@@ -395,11 +395,11 @@ public class HeatmapImage implements RenderedImage
 		// For each pixel in current image region
 		while (!sortedHeatmapTiles.isEmpty())
 		{
-			Map.Entry<Point, Integer> gameTile = sortedHeatmapTiles.poll();
+			Map.Entry<Point, Long> gameTile = sortedHeatmapTiles.poll();
 			Point tilePixel = gameTile.getKey(); // tilePixel is the upper-left coordinate of the 4x4 pixel square that this tile covers
 			tilePixel = gameCoordsToImageCoords(tilePixel);
 			boolean isInImageBounds = (tilePixel.x >= 0 && tilePixel.y >= 0 && tilePixel.x < getWidth() && tilePixel.y < getHeight());
-			int tileValue = gameTile.getValue();
+			long tileValue = gameTile.getValue();
 
 			boolean pixelIsBeforeRegion = (compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x, region.y) < 0);
 			boolean pixelIsAfterRegion = (compareNaturalReadingOrder(tilePixel.x, tilePixel.y, region.x + region.width, region.y + region.height) > 0);
@@ -449,7 +449,7 @@ public class HeatmapImage implements RenderedImage
 		}
 	}
 
-	private double calculateHue(int tileValue, int heatmapSensitivity, int minVal, int maxVal)
+	private double calculateHue(long tileValue, int heatmapSensitivity, long minVal, long maxVal)
 	{
 		double nthRoot = 1 + (heatmapSensitivity - 1.0) / 2;
 		int logBase = 4;
@@ -472,7 +472,7 @@ public class HeatmapImage implements RenderedImage
 	private void initializeProcessingVariables(HeatmapNew heatmap)
 	{
 		// Get min/max values within writeable region to be written
-		int[] maxMin = calculateMaxMinValues(heatmap);
+		long[] maxMin = calculateMaxMinValues(heatmap);
 		heatmapMaxVal = maxMin[0];
 		heatmapMinVal = maxMin[1];
 
