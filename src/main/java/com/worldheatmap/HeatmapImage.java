@@ -26,7 +26,6 @@ import javax.imageio.stream.ImageOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.util.ImageUtil;
 
 /**
  * Class which calculates osrs heatmap image data on demand
