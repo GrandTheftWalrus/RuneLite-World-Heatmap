@@ -26,6 +26,7 @@ import javax.imageio.stream.ImageOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.util.Filepath;
 
 /**
  * Class which calculates osrs heatmap image data on demand
@@ -93,18 +94,13 @@ public class HeatmapImage implements RenderedImage
 		}
 	}
 
-	protected static void writeHeatmapImage(HeatmapNew heatmap, File imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
+	protected static void writeHeatmapImage(HeatmapNew heatmap, Filepath imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
 	{
 		log.info("Saving {} image to disk...", imageFileOut);
 		long startTime = System.nanoTime();
-		if (!imageFileOut.getName().endsWith(".tif"))
+		if (!imageFileOut.getFileName().endsWith(".tif"))
 		{
-			imageFileOut = new File(imageFileOut.getName() + ".tif");
-		}
-
-		if (imageFileOut.getParentFile().mkdirs())
-		{
-			log.debug("Created directory for image file: {}", imageFileOut.getParentFile());
+			imageFileOut = imageFileOut.getParent().joinSegment(imageFileOut.getFileName() + ".tif");
 		}
 
 		if (heatmapTransparency < 0)
@@ -126,7 +122,8 @@ public class HeatmapImage implements RenderedImage
 			reader.setInput(worldMapImageInputStream, true);
 
 			// Prepare the image writer
-			try (FileOutputStream fos = new FileOutputStream(imageFileOut);
+			imageFileOut.getParent().createDirectories();
+			try (OutputStream fos = imageFileOut.openOutputStream();
 				 BufferedOutputStream bos = new BufferedOutputStream(fos);
 				 ImageOutputStream ios = ImageIO.createImageOutputStream(bos))
 			{

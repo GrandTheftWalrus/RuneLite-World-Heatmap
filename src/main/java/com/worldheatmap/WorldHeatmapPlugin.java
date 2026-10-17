@@ -3,7 +3,8 @@ package com.worldheatmap;
 import com.google.inject.Provides;
 
 import java.awt.*;
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
@@ -33,6 +34,7 @@ import net.runelite.client.game.WorldService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.Filepath;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.api.Varbits;
@@ -43,13 +45,14 @@ import java.util.concurrent.*;
 
 import net.runelite.client.game.ItemManager;
 
-import static net.runelite.client.RuneLite.RUNELITE_DIR;
 import net.runelite.http.api.worlds.WorldResult;
 import okhttp3.OkHttpClient;
 
 @Slf4j
 @PluginDescriptor(
-        name = "World Heatmap"
+        name = "World Heatmap",
+        internalName = "world-heatmap",
+        legacyDataDirectory = "worldheatmap"
 )
 public class WorldHeatmapPlugin extends Plugin {
     private int lastX = 0;
@@ -62,7 +65,7 @@ public class WorldHeatmapPlugin extends Plugin {
 	protected long currentLocalAccountHash;
 	protected GameState previousGameState, previousPreviousGameState = GameState.UNKNOWN;
 	protected String currentSeasonalType;
-    protected final File WORLD_HEATMAP_DIR = new File(RUNELITE_DIR.toString(), "worldheatmap");
+    protected Filepath pluginDirectory;
     protected Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = new HashMap<>();
     private NavigationButton toolbarButton;
     protected WorldHeatmapPanel panel;
@@ -106,7 +109,7 @@ public class WorldHeatmapPlugin extends Plugin {
     protected String currentPlayerName;
 	private CompletableFuture<Void> loading = new CompletableFuture<>();
 	private boolean isLoading;
-	private HeatmapFileManager heatmapFileManager;
+	HeatmapFileManager heatmapFileManager;
 
 	@Inject
     private Client client;
@@ -153,7 +156,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		heatmapFileManager.fixHeatmapsFiles(currentLocalAccountHash, currentPlayerName);
 
         log.info("Loading most recent {}heatmaps under user ID {}...", currentSeasonalType.isBlank() ? "" : currentSeasonalType + " ", currentLocalAccountHash);
-        File latestHeatmapsFile = heatmapFileManager.getLatestFile(currentLocalAccountHash, currentSeasonalType);
+        Filepath latestHeatmapsFile = heatmapFileManager.getLatestFile(currentLocalAccountHash, currentSeasonalType);
 
         // Load all heatmaps from the file
         if (latestHeatmapsFile != null && latestHeatmapsFile.exists()) {
@@ -184,10 +187,11 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     @Override
-    protected void startUp() {
+    protected void startUp() throws IOException {
         panel = new WorldHeatmapPanel(this);
         panel.rebuild();
-		heatmapFileManager = new HeatmapFileManager(this);
+		pluginDirectory = getPluginDirectory();
+		heatmapFileManager = new HeatmapFileManager(this, pluginDirectory);
         final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/WorldHeatmap.png");
         toolbarButton = NavigationButton.builder()
                 .tooltip("World Heatmap")
@@ -633,8 +637,8 @@ public class WorldHeatmapPlugin extends Plugin {
 
         // Autosave the 'TYPE_A' and 'TYPE_B' heatmap images if it is the correct time to do so
         if (shouldWriteImages) {
-            File typeAImageFile = HeatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_A, currentSeasonalType);
-            File typeBImageFile = HeatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_B, currentSeasonalType);
+            Filepath typeAImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_A, currentSeasonalType);
+            Filepath typeBImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, HeatmapNew.HeatmapType.TYPE_B, currentSeasonalType);
 
             // Write the image files
             if (config.isHeatmapTypeAEnabled()) {
@@ -678,7 +682,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		String seasonalType = getEnabledHeatmaps().iterator().next().getSeasonalType();
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
-		File latestFile = heatmapFileManager.getLatestFile(localAccountHash, seasonalType);
+		Filepath latestFile = heatmapFileManager.getLatestFile(localAccountHash, seasonalType);
 
 		// If there is no latest file, create a new file
 		if (latestFile == null || !latestFile.exists()) {
@@ -689,9 +693,11 @@ public class WorldHeatmapPlugin extends Plugin {
 		heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
 
 		// Rename the latest file to be the current date and time, unless dated into the future
-		File newFile = heatmapFileManager.getCurrentFile(localAccountHash, seasonalType);
-		if (!latestFile.renameTo(newFile)) {
-			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getName(), newFile.getName());
+		Filepath newFile = heatmapFileManager.getCurrentFile(localAccountHash, seasonalType);
+		try {
+			latestFile.moveTo(newFile);
+		} catch (IOException e) {
+			log.error("Failed to rename latest heatmap file {} to {}", latestFile.getFileName(), newFile.getFileName());
 		}
     }
 
@@ -703,8 +709,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
 
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
-        File latestFile = heatmapFileManager.getLatestFile(localAccountHash, seasonalType);
-        File newFile = heatmapFileManager.getNewFile(localAccountHash, seasonalType);
+        Filepath latestFile = heatmapFileManager.getLatestFile(localAccountHash, seasonalType);
+        Filepath newFile = heatmapFileManager.getNewFile(localAccountHash, seasonalType);
         heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
     }
 
@@ -815,7 +821,7 @@ public class WorldHeatmapPlugin extends Plugin {
             log.debug("Enabling {} heatmap...", heatmapType);
             HeatmapNew heatmap = null;
             // Load the heatmap from the file if it exists
-			File heatmapsFile = heatmapFileManager.getLatestFile(currentLocalAccountHash, currentSeasonalType);
+			Filepath heatmapsFile = heatmapFileManager.getLatestFile(currentLocalAccountHash, currentSeasonalType);
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
                     heatmap = heatmapFileManager.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);

@@ -11,8 +11,8 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.io.File;
 import java.io.IOException;
+import net.runelite.client.util.Filepath;
 import net.runelite.client.util.LinkBrowser;
 
 @Slf4j
@@ -257,7 +257,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         // Save all heatmap data
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
-		File imageFile = HeatmapFileManager.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
+		Filepath imageFile = plugin.heatmapFileManager.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
         plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
@@ -277,12 +277,8 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     private void openHeatmapsFolder() throws IOException {
-        if (!plugin.WORLD_HEATMAP_DIR.exists()) {
-            if (!plugin.WORLD_HEATMAP_DIR.mkdirs()) {
-                log.error("Error: was not able to create worldheatmap folder");
-            }
-        }
-		LinkBrowser.open(plugin.WORLD_HEATMAP_DIR.toString());
+        plugin.pluginDirectory.createDirectories();
+		LinkBrowser.open(plugin.pluginDirectory.toString());
 	}
 
     void setEnabledHeatmapButtons(boolean onOff) {

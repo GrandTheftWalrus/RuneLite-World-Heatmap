@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.util.Filepath;
 
 @Slf4j
 public class HeatmapNew
@@ -178,15 +179,15 @@ public class HeatmapNew
 	 * @param heatmapFile The .heatmap file
 	 * @return HeatmapNew object
 	 */
-	static HeatmapNew readLegacyV1HeatmapFile(File heatmapFile) {
-		try (FileInputStream fis = new FileInputStream(heatmapFile);
+	static HeatmapNew readLegacyV1HeatmapFile(Filepath heatmapFile) {
+		try (InputStream fis = heatmapFile.openInputStream();
 			 InflaterInputStream iis = new InflaterInputStream(fis);
 			 ObjectInputStream ois = new ObjectInputStream(iis)) {
 			Heatmap heatmap = (Heatmap) ois.readObject();
 			HeatmapNew result = convertOldHeatmapToNew(heatmap);
 			return result;
 		} catch (Exception e) {
-			log.error("Exception occurred while reading legacy heatmap file '{}'", heatmapFile.getName());
+			log.error("Exception occurred while reading legacy heatmap file '{}'", heatmapFile.getFileName());
 			throw new RuntimeException(e);
 		}
 	}
