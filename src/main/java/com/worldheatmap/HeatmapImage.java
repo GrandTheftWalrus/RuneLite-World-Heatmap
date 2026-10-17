@@ -53,7 +53,7 @@ public class HeatmapImage implements RenderedImage
 	 * @param worldMapImageReader osrs_world_map.png
 	 * @param numYTiles           Image width must be evenly divisible by numYTiles
 	 */
-	public HeatmapImage(HeatmapNew heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency, int sensitivity, int pixelOffsetX, int pixelOffsetY)
+	public HeatmapImage(Heatmap heatmap, ImageReader worldMapImageReader, int numYTiles, float transparency, int sensitivity, int pixelOffsetX, int pixelOffsetY)
 	{
 		this.worldMapImageReader = worldMapImageReader;
 		this.numYTiles = numYTiles;
@@ -94,7 +94,7 @@ public class HeatmapImage implements RenderedImage
 		}
 	}
 
-	protected static void writeHeatmapImage(HeatmapNew heatmap, Filepath imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
+	protected static void writeHeatmapImage(Heatmap heatmap, Filepath imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
 	{
 		log.info("Saving {} image to disk...", imageFileOut);
 		long startTime = System.nanoTime();
@@ -236,7 +236,7 @@ public class HeatmapImage implements RenderedImage
 	 * @param heatmap The heatmap
 	 * @return An array of length 2, where the first element is the max value and the second element is the min value
 	 */
-	private long[] calculateMaxMinValues(HeatmapNew heatmap)
+	private long[] calculateMaxMinValues(Heatmap heatmap)
 	{
 		long maxVal = 0;
 		long minVal = Long.MAX_VALUE;
@@ -466,7 +466,7 @@ public class HeatmapImage implements RenderedImage
 		return rowMajor1 - rowMajor2;
 	}
 
-	private void initializeProcessingVariables(HeatmapNew heatmap)
+	private void initializeProcessingVariables(Heatmap heatmap)
 	{
 		// Get min/max values within writeable region to be written
 		long[] maxMin = calculateMaxMinValues(heatmap);

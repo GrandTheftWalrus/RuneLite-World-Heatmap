@@ -1,7 +1,6 @@
 package com.worldheatmap;
 
 import java.awt.*;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,13 +22,13 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private JLabel totalMemoryUsageLabel;
 
-    Map<HeatmapNew.HeatmapType, JPanel> heatmapPanels = new HashMap<>();
-    Map<HeatmapNew.HeatmapType, JLabel> heatmapTotalValueLabels = new HashMap<>();
-	Map<HeatmapNew.HeatmapType, JLabel> heatmapTileCountLabels = new HashMap<>();
-    Map<HeatmapNew.HeatmapType, JLabel> heatmapPanelLabels = new HashMap<>();
-    Map<HeatmapNew.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
-    Map<HeatmapNew.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
-	Map<HeatmapNew.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
+    Map<Heatmap.HeatmapType, JPanel> heatmapPanels = new HashMap<>();
+    Map<Heatmap.HeatmapType, JLabel> heatmapTotalValueLabels = new HashMap<>();
+	Map<Heatmap.HeatmapType, JLabel> heatmapTileCountLabels = new HashMap<>();
+    Map<Heatmap.HeatmapType, JLabel> heatmapPanelLabels = new HashMap<>();
+    Map<Heatmap.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
+    Map<Heatmap.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
+	Map<Heatmap.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
 	protected long timeOfLastMemoryEstimate = -1;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
@@ -62,7 +61,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 
         // Total Memory Usage estimate label
         int estimatedMemoryUsage = 0;
-        for (HeatmapNew heatmap : plugin.heatmaps.values()) {
+        for (Heatmap heatmap : plugin.heatmaps.values()) {
             estimatedMemoryUsage += heatmap.estimateSize();
         }
 		if (estimatedMemoryUsage == 0) {
@@ -83,7 +82,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         mainPanel.add(visitGlobalHeatmapButton);
 
         // Create the panels/buttons for each loaded Heatmap type
-        for (HeatmapNew.HeatmapType heatmapType : HeatmapNew.HeatmapType.values()) {
+        for (Heatmap.HeatmapType heatmapType : Heatmap.HeatmapType.values()) {
             // Do not create panels for disabled heatmaps
             if (!plugin.isHeatmapEnabled(heatmapType)) {
                 continue;
@@ -129,7 +128,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 			String totalToolTipText = "Total value of all tiles in the heatmap";
 			JLabel heatmapTotalValueLabel = new JLabel("Total: 0");
 			heatmapTotalValueLabel.setHorizontalAlignment(SwingConstants.CENTER);
-			heatmapTotalValueLabel.setToolTipText("Total value of all tiles in the heatmap");
+			heatmapTotalValueLabel.setToolTipText(totalToolTipText);
 			heatmapTotalValueLabels.put(heatmapType, heatmapTotalValueLabel);
 			labelsPanel.add(heatmapTotalValueLabel);
 
@@ -147,7 +146,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         }
     }
 
-    private JButton getClearHeatmapButton(HeatmapNew.HeatmapType heatmapType, Font buttonFont, JPanel heatmapPanel) {
+    private JButton getClearHeatmapButton(Heatmap.HeatmapType heatmapType, Font buttonFont, JPanel heatmapPanel) {
         JButton clearHeatmapButton = new JButton("Restart Heatmap");
         clearHeatmapButton.setFont(buttonFont);
         clearHeatmapButton.addActionListener(e -> {
@@ -201,7 +200,7 @@ public class WorldHeatmapPanel extends PluginPanel {
     }
 
     protected void updateCounts() {
-        for (HeatmapNew.HeatmapType heatmapType : plugin.heatmaps.keySet()) {
+        for (Heatmap.HeatmapType heatmapType : plugin.heatmaps.keySet()) {
             if (heatmapTotalValueLabels.get(heatmapType) != null) {
                 heatmapTotalValueLabels.get(heatmapType).setText("Total: " + plugin.heatmaps.get(heatmapType).getTotalValue());
             }
@@ -221,7 +220,7 @@ public class WorldHeatmapPanel extends PluginPanel {
 		if (System.currentTimeMillis() - timeOfLastMemoryEstimate < 60_000 || timeOfLastMemoryEstimate == -1) {
 			timeOfLastMemoryEstimate = System.currentTimeMillis();
 			int totalEstimatedMemoryUsage = 0;
-			for (HeatmapNew heatmap : plugin.heatmaps.values()) {
+			for (Heatmap heatmap : plugin.heatmaps.values()) {
 				int estimatedMemoryUsage = heatmap.estimateSize();
 				memoryUsageEstimates.put(heatmap.getHeatmapType(), estimatedMemoryUsage);
 				totalEstimatedMemoryUsage += estimatedMemoryUsage;
@@ -230,10 +229,10 @@ public class WorldHeatmapPanel extends PluginPanel {
 		}
 
 		// Update the tooltips of the heatmap panel labels
-		for (Map.Entry<HeatmapNew.HeatmapType, JLabel> entry : heatmapPanelLabels.entrySet()) {
+		for (Map.Entry<Heatmap.HeatmapType, JLabel> entry : heatmapPanelLabels.entrySet()) {
 			JLabel label = entry.getValue();
-			HeatmapNew.HeatmapType heatmapType = entry.getKey();
-			HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
+			Heatmap.HeatmapType heatmapType = entry.getKey();
+			Heatmap heatmap = plugin.heatmaps.get(heatmapType);
 			if (label == null || heatmapType == null) {
 				continue;
 			}
@@ -252,8 +251,8 @@ public class WorldHeatmapPanel extends PluginPanel {
         updateUI();
     }
 
-    private void writeHeatmapImage(HeatmapNew.HeatmapType heatmapType, boolean isFullMapImage) {
-		HeatmapNew heatmap = plugin.heatmaps.get(heatmapType);
+    private void writeHeatmapImage(Heatmap.HeatmapType heatmapType, boolean isFullMapImage) {
+		Heatmap heatmap = plugin.heatmaps.get(heatmapType);
         // Save all heatmap data
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
@@ -261,16 +260,14 @@ public class WorldHeatmapPanel extends PluginPanel {
         plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
-    private void clearHeatmap(HeatmapNew.HeatmapType heatmapType) {
+    private void clearHeatmap(Heatmap.HeatmapType heatmapType) {
 		log.info("Clearing heatmap: {}", heatmapType);
 
 		// Update the latest heatmap data file
 		plugin.executor.execute(plugin::saveHeatmapsFile);
 
         // Replace the heatmap with a new one
-		plugin.executor.execute(() -> {
-			plugin.heatmaps.put(heatmapType, new HeatmapNew(heatmapType, plugin.currentLocalAccountHash, plugin.currentPlayerAccountType, plugin.currentSeasonalType, plugin.currentPlayerCombatLevel));
-		});
+		plugin.executor.execute(() -> plugin.heatmaps.put(heatmapType, new Heatmap(heatmapType, plugin.currentLocalAccountHash, plugin.currentPlayerAccountType, plugin.currentSeasonalType, plugin.currentPlayerCombatLevel)));
 
         // Start a new .heatmaps data file, so the pre-clearing data is not lost
 		plugin.executor.execute(plugin::saveNewHeatmapsFile);

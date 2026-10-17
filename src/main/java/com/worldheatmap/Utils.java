@@ -25,7 +25,7 @@ public class Utils
 	 * @param heatmaps
 	 * @return Whether the upload was successful
 	 */
-	static boolean uploadHeatmaps(Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps, OkHttpClient okHttpClient)
+	static boolean uploadHeatmaps(Map<Heatmap.HeatmapType, Heatmap> heatmaps, OkHttpClient okHttpClient)
 	{
 		if (heatmaps.isEmpty())
 		{
@@ -39,7 +39,7 @@ public class Utils
 			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream))
 			{
-				for (HeatmapNew heatmap : heatmaps.values())
+				for (Heatmap heatmap : heatmaps.values())
 				{
 					ZipEntry zipEntry = new ZipEntry(heatmap.getHeatmapType() + "_HEATMAP.csv");
 					zipOutputStream.putNextEntry(zipEntry);

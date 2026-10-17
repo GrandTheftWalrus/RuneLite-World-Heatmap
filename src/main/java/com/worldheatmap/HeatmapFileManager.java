@@ -121,7 +121,7 @@ public class HeatmapFileManager
 	 * @param seasonalType The seasonal type, or null if not seasonal
 	 * @return
 	 */
-    public Filepath getNewImageFile(long userId, HeatmapNew.HeatmapType type, String seasonalType) {
+    public Filepath getNewImageFile(long userId, Heatmap.HeatmapType type, String seasonalType) {
 		boolean isSeasonal = !seasonalType.isBlank();
         String dateString = formatDate(LocalDateTime.now());
         Filepath userIdDir = HEATMAP_IMAGE_DIR.join(Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
@@ -167,7 +167,6 @@ public class HeatmapFileManager
 
 		// Modernize any legacy heatmap files, stashing them in the regular directory
 		// (since they won't have seasonal type encoded)
-		carryOverV1_0Files(username, accountHash, normalDir);
 		carryOverV1_2Files(accountHash, normalDir);
 
 		// Perform V1.6.0 file naming scheme fix on normal directory if necessary
@@ -199,10 +198,10 @@ public class HeatmapFileManager
 		try {
 			log.info("Performing death-teleport fix for account {} (seasonal type: \"{}\") on file {}", accountHash, seasonalType, latestFile.getFileName());
 			// Read all heatmap types (because we want to rewrite even the ones not needing to be modified, to update their version)
-			HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(latestFile, List.of(HeatmapNew.HeatmapType.values()), false);
-			HeatmapNew deaths = heatmaps.get(HeatmapNew.HeatmapType.DEATHS);
+			HashMap<Heatmap.HeatmapType, Heatmap> heatmaps = readHeatmapsFromFile(latestFile, List.of(Heatmap.HeatmapType.values()), false);
+			Heatmap deaths = heatmaps.get(Heatmap.HeatmapType.DEATHS);
 
-			HeatmapNew teleportedFrom = heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM);
+			Heatmap teleportedFrom = heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM);
 
 			if (teleportedFrom != null && deaths != null && deaths.getTileCount() > 0) {
 				teleportedFrom.subtract(deaths, 0);
@@ -211,13 +210,13 @@ public class HeatmapFileManager
 			writeHeatmapsToFile(heatmaps.values(), newFile, false);
 
 			// Write new, fixed TELEPORTED_FROM image
-			Filepath teleportedFromImageFile = getNewImageFile(accountHash, HeatmapNew.HeatmapType.TELEPORTED_FROM, seasonalType);
-			plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(HeatmapNew.HeatmapType.TELEPORTED_FROM), teleportedFromImageFile, config.isWriteFullImageEnabled(), config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, HeatmapNew.HeatmapType.TELEPORTED_FROM)));
+			Filepath teleportedFromImageFile = getNewImageFile(accountHash, Heatmap.HeatmapType.TELEPORTED_FROM, seasonalType);
+			plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM), teleportedFromImageFile, config.isWriteFullImageEnabled(), config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, Heatmap.HeatmapType.TELEPORTED_FROM)));
 
 			// If enabled, trigger heatmap data upload to server.
 			// Theoretically this could fix most of the public data.
 			if (config.isUploadEnabled()) {
-				heatmaps.remove(HeatmapNew.HeatmapType.UNKNOWN); // I forget where this even comes from
+				heatmaps.remove(Heatmap.HeatmapType.UNKNOWN); // I forget where this even comes from
 
 				plugin.executor.execute(() -> {
 					boolean uploadSuccessful = Utils.uploadHeatmaps(heatmaps, plugin.okHttpClient);
@@ -260,7 +259,7 @@ public class HeatmapFileManager
 
 				// Move the file by rewriting it, to update its version
 				log.info("Moving heatmaps file from legacy (V1.2) location {} to new location {}", oldFile, newFile);
-				HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(oldFile, List.of(HeatmapNew.HeatmapType.values()), false);
+				HashMap<Heatmap.HeatmapType, Heatmap> heatmaps = readHeatmapsFromFile(oldFile, List.of(Heatmap.HeatmapType.values()), false);
 				// Update the account hash cuz we have it available
 				heatmaps.values().forEach(h -> {
 					h.setUserID(accountHash);
@@ -282,114 +281,6 @@ public class HeatmapFileManager
 				log.error("Moving heatmaps file from legacy (V1.2) location failed");
 			}
 
-		}
-	}
-
-	/**
-	 * Detects V1.0 heatmap files, converts them to the new format, moves them to the new location,
-	 * and renames them after their date modified. Also appends .old to the legacy files and backup
-	 * folder, in case anything goes wrong and the user needs to manually recover their data.
-	 *
-	 * The V1.0 format is the old format where there were separate files for each heatmap
-	 * type, named after the account hash and heatmap type, and stored in the legacy location
-	 * instead of being named after the date and stored in a user ID folder like in the new format.
-	 *
-	 * @param currentPlayerName The player name
-	 * @param newDir            The new directory to move the files to
-	 */
-	private void carryOverV1_0Files(String currentPlayerName, long accountHash, Filepath newDir) {
-		// Check if TYPE_A V1.0 file exists, and if it does, convert it to the new format
-		// rename the old file to .old, and write the new file
-		Filepath typeAFile = HEATMAP_FILES_DIR.join(currentPlayerName + "_TypeA.heatmap");
-		HeatmapNew typeAHeatmap = new HeatmapNew(HeatmapNew.HeatmapType.TYPE_A, -1, -1, null, -1);
-		ZonedDateTime typeAModified = null;
-		boolean typeAExisted = false;
-		if (typeAFile.exists()) {
-			log.info("Found legacy Type A heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
-			typeAExisted = true;
-			try {
-				// Get date modified
-				typeAModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeAFile.getLastModifiedTime().toMillis()), ZoneId.systemDefault()), ZoneId.systemDefault());
-
-				// Load and convert the legacy heatmap file
-				typeAHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeAFile);
-				typeAHeatmap.setUserID(accountHash);
-				typeAHeatmap.setSeasonalType("");
-				typeAHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_A);
-
-				// Append '.old' to legacy file name
-				Filepath dotOldTypeA = typeAFile.getParent().joinSegment(typeAFile.getFileName() + ".old");
-				typeAFile.moveTo(dotOldTypeA);
-			} catch (IOException e) {
-				log.error("Failed to carry over legacy Type A heatmap file for user {}: {}", currentPlayerName, e.toString());
-			}
-		}
-
-		// Repeat for Type B
-		Filepath typeBFile = HEATMAP_FILES_DIR.join(currentPlayerName + "_TypeB.heatmap");
-		HeatmapNew typeBHeatmap = new HeatmapNew(HeatmapNew.HeatmapType.TYPE_B, -1, -1, null, -1);
-		ZonedDateTime typeBModified = null;
-		boolean typeBExisted = false;
-		if (typeBFile.exists()) {
-			log.info("Found legacy Type B heatmap file for user {}. Converting to new format and moving to proper directory...", currentPlayerName);
-			typeBExisted = true;
-			try {
-				// Get date modified
-				typeBModified = ZonedDateTime.of(LocalDateTime.ofInstant(Instant.ofEpochMilli(typeBFile.getLastModifiedTime().toMillis()), ZoneId.systemDefault()), ZoneId.systemDefault());
-
-				// Load, rename, and rewrite the legacy heatmap file to the proper location
-				typeBHeatmap = HeatmapNew.readLegacyV1HeatmapFile(typeBFile);
-				typeBHeatmap.setUserID(accountHash);
-				typeBHeatmap.setSeasonalType("");
-				typeBHeatmap.setHeatmapType(HeatmapNew.HeatmapType.TYPE_B);
-
-				// Make '.old' copy
-				Filepath dotOldTypeB = typeBFile.getParent().joinSegment(typeBFile.getFileName() + ".old");
-				typeBFile.moveTo(dotOldTypeB);
-			} catch (IOException e) {
-				log.error("Failed to carry over legacy Type B heatmap file for user {}: {}", currentPlayerName, e.toString());
-			}
-		}
-
-		// Append .old to the "Backups" folder if it exists
-		Filepath backupDir = HEATMAP_FILES_DIR.join("Backups");
-		if (backupDir.exists()) {
-			try {
-				Filepath oldBackupDir = backupDir.getParent().joinSegment(backupDir.getFileName() + ".old");
-				backupDir.moveTo(oldBackupDir);
-			} catch (IOException e) {
-				log.error("Failed to rename legacy Backups folder: {}", e.toString());
-			}
-		}
-
-		// If either one existed, write them to a new file
-		if (typeAExisted || typeBExisted) {
-			// Set the new file name's date to the latest of the two legacy files
-			ZonedDateTime latestModified;
-			if (typeAModified == null) {
-				latestModified = typeBModified;
-			}
-			else if (typeBModified == null) {
-				latestModified = typeAModified;
-			}
-			else {
-				latestModified = typeAModified.isAfter(typeBModified) ? typeAModified : typeBModified;
-			}
-
-			Filepath newFile = newDir.join(dateFormat.format(latestModified) + HEATMAP_EXTENSION);
-			this.writeHeatmapsToFile(List.of(typeAHeatmap, typeBHeatmap), newFile);
-
-			// If the new file is the latest one in the folder,
-			// Make a second copy of the moved file, named one minute later
-			// so we can keep the other one as an updated backup
-			if (newFile.equals(getLatestFile(newDir))) {
-				Filepath newFile2 = newDir.join(dateFormat.format(latestModified.plusMinutes(1)) + HEATMAP_EXTENSION);
-				try {
-					newFile.copyTo(newFile2);
-				} catch (IOException e) {
-					log.error("Failed to make extra copy of converted legacy shmeatmap file: {}", e.toString());
-				}
-			}
 		}
 	}
 
@@ -450,11 +341,11 @@ public class HeatmapFileManager
 		return files;
 	}
 
-	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, Filepath heatmapsFile, @Nullable Filepath previousHeatmapsFile) {
+	protected void writeHeatmapsToFile(Collection<Heatmap> heatmapsToWrite, Filepath heatmapsFile, @Nullable Filepath previousHeatmapsFile) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, previousHeatmapsFile, true);
 	}
 
-	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, Filepath heatmapsFile) {
+	protected void writeHeatmapsToFile(Collection<Heatmap> heatmapsToWrite, Filepath heatmapsFile) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null, true);
 	}
 
@@ -464,7 +355,7 @@ public class HeatmapFileManager
 	 * @param heatmapsToWrite The heatmaps to write
 	 * @param heatmapsFile The .heatmaps file
 	 */
-	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, Filepath heatmapsFile, boolean verbose) {
+	protected void writeHeatmapsToFile(Collection<Heatmap> heatmapsToWrite, Filepath heatmapsFile, boolean verbose) {
 		writeHeatmapsToFile(heatmapsToWrite, heatmapsFile, null, verbose);
 	}
 
@@ -476,7 +367,7 @@ public class HeatmapFileManager
 	 * @param heatmapsFile The .heatmaps file
 	 * @param previousHeatmapsFile The previous .heatmaps file.
 	 */
-	protected void writeHeatmapsToFile(Collection<HeatmapNew> heatmapsToWrite, Filepath heatmapsFile, @Nullable Filepath previousHeatmapsFile, boolean verbose) {
+	protected void writeHeatmapsToFile(Collection<Heatmap> heatmapsToWrite, Filepath heatmapsFile, @Nullable Filepath previousHeatmapsFile, boolean verbose) {
 		// Preamble
 		if (verbose) {
 			log.info("Saving heatmaps to file '{}'...", heatmapsFile.getFileName());
@@ -504,7 +395,7 @@ public class HeatmapFileManager
 			Filepath tempFile = heatmapsFile.getParent().createTempFile("heatmaps", ".tmp");
 			try (OutputStream os = tempFile.openOutputStream();
 				 ZipOutputStream zos = new ZipOutputStream(os)) {
-				for (HeatmapNew heatmap : heatmapsToWrite) {
+				for (Heatmap heatmap : heatmapsToWrite) {
 					String entryName = heatmap.getHeatmapType().toString() + "_HEATMAP.csv";
 					zos.putNextEntry(new ZipEntry(entryName));
 					OutputStreamWriter osw = new OutputStreamWriter(zos, StandardCharsets.UTF_8);
@@ -552,7 +443,7 @@ public class HeatmapFileManager
 	 * @return HashMap of HeatmapNew objects
 	 * @throws FileNotFoundException If the file does not exist
 	 */
-	HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(Filepath heatmapsFile, Collection<HeatmapNew.HeatmapType> types) throws FileNotFoundException {
+	HashMap<Heatmap.HeatmapType, Heatmap> readHeatmapsFromFile(Filepath heatmapsFile, Collection<Heatmap.HeatmapType> types) throws FileNotFoundException {
 		return readHeatmapsFromFile(heatmapsFile, types, true);
 	}
 
@@ -565,17 +456,17 @@ public class HeatmapFileManager
 	 * @return HashMap of HeatmapNew objects
 	 * @throws FileNotFoundException If the file does not exist
 	 */
-	HashMap<HeatmapNew.HeatmapType, HeatmapNew> readHeatmapsFromFile(Filepath heatmapsFile, Collection<HeatmapNew.HeatmapType> types, boolean verbose) throws FileNotFoundException {
+	HashMap<Heatmap.HeatmapType, Heatmap> readHeatmapsFromFile(Filepath heatmapsFile, Collection<Heatmap.HeatmapType> types, boolean verbose) throws FileNotFoundException {
 		if (!heatmapsFile.exists()) {
 			throw new FileNotFoundException(heatmapsFile.toString());
 		}
 
 		Set<String> wantedEntryNames = new HashSet<>();
-		for (HeatmapNew.HeatmapType type : types) {
+		for (Heatmap.HeatmapType type : types) {
 			wantedEntryNames.add(type.toString() + "_HEATMAP.csv");
 		}
 
-		HashMap<HeatmapNew.HeatmapType, HeatmapNew> heatmapsRead = new HashMap<>();
+		HashMap<Heatmap.HeatmapType, Heatmap> heatmapsRead = new HashMap<>();
 		StringBuilder loggingOutput = new StringBuilder();
 		loggingOutput.append("Heatmap types loaded: ");
 
@@ -589,7 +480,7 @@ public class HeatmapFileManager
 				}
 				try {
 					BufferedReader reader = new BufferedReader(new InputStreamReader(zis, StandardCharsets.UTF_8));
-					HeatmapNew heatmap = HeatmapNew.fromCSV(reader);
+					Heatmap heatmap = Heatmap.fromCSV(reader);
 					heatmapsRead.put(heatmap.getHeatmapType(), heatmap);
 					loggingOutput.append(heatmap.getHeatmapType() + " (" + heatmap.getTileCount() + " tiles), ");
 				} catch (IOException e) {
@@ -674,8 +565,8 @@ public class HeatmapFileManager
 		// Find the latest heatmap version of the latest .heatmaps file
 		long latestVersion = -1;
 		try {
-			Map<HeatmapNew.HeatmapType, HeatmapNew> heatmaps = readHeatmapsFromFile(latestHeatmap, List.of(HeatmapNew.HeatmapType.values()), false);
-			for (HeatmapNew heatmap : heatmaps.values()) {
+			Map<Heatmap.HeatmapType, Heatmap> heatmaps = readHeatmapsFromFile(latestHeatmap, List.of(Heatmap.HeatmapType.values()), false);
+			for (Heatmap heatmap : heatmaps.values()) {
 				if (heatmap.getVersionReadFrom() > latestVersion) {
 					latestVersion = heatmap.getVersionReadFrom();
 				}
