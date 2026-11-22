@@ -79,7 +79,7 @@ class HeatmapOverlayCache
 		}
 
 		ticksSinceRefresh++;
-		Heatmap current = plugin.getLoadedHeatmap(config.overlayHeatmapType());
+		Heatmap current = plugin.getLoadedHeatmap(config.overlayHeatmapType().getHeatmapType());
 		boolean needsRegionImages = config.showWorldMapOverlay();
 		boolean structuralChange = dirty || current != heatmap || needsRegionImages != regionImagesBuilt;
 		boolean dataChanged = current != null &&

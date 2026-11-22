@@ -39,14 +39,16 @@ class HeatmapWorldMapOverlay extends Overlay
 	private final WorldHeatmapConfig config;
 	private final HeatmapOverlayCache cache;
 	private final TooltipManager tooltipManager;
+	private final WorldMapHeatmapList selectorList;
 
 	@Inject
-	HeatmapWorldMapOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache, TooltipManager tooltipManager)
+	HeatmapWorldMapOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache, TooltipManager tooltipManager, WorldMapHeatmapList selectorList)
 	{
 		this.client = client;
 		this.config = config;
 		this.cache = cache;
 		this.tooltipManager = tooltipManager;
+		this.selectorList = selectorList;
 
 		setPosition(OverlayPosition.DYNAMIC);
 		setPriority(Overlay.PRIORITY_LOW);
@@ -93,7 +95,7 @@ class HeatmapWorldMapOverlay extends Overlay
 
 		// Tile under the mouse, if it's over the visible part of the map
 		final Point mouse = client.getMouseCanvasPosition();
-		if (mouse == null || !mapClipArea.contains(mouse.getX(), mouse.getY()))
+		if (mouse == null || !mapClipArea.contains(mouse.getX(), mouse.getY()) || selectorList.isOverList(mouse.getX(), mouse.getY()))
 		{
 			return null;
 		}

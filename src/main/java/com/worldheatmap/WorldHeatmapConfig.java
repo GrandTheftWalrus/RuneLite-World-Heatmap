@@ -154,11 +154,11 @@ public interface WorldHeatmapConfig extends Config {
 		keyName = "overlayHeatmapType",
 		name = "Overlay heatmap",
 		position = 0,
-		description = "Which heatmap the overlays display. The heatmap must also be in 'Enabled heatmaps'.",
+		description = "Which heatmap the overlays display. The heatmap must also be in 'Enabled heatmaps'. Can also be chosen from the world map.",
 		section = overlays
 	)
-	default Heatmap.HeatmapType overlayHeatmapType() {
-		return Heatmap.HeatmapType.TYPE_A;
+	default OverlayHeatmap overlayHeatmapType() {
+		return OverlayHeatmap.NONE;
 	}
 
 	@ConfigItem(
@@ -187,11 +187,11 @@ public interface WorldHeatmapConfig extends Config {
 		keyName = "showWorldMapOverlay",
 		name = "Show on world map",
 		position = 3,
-		description = "Draws the whole heatmap on the world map",
+		description = "Draws the whole heatmap on the world map, and adds a heatmap selector next to the world map's location selector",
 		section = overlays
 	)
 	default boolean showWorldMapOverlay() {
-		return false;
+		return true;
 	}
 
 	@Range(

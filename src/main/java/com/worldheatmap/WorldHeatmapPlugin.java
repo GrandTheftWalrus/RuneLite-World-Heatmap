@@ -38,6 +38,7 @@ import net.runelite.client.util.Filepath;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.input.MouseManager;
 import net.runelite.api.Varbits;
 import net.runelite.http.api.worlds.World;
 
@@ -152,6 +153,15 @@ public class WorldHeatmapPlugin extends Plugin {
 	private HeatmapWorldMapOverlay worldMapOverlay;
 
 	@Inject
+	private WorldMapHeatmapSelector worldMapSelector;
+
+	@Inject
+	private WorldMapHeatmapList worldMapList;
+
+	@Inject
+	private MouseManager mouseManager;
+
+	@Inject
 	private WorldService worldService;
 
 	@Inject
@@ -232,6 +242,8 @@ public class WorldHeatmapPlugin extends Plugin {
 		overlayManager.add(sceneOverlay);
 		overlayManager.add(minimapOverlay);
 		overlayManager.add(worldMapOverlay);
+		overlayManager.add(worldMapList);
+		mouseManager.registerMouseListener(worldMapList);
 		clientThread.invoke(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
@@ -272,7 +284,10 @@ public class WorldHeatmapPlugin extends Plugin {
 		overlayManager.remove(sceneOverlay);
 		overlayManager.remove(minimapOverlay);
 		overlayManager.remove(worldMapOverlay);
+		overlayManager.remove(worldMapList);
+		mouseManager.unregisterMouseListener(worldMapList);
 		overlayCache.clear();
+		clientThread.invoke(worldMapSelector::hide);
     }
 
     @Subscribe
@@ -377,6 +392,11 @@ public class WorldHeatmapPlugin extends Plugin {
 		currentPlayerName = localPlayer.getName();
 		currentPlayerCombatLevel = localPlayer.getCombatLevel();
 		currentPlayerAccountType = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
+	}
+
+	@Subscribe
+	public void onClientTick(ClientTick clientTick) {
+		worldMapSelector.onClientTick();
 	}
 
     @Subscribe
@@ -790,11 +810,11 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     /**
-     * Returns the given heatmap if loading has finished and it is loaded, otherwise null.
+     * Returns the given heatmap if loading has finished and it is loaded, otherwise null (also for a null type).
      */
     Heatmap getLoadedHeatmap(Heatmap.HeatmapType type) {
         Map<Heatmap.HeatmapType, Heatmap> loadedHeatmaps = heatmaps;
-        if (!loading.isDone() || loadedHeatmaps == null) {
+        if (type == null || !loading.isDone() || loadedHeatmaps == null) {
             return null;
         }
         return loadedHeatmaps.get(type);
