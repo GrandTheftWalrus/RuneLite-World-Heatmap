@@ -1,5 +1,7 @@
 package com.worldheatmap;
 
+import java.util.EnumSet;
+import java.util.Set;
 import net.runelite.client.config.*;
 
 @ConfigGroup(WorldHeatmapConfig.GROUP)
@@ -130,224 +132,21 @@ public interface WorldHeatmapConfig extends Config {
 		return true;
 	}
 
-    @ConfigSection(
-            name = "Per-Heatmap On/Off",
-            description = "Enabling/disabling individual heatmaps",
-            position = 1
-    )
-    String heatmapsOnOff = "heatmapsOnOff";
-
-    @ConfigItem(
-            keyName = "isHeatmapTypeAEnabled",
-            name = "TYPE_A",
-            position = 0,
-            description = "Increments a tile each time you walk over it",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapTypeAEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapTypeBEnabled",
-            name = "TYPE_B",
-            position = 1,
-            description = "Increments a tile each tick you stand on it",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapTypeBEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapXPGainedEnabled",
-            name = "XP_GAINED",
-            position = 2,
-            description = "Records the total number of XP gained in each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapXPGainedEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapTeleportPathsEnabled",
-            name = "TELEPORT_PATHS",
-            position = 3,
-            description = "Records the paths taken when teleporting",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapTeleportPathsEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapTeleportedToEnabled",
-            name = "TELEPORTED_TO",
-            position = 4,
-            description = "Records the locations teleported to",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapTeleportedToEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapTeleportedFromEnabled",
-            name = "TELEPORTED_FROM",
-            position = 5,
-            description = "Records the locations teleported from",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapTeleportedFromEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapLootValueEnabled",
-            name = "LOOT_VALUE",
-            position = 6,
-            description = "Records the total value of loot spawned on each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapLootValueEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapPlacesSpokenAtEnabled",
-            name = "PLACES_SPOKEN_AT",
-            position = 7,
-            description = "Records the number of times you've spoken in public chat at each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapPlacesSpokenAtEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapRandomEventSpawnsEnabled",
-            name = "RANDOM_EVENT_SPAWNS",
-            position = 8,
-            description = "Records the number of witnessed random event spawns on each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapRandomEventSpawnsEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapDeathsEnabled",
-            name = "DEATHS",
-            position = 9,
-            description = "Records the number of times you've died on each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapDeathsEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapNPCDeathsEnabled",
-            name = "NPC_DEATHS",
-            position = 10,
-            description = "Records the number of NPC deaths you've witnesssed on each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapNPCDeathsEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapBobTheCatSightingEnabled",
-            name = "BOB_THE_CAT_SIGHTING",
-            position = 11,
-            description = "Records the tiles on which you've found Bob the Cat (this is regular bob, not evil bob)",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapBobTheCatSightingEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapNPCDamageTakenEnabled",
-            name = "NPC_DAMAGE_TAKEN",
-            position = 12,
-            description = "Records the total damage you've taken from NPCs on each tile.",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapNPCDamageTakenEnabled() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "isHeatmapNPCDamageGivenEnabled",
-            name = "NPC_DAMAGE_GIVEN",
-            position = 13,
-            description = "Records the total damage you've dealt to NPCs whilst standing on each tile",
-            section = heatmapsOnOff
-    )
-    default boolean isHeatmapNPCDamageGivenEnabled() {
-        return true;
-    }
-
 	@ConfigItem(
-		keyName = "isHeatmapPVPDamageTakenEnabled",
-		name = "PVP_DAMAGE_TAKEN",
-		position = 14,
-		description = "Records the total damage you've dealt to other players whilst standing on each tile",
-		section = heatmapsOnOff
+		keyName = "enabledHeatmaps",
+		name = "Enabled heatmaps",
+		position = 9,
+		description = "Which heatmaps are recorded. Ctrl-click to toggle one, Shift-click to select a range. A plain click selects only that heatmap. Changes apply when you click away from the list; disabled heatmaps are saved and unloaded.",
+		section = settings
 	)
-	default boolean isHeatmapPVPDamageTakenEnabled() {
-		return true;
+	default Set<Heatmap.HeatmapType> enabledHeatmaps() {
+		return EnumSet.allOf(Heatmap.HeatmapType.class);
 	}
-
-	@ConfigItem(
-		keyName = "isHeatmapPVPDamageGivenEnabled",
-		name = "PVP_DAMAGE_GIVEN",
-		position = 15,
-		description = "Records the total damage you've taken from other players whilst standing on each tile",
-		section = heatmapsOnOff
-	)
-	default boolean isHeatmapPVPDamageGivenEnabled() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "isHeatmapWorldHopsEnabled",
-		name = "WORLD_HOPS",
-		position = 16,
-		description = "Records the number of times you've hopped worlds on each tile",
-		section = heatmapsOnOff
-	)
-	default boolean isHeatmapWorldHopsEnabled() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "isHeatmapLoginLogoutEnabled",
-		name = "LOGIN_LOGOUT",
-		position = 17,
-		description = "Records the tiles on which you've logged in/out",
-		section = heatmapsOnOff
-	)
-	default boolean isHeatmapLoginLogoutEnabled() {
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "isHeatmapTradesEnabled",
-		name = "TRADES",
-		position = 18,
-		description = "Records the tiles on which you've made trades with other players",
-		section = heatmapsOnOff
-	)
-	default boolean isHeatmapTradesEnabled() { return true;	}
 
 	@ConfigSection(
 		name = "Overlays",
 		description = "Live heatmap overlays on the game scene, minimap and world map",
-		position = 2
+		position = 1
 	)
 	String overlays = "overlays";
 
@@ -355,7 +154,7 @@ public interface WorldHeatmapConfig extends Config {
 		keyName = "overlayHeatmapType",
 		name = "Overlay heatmap",
 		position = 0,
-		description = "Which heatmap the overlays display. The heatmap must also be enabled under 'Per-Heatmap On/Off'.",
+		description = "Which heatmap the overlays display. The heatmap must also be in 'Enabled heatmaps'.",
 		section = overlays
 	)
 	default Heatmap.HeatmapType overlayHeatmapType() {

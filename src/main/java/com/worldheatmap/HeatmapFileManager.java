@@ -126,7 +126,7 @@ public class HeatmapFileManager
         String dateString = formatDate(LocalDateTime.now());
         Filepath userIdDir = HEATMAP_IMAGE_DIR.join(Long.toString(userId) + (isSeasonal ? "_" + seasonalType : ""));
 
-        return userIdDir.join(type + "_" + dateString + ".tif");
+        return userIdDir.join(type.name() + "_" + dateString + ".tif");
     }
 
     /**
@@ -216,8 +216,6 @@ public class HeatmapFileManager
 			// If enabled, trigger heatmap data upload to server.
 			// Theoretically this could fix most of the public data.
 			if (config.isUploadEnabled()) {
-				heatmaps.remove(Heatmap.HeatmapType.UNKNOWN); // I forget where this even comes from
-
 				plugin.executor.execute(() -> {
 					boolean uploadSuccessful = Utils.uploadHeatmaps(heatmaps, plugin.okHttpClient);
 					if (uploadSuccessful) {
@@ -396,7 +394,7 @@ public class HeatmapFileManager
 			try (OutputStream os = tempFile.openOutputStream();
 				 ZipOutputStream zos = new ZipOutputStream(os)) {
 				for (Heatmap heatmap : heatmapsToWrite) {
-					String entryName = heatmap.getHeatmapType().toString() + "_HEATMAP.csv";
+					String entryName = heatmap.getHeatmapType().name() + "_HEATMAP.csv";
 					zos.putNextEntry(new ZipEntry(entryName));
 					OutputStreamWriter osw = new OutputStreamWriter(zos, StandardCharsets.UTF_8);
 					heatmap.toCSV(osw);
@@ -463,7 +461,7 @@ public class HeatmapFileManager
 
 		Set<String> wantedEntryNames = new HashSet<>();
 		for (Heatmap.HeatmapType type : types) {
-			wantedEntryNames.add(type.toString() + "_HEATMAP.csv");
+			wantedEntryNames.add(type.name() + "_HEATMAP.csv");
 		}
 
 		HashMap<Heatmap.HeatmapType, Heatmap> heatmapsRead = new HashMap<>();

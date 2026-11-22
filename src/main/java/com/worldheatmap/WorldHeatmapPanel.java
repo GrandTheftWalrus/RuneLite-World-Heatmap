@@ -94,7 +94,7 @@ public class WorldHeatmapPanel extends PluginPanel {
             heatmapPanels.put(heatmapType, heatmapPanel);
 
             //Label
-            JLabel heatmapLabel = new JLabel(heatmapType.toString().replace("_", " "));
+            JLabel heatmapLabel = new JLabel(heatmapType.name().replace("_", " "));
             heatmapPanelLabels.put(heatmapType, heatmapLabel);
             heatmapLabel.setFont(sectionLabelFont);
             heatmapLabel.setForeground(Color.WHITE);
@@ -151,7 +151,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         clearHeatmapButton.setFont(buttonFont);
         clearHeatmapButton.addActionListener(e -> {
             final int result = JOptionPane.showOptionDialog(heatmapPanel,
-                    "<html>Art thou sure you want to restart your " + heatmapType + " heatmap? The data will be lost.</html>",
+                    "<html>Art thou sure you want to restart your " + heatmapType.name() + " heatmap? The data will be lost.</html>",
                     "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
                     null, new String[]{"Yes", "No"}, "No");
 

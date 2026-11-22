@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.imageio.ImageWriter;
 import javax.imageio.event.IIOWriteProgressListener;
@@ -69,6 +68,8 @@ public class WorldHeatmapPlugin extends Plugin {
 	protected String currentSeasonalType;
     protected Filepath pluginDirectory;
     protected Map<Heatmap.HeatmapType, Heatmap> heatmaps = new HashMap<>();
+	// Last seen value of the enabledHeatmaps setting, for working out which types were toggled
+	private Set<Heatmap.HeatmapType> enabledHeatmapTypes;
     private NavigationButton toolbarButton;
     protected WorldHeatmapPanel panel;
 	private Instant timeLastDied;
@@ -212,6 +213,9 @@ public class WorldHeatmapPlugin extends Plugin {
 
     @Override
     protected void startUp() throws IOException {
+		migrateHeatmapToggles();
+		enabledHeatmapTypes = EnumSet.noneOf(Heatmap.HeatmapType.class);
+		enabledHeatmapTypes.addAll(config.enabledHeatmaps());
         panel = new WorldHeatmapPanel(this);
         panel.rebuild();
 		pluginDirectory = getPluginDirectory();
@@ -289,12 +293,12 @@ public class WorldHeatmapPlugin extends Plugin {
 		}
 
 		// LOGIN_LOGOUT
-		if (justLoggedIn && config.isHeatmapLoginLogoutEnabled()) {
+		if (justLoggedIn && isHeatmapEnabled(Heatmap.HeatmapType.LOGIN_LOGOUT)) {
 			shouldIncrementLoginLogout = true;
 		}
 
 		// WORLD_HOPS
-		if (justHopped && config.isHeatmapWorldHopsEnabled()) {
+		if (justHopped && isHeatmapEnabled(Heatmap.HeatmapType.WORLD_HOPS)) {
 			shouldIncrementWorldHops = true;
 		}
 
@@ -424,12 +428,12 @@ public class WorldHeatmapPlugin extends Plugin {
             // Gets all the tiles between last position and new position
             for (Point tile : Utils.getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                 // TYPE_A
-                if (playerMovedSinceLastTick && config.isHeatmapTypeAEnabled() && heatmaps.get(Heatmap.HeatmapType.TYPE_A) != null) {
+                if (playerMovedSinceLastTick && isHeatmapEnabled(Heatmap.HeatmapType.TYPE_A) && heatmaps.get(Heatmap.HeatmapType.TYPE_A) != null) {
                     heatmaps.get(Heatmap.HeatmapType.TYPE_A).increment(tile.getX(), tile.getY(), currentZ);
                 }
 
                 // TYPE_B
-                if (config.isHeatmapTypeBEnabled() && heatmaps.get(Heatmap.HeatmapType.TYPE_B) != null) {
+                if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_B) && heatmaps.get(Heatmap.HeatmapType.TYPE_B) != null) {
                     heatmaps.get(Heatmap.HeatmapType.TYPE_B).increment(tile.getX(), tile.getY(), currentZ);
                 }
             }
@@ -438,7 +442,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		boolean isRecentlyDead = timeLastDied != null && Instant.now().isBefore(timeLastDied.plusSeconds(10));
 
         // TELEPORT_PATHS
-        if (config.isHeatmapTeleportPathsEnabled() &&
+        if (isHeatmapEnabled(Heatmap.HeatmapType.TELEPORT_PATHS) &&
 			heatmaps.get(Heatmap.HeatmapType.TELEPORT_PATHS) != null &&
 			diagDistance > 15 &&
 			Utils.isInOverworld(new Point(lastX, lastY)) &&
@@ -447,7 +451,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			!isRecentlyDead
 		)
         {
-            if (config.isHeatmapTeleportPathsEnabled()) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.TELEPORT_PATHS)) {
                 for (Point tile : Utils.getPointsBetween(new Point(lastX, lastY), new Point(currentX, currentY))) {
                     heatmaps.get(Heatmap.HeatmapType.TELEPORT_PATHS).increment(tile.getX(), tile.getY(), currentZ);
                 }
@@ -462,10 +466,10 @@ public class WorldHeatmapPlugin extends Plugin {
 			Utils.isInOverworld(new Point(currentX, currentY)) && //we only track teleports between overworld tiles
 			!isRecentlyDead)
         {
-            if (config.isHeatmapTeleportedToEnabled() && heatmaps.get(Heatmap.HeatmapType.TELEPORTED_TO) != null) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.TELEPORTED_TO) && heatmaps.get(Heatmap.HeatmapType.TELEPORTED_TO) != null) {
                 heatmaps.get(Heatmap.HeatmapType.TELEPORTED_TO).increment(currentX, currentY, currentZ);
             }
-            if (config.isHeatmapTeleportedFromEnabled() && heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM) != null) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.TELEPORTED_FROM) && heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM) != null) {
                 heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM).increment(lastX, lastY, lastZ);
             }
         }
@@ -491,7 +495,7 @@ public class WorldHeatmapPlugin extends Plugin {
 	public void onWidgetClosed(WidgetClosed widgetClosed) {
 		// TRADES
 		if (widgetClosed.getGroupId() == InterfaceID.TRADECONFIRM) {
-			if (config.isHeatmapTradesEnabled() && heatmaps.get(Heatmap.HeatmapType.TRADES) != null) {
+			if (isHeatmapEnabled(Heatmap.HeatmapType.TRADES) && heatmaps.get(Heatmap.HeatmapType.TRADES) != null) {
 				WorldPoint loc = client.getLocalPlayer().getWorldLocation();
 				heatmaps.get(Heatmap.HeatmapType.TRADES).increment(loc.getX(), loc.getY(), loc.getPlane());
 			}
@@ -505,14 +509,14 @@ public class WorldHeatmapPlugin extends Plugin {
             if (deadPlayer.getId() == client.getLocalPlayer().getId()) {
 				timeLastDied = Instant.now();
                 // DEATHS
-                if (config.isHeatmapDeathsEnabled()) {
+                if (isHeatmapEnabled(Heatmap.HeatmapType.DEATHS)) {
 					WorldPoint loc = deadPlayer.getWorldLocation();
                     heatmaps.get(Heatmap.HeatmapType.DEATHS).increment(loc.getX(), loc.getY(), loc.getPlane());
                 }
             }
         } else if (actorDeath.getActor() instanceof NPC) {
 			NPC deadNPC = (NPC) actorDeath.getActor();
-            if (heatmaps.get(Heatmap.HeatmapType.NPC_DEATHS) != null && config.isHeatmapNPCDeathsEnabled()) {
+            if (heatmaps.get(Heatmap.HeatmapType.NPC_DEATHS) != null && isHeatmapEnabled(Heatmap.HeatmapType.NPC_DEATHS)) {
                 // NPC_DEATHS
 				WorldPoint loc = deadNPC.getWorldLocation();
                 heatmaps.get(Heatmap.HeatmapType.NPC_DEATHS).increment(loc.getX(), loc.getY(), loc.getPlane());
@@ -544,28 +548,28 @@ public class WorldHeatmapPlugin extends Plugin {
 
 		// PVP_DAMAGE_TAKEN
 		if (isMeTakingDamage && interactingPlayers.length > 0) {
-			if (config.isHeatmapPVPDamageTakenEnabled()) {
+			if (isHeatmapEnabled(Heatmap.HeatmapType.PVP_DAMAGE_TAKEN)) {
 				heatmaps.get(Heatmap.HeatmapType.PVP_DAMAGE_TAKEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
 			}
 		}
 
 		// PVP_DAMAGE_GIVEN
 		if (hitsplatActor instanceof Player && hitsplat.isMine() && !isMeTakingDamage) {
-			if (config.isHeatmapPVPDamageGivenEnabled()) {
+			if (isHeatmapEnabled(Heatmap.HeatmapType.PVP_DAMAGE_GIVEN)) {
 				heatmaps.get(Heatmap.HeatmapType.PVP_DAMAGE_GIVEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
 			}
 		}
 
         // NPC_DAMAGE_TAKEN
 		if (isMeTakingDamage & interactingPlayers.length == 0) {
-			if (config.isHeatmapNPCDamageTakenEnabled()) {
+			if (isHeatmapEnabled(Heatmap.HeatmapType.NPC_DAMAGE_TAKEN)) {
 				heatmaps.get(Heatmap.HeatmapType.NPC_DAMAGE_TAKEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
 			}
 		}
 
 		// NPC_DAMAGE_GIVEN
 		if (hitsplatApplied.getActor() instanceof NPC && hitsplat.isMine()) {
-			if (config.isHeatmapNPCDamageGivenEnabled()) {
+			if (isHeatmapEnabled(Heatmap.HeatmapType.NPC_DAMAGE_GIVEN)) {
 				heatmaps.get(Heatmap.HeatmapType.NPC_DAMAGE_GIVEN).increment(localPlayerLoc.getX(), localPlayerLoc.getY(), localPlayerLoc.getPlane(), hitsplat.getAmount());
 			}
 		}
@@ -578,7 +582,7 @@ public class WorldHeatmapPlugin extends Plugin {
         }
         if (chatMessage.getType() == ChatMessageType.PUBLICCHAT) {
             // PLACES_SPOKEN_AT
-            if (config.isHeatmapPlacesSpokenAtEnabled() && heatmaps.get(Heatmap.HeatmapType.PLACES_SPOKEN_AT) != null) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.PLACES_SPOKEN_AT) && heatmaps.get(Heatmap.HeatmapType.PLACES_SPOKEN_AT) != null) {
 				WorldPoint loc = client.getLocalPlayer().getWorldLocation();
                 heatmaps.get(Heatmap.HeatmapType.PLACES_SPOKEN_AT).increment(loc.getX(), loc.getY(), loc.getPlane());
             }
@@ -596,7 +600,7 @@ public class WorldHeatmapPlugin extends Plugin {
         previousXP[skillIndex] = client.getSkillExperience(statChanged.getSkill());
 
         // XP_GAINED
-        if (config.isHeatmapXPGainedEnabled() && heatmaps.get(Heatmap.HeatmapType.XP_GAINED) != null) {
+        if (isHeatmapEnabled(Heatmap.HeatmapType.XP_GAINED) && heatmaps.get(Heatmap.HeatmapType.XP_GAINED) != null) {
 			WorldPoint loc = client.getLocalPlayer().getWorldLocation();
             heatmaps.get(Heatmap.HeatmapType.XP_GAINED).increment(loc.getX(), loc.getY(), loc.getPlane(), xpDifference);
         }
@@ -607,14 +611,14 @@ public class WorldHeatmapPlugin extends Plugin {
         // Currently it counts all random event spawns, not just random events meant for the local player
         if (randomEventNPCIDs.contains(npcSpawned.getNpc().getId())) {
             // RANDOM_EVENT_SPAWNS
-            if (config.isHeatmapRandomEventSpawnsEnabled() && heatmaps.get(Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS) != null) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS) && heatmaps.get(Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS) != null) {
 				WorldPoint loc = npcSpawned.getNpc().getWorldLocation();
                 heatmaps.get(Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS).increment(loc.getX(), loc.getY(), loc.getPlane());
             }
         }
 
         // BOB_THE_CAT_SIGHTING
-        if (config.isHeatmapBobTheCatSightingEnabled() && npcSpawned.getNpc().getId() == NpcID.DEATH_GROWNCAT_BLACK_VIS) {
+        if (isHeatmapEnabled(Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING) && npcSpawned.getNpc().getId() == NpcID.DEATH_GROWNCAT_BLACK_VIS) {
             // Only count Bob the Cat sightings once per hour per world
             if (timeLastSeenBobTheCatPerWorld.get(client.getWorld()) == null || Instant.now().isAfter(timeLastSeenBobTheCatPerWorld.get(client.getWorld()).plusSeconds(60))) {
                 if (heatmaps.get(Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING) != null) {
@@ -629,7 +633,7 @@ public class WorldHeatmapPlugin extends Plugin {
     @Subscribe
     public void onNpcLootReceived(final NpcLootReceived npcLootReceived) {
         // LOOT_VALUE
-        if (config.isHeatmapLootValueEnabled()) {
+        if (isHeatmapEnabled(Heatmap.HeatmapType.LOOT_VALUE)) {
             for (ItemStack itemStack : npcLootReceived.getItems()) {
                 WorldPoint location = npcLootReceived.getNpc().getWorldLocation();
                 int x = location.getX();
@@ -675,10 +679,10 @@ public class WorldHeatmapPlugin extends Plugin {
             Filepath typeBImageFile = heatmapFileManager.getNewImageFile(currentLocalAccountHash, Heatmap.HeatmapType.TYPE_B, currentSeasonalType);
 
             // Write the image files
-            if (config.isHeatmapTypeAEnabled()) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_A)) {
                 executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
             }
-            if (config.isHeatmapTypeBEnabled()) {
+            if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_B)) {
                 executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
             }
         }
@@ -710,21 +714,25 @@ public class WorldHeatmapPlugin extends Plugin {
 	 * If a most recent file does not exist, it will create a new file.
      */
     protected void saveHeatmapsFile() {
-		if (getEnabledHeatmaps() == null || getEnabledHeatmaps().isEmpty()) {
+		saveHeatmapsFile(getEnabledHeatmaps());
+	}
+
+	private void saveHeatmapsFile(Collection<Heatmap> heatmapsToSave) {
+		if (heatmapsToSave == null || heatmapsToSave.isEmpty()) {
 			return;
 		}
 
-		String seasonalType = getEnabledHeatmaps().iterator().next().getSeasonalType();
-		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
+		String seasonalType = heatmapsToSave.iterator().next().getSeasonalType();
+		long localAccountHash = heatmapsToSave.iterator().next().getUserID();
 		Filepath latestFile = heatmapFileManager.getLatestFile(localAccountHash, seasonalType);
 
 		// If there is no latest file, create a new file
 		if (latestFile == null || !latestFile.exists()) {
-			saveNewHeatmapsFile();
+			saveNewHeatmapsFile(heatmapsToSave);
 			return;
 		}
 
-		heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), latestFile);
+		heatmapFileManager.writeHeatmapsToFile(heatmapsToSave, latestFile);
 
 		// Rename the latest file to be the current date and time, unless dated into the future
 		Filepath newFile = heatmapFileManager.getCurrentFile(localAccountHash, seasonalType);
@@ -739,13 +747,20 @@ public class WorldHeatmapPlugin extends Plugin {
      * Saves the heatmaps to a new dated file, carrying over disabled/unprovided heatmaps from the most recently dated heatmaps file
      */
     protected void saveNewHeatmapsFile() {
-		String seasonalType = getEnabledHeatmaps().iterator().next().getSeasonalType();
-		long localAccountHash = getEnabledHeatmaps().iterator().next().getUserID();
+		saveNewHeatmapsFile(getEnabledHeatmaps());
+	}
+
+	private void saveNewHeatmapsFile(Collection<Heatmap> heatmapsToSave) {
+		if (heatmapsToSave == null || heatmapsToSave.isEmpty()) {
+			return;
+		}
+		String seasonalType = heatmapsToSave.iterator().next().getSeasonalType();
+		long localAccountHash = heatmapsToSave.iterator().next().getUserID();
 
         // Write heatmaps to new file, carrying over disabled/unprovided heatmaps from previous heatmaps file
         Filepath latestFile = heatmapFileManager.getLatestFile(localAccountHash, seasonalType);
         Filepath newFile = heatmapFileManager.getNewFile(localAccountHash, seasonalType);
-        heatmapFileManager.writeHeatmapsToFile(getEnabledHeatmaps(), newFile, latestFile);
+        heatmapFileManager.writeHeatmapsToFile(heatmapsToSave, newFile, latestFile);
     }
 
 	/**
@@ -800,63 +815,98 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
     boolean isHeatmapEnabled(Heatmap.HeatmapType type) {
-        Map<Heatmap.HeatmapType, Supplier> heatmapTypeSupplierMap = new HashMap<>();
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TYPE_A, config::isHeatmapTypeAEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TYPE_B, config::isHeatmapTypeBEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.XP_GAINED, config::isHeatmapXPGainedEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TELEPORT_PATHS, config::isHeatmapTeleportPathsEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TELEPORTED_TO, config::isHeatmapTeleportedToEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TELEPORTED_FROM, config::isHeatmapTeleportedFromEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.LOOT_VALUE, config::isHeatmapLootValueEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PLACES_SPOKEN_AT, config::isHeatmapPlacesSpokenAtEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS, config::isHeatmapRandomEventSpawnsEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.DEATHS, config::isHeatmapDeathsEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.NPC_DEATHS, config::isHeatmapNPCDeathsEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING, config::isHeatmapBobTheCatSightingEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.NPC_DAMAGE_TAKEN, config::isHeatmapNPCDamageTakenEnabled);
-        heatmapTypeSupplierMap.put(Heatmap.HeatmapType.NPC_DAMAGE_GIVEN, config::isHeatmapNPCDamageGivenEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PVP_DAMAGE_TAKEN, config::isHeatmapPVPDamageTakenEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PVP_DAMAGE_GIVEN, config::isHeatmapPVPDamageGivenEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.WORLD_HOPS, config::isHeatmapWorldHopsEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.LOGIN_LOGOUT, config::isHeatmapLoginLogoutEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TRADES, config::isHeatmapTradesEnabled);
-        return (boolean) heatmapTypeSupplierMap.getOrDefault(type, () -> false).get();
+        return config.enabledHeatmaps().contains(type);
     }
 
     @Subscribe
     public void onConfigChanged(ConfigChanged event) {
-        if (!event.getGroup().equals("worldheatmap") || event.getNewValue() == null) {
+        if (!event.getGroup().equals(WorldHeatmapConfig.GROUP)) {
             return;
         }
-        Map<String, Heatmap.HeatmapType> configNameToHeatmapType = new HashMap<>();
-        configNameToHeatmapType.put("isHeatmapTypeAEnabled", Heatmap.HeatmapType.TYPE_A);
-        configNameToHeatmapType.put("isHeatmapTypeBEnabled", Heatmap.HeatmapType.TYPE_B);
-        configNameToHeatmapType.put("isHeatmapXPGainedEnabled", Heatmap.HeatmapType.XP_GAINED);
-        configNameToHeatmapType.put("isHeatmapTeleportPathsEnabled", Heatmap.HeatmapType.TELEPORT_PATHS);
-        configNameToHeatmapType.put("isHeatmapTeleportedToEnabled", Heatmap.HeatmapType.TELEPORTED_TO);
-        configNameToHeatmapType.put("isHeatmapTeleportedFromEnabled", Heatmap.HeatmapType.TELEPORTED_FROM);
-        configNameToHeatmapType.put("isHeatmapLootValueEnabled", Heatmap.HeatmapType.LOOT_VALUE);
-        configNameToHeatmapType.put("isHeatmapPlacesSpokenAtEnabled", Heatmap.HeatmapType.PLACES_SPOKEN_AT);
-        configNameToHeatmapType.put("isHeatmapRandomEventSpawnsEnabled", Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS);
-        configNameToHeatmapType.put("isHeatmapDeathsEnabled", Heatmap.HeatmapType.DEATHS);
-        configNameToHeatmapType.put("isHeatmapNPCDeathsEnabled", Heatmap.HeatmapType.NPC_DEATHS);
-        configNameToHeatmapType.put("isHeatmapBobTheCatSightingEnabled", Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING);
-        configNameToHeatmapType.put("isHeatmapNPCDamageTakenEnabled", Heatmap.HeatmapType.NPC_DAMAGE_TAKEN);
-        configNameToHeatmapType.put("isHeatmapNPCDamageGivenEnabled", Heatmap.HeatmapType.NPC_DAMAGE_GIVEN);
-		configNameToHeatmapType.put("isHeatmapPVPDamageTakenEnabled", Heatmap.HeatmapType.PVP_DAMAGE_TAKEN);
-		configNameToHeatmapType.put("isHeatmapPVPDamageGivenEnabled", Heatmap.HeatmapType.PVP_DAMAGE_GIVEN);
-		configNameToHeatmapType.put("isHeatmapWorldHopsEnabled", Heatmap.HeatmapType.WORLD_HOPS);
-		configNameToHeatmapType.put("isHeatmapLoginLogoutEnabled", Heatmap.HeatmapType.LOGIN_LOGOUT);
-		configNameToHeatmapType.put("isHeatmapTradesEnabled", Heatmap.HeatmapType.TRADES);
+
+        // Handled before the null check below, since resetting the setting unsets it
+        if (event.getKey().equals("enabledHeatmaps")) {
+            handleEnabledHeatmapsChanged();
+            return;
+        }
+
+        if (event.getNewValue() == null) {
+            return;
+        }
 
         if (event.getKey().startsWith("overlay") || event.getKey().startsWith("show") || event.getKey().equals("heatmapSensitivity")) {
             overlayCache.invalidate();
         }
+    }
 
-        Heatmap.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
-        if (toggledHeatmapType != null) {
-            boolean isEnabled = event.getNewValue().equals("true");
-            executor.execute(() -> handleHeatmapToggled(isEnabled, toggledHeatmapType));
+    /**
+     * Loads/unloads whichever heatmap types were added to or removed from the enabled heatmaps setting.
+     */
+    private void handleEnabledHeatmapsChanged() {
+        Set<Heatmap.HeatmapType> nowEnabled = EnumSet.noneOf(Heatmap.HeatmapType.class);
+        nowEnabled.addAll(config.enabledHeatmaps());
+        Set<Heatmap.HeatmapType> wasEnabled = enabledHeatmapTypes;
+        enabledHeatmapTypes = nowEnabled;
+        if (wasEnabled == null) {
+            return;
+        }
+
+        for (Heatmap.HeatmapType type : Heatmap.HeatmapType.values()) {
+            boolean enabled = nowEnabled.contains(type);
+            if (enabled != wasEnabled.contains(type)) {
+                executor.execute(() -> handleHeatmapToggled(enabled, type));
+            }
+        }
+    }
+
+    /**
+     * One-time carry-over of the old per-heatmap on/off settings (removed in favour of the enabledHeatmaps set).
+     * Keys that were never set were at their default of enabled. The old keys are deleted afterwards so that resetting
+     * the new setting later doesn't re-run this.
+     */
+    private void migrateHeatmapToggles() {
+        if (configManager.getConfiguration(WorldHeatmapConfig.GROUP, "enabledHeatmaps") != null) {
+            return;
+        }
+
+        Map<String, Heatmap.HeatmapType> oldKeys = new LinkedHashMap<>();
+        oldKeys.put("isHeatmapTypeAEnabled", Heatmap.HeatmapType.TYPE_A);
+        oldKeys.put("isHeatmapTypeBEnabled", Heatmap.HeatmapType.TYPE_B);
+        oldKeys.put("isHeatmapXPGainedEnabled", Heatmap.HeatmapType.XP_GAINED);
+        oldKeys.put("isHeatmapTeleportPathsEnabled", Heatmap.HeatmapType.TELEPORT_PATHS);
+        oldKeys.put("isHeatmapTeleportedToEnabled", Heatmap.HeatmapType.TELEPORTED_TO);
+        oldKeys.put("isHeatmapTeleportedFromEnabled", Heatmap.HeatmapType.TELEPORTED_FROM);
+        oldKeys.put("isHeatmapLootValueEnabled", Heatmap.HeatmapType.LOOT_VALUE);
+        oldKeys.put("isHeatmapPlacesSpokenAtEnabled", Heatmap.HeatmapType.PLACES_SPOKEN_AT);
+        oldKeys.put("isHeatmapRandomEventSpawnsEnabled", Heatmap.HeatmapType.RANDOM_EVENT_SPAWNS);
+        oldKeys.put("isHeatmapDeathsEnabled", Heatmap.HeatmapType.DEATHS);
+        oldKeys.put("isHeatmapNPCDeathsEnabled", Heatmap.HeatmapType.NPC_DEATHS);
+        oldKeys.put("isHeatmapBobTheCatSightingEnabled", Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING);
+        oldKeys.put("isHeatmapNPCDamageTakenEnabled", Heatmap.HeatmapType.NPC_DAMAGE_TAKEN);
+        oldKeys.put("isHeatmapNPCDamageGivenEnabled", Heatmap.HeatmapType.NPC_DAMAGE_GIVEN);
+        oldKeys.put("isHeatmapPVPDamageTakenEnabled", Heatmap.HeatmapType.PVP_DAMAGE_TAKEN);
+        oldKeys.put("isHeatmapPVPDamageGivenEnabled", Heatmap.HeatmapType.PVP_DAMAGE_GIVEN);
+        oldKeys.put("isHeatmapWorldHopsEnabled", Heatmap.HeatmapType.WORLD_HOPS);
+        oldKeys.put("isHeatmapLoginLogoutEnabled", Heatmap.HeatmapType.LOGIN_LOGOUT);
+        oldKeys.put("isHeatmapTradesEnabled", Heatmap.HeatmapType.TRADES);
+
+        boolean foundOldKey = false;
+        Set<Heatmap.HeatmapType> enabled = EnumSet.noneOf(Heatmap.HeatmapType.class);
+        for (Map.Entry<String, Heatmap.HeatmapType> e : oldKeys.entrySet()) {
+            String oldValue = configManager.getConfiguration(WorldHeatmapConfig.GROUP, e.getKey());
+            foundOldKey |= oldValue != null;
+            if (!"false".equals(oldValue)) {
+                enabled.add(e.getValue());
+            }
+        }
+        if (!foundOldKey) {
+            return;
+        }
+
+        log.info("Migrating per-heatmap on/off settings to the enabled heatmaps list: {}", enabled);
+        configManager.setConfiguration(WorldHeatmapConfig.GROUP, "enabledHeatmaps", enabled);
+        for (String key : oldKeys.keySet()) {
+            configManager.unsetConfiguration(WorldHeatmapConfig.GROUP, key);
         }
     }
 
@@ -867,6 +917,10 @@ public class WorldHeatmapPlugin extends Plugin {
      */
     private void handleHeatmapToggled(boolean isHeatmapEnabled, Heatmap.HeatmapType heatmapType){
         if (isHeatmapEnabled) {
+            // If heatmaps haven't been loaded yet, loadHeatmaps() will load this one along with the rest
+            if (!loading.isDone()) {
+                return;
+            }
             log.debug("Enabling {} heatmap...", heatmapType);
             Heatmap heatmap = null;
             // Load the heatmap from the file if it exists
@@ -874,21 +928,30 @@ public class WorldHeatmapPlugin extends Plugin {
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
                     heatmap = heatmapFileManager.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
-                    heatmap.setUserID(currentLocalAccountHash);
-                    heatmap.setAccountType(currentPlayerAccountType);
-                    heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
-					heatmap.setSeasonalType(currentSeasonalType);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
             }
             if (heatmap != null) {
-                heatmaps.put(heatmapType, heatmap);
+                heatmap.setUserID(currentLocalAccountHash);
+                heatmap.setAccountType(currentPlayerAccountType);
+                heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
+                heatmap.setSeasonalType(currentSeasonalType);
+            } else {
+                // Not in the latest file (or there's no file yet), so start it fresh
+                heatmap = new Heatmap(heatmapType, currentLocalAccountHash, currentPlayerAccountType, currentSeasonalType, currentPlayerCombatLevel);
             }
+            heatmaps.put(heatmapType, heatmap);
         } else {
             log.debug("Disabling {} heatmap...", heatmapType);
-            saveHeatmapsFile();
-            heatmaps.remove(heatmapType);
+            Heatmap disabledHeatmap = heatmaps.get(heatmapType);
+            if (disabledHeatmap != null) {
+                // It no longer counts as enabled, so include it explicitly or its unsaved progress would be lost
+                List<Heatmap> heatmapsToSave = new ArrayList<>(getEnabledHeatmaps());
+                heatmapsToSave.add(disabledHeatmap);
+                saveHeatmapsFile(heatmapsToSave);
+                heatmaps.remove(heatmapType);
+            }
         }
 
         panel.rebuild();

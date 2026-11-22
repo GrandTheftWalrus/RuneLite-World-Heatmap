@@ -42,7 +42,7 @@ public class Utils
 			{
 				for (Heatmap heatmap : heatmaps.values())
 				{
-					ZipEntry zipEntry = new ZipEntry(heatmap.getHeatmapType() + "_HEATMAP.csv");
+					ZipEntry zipEntry = new ZipEntry(heatmap.getHeatmapType().name() + "_HEATMAP.csv");
 					zipOutputStream.putNextEntry(zipEntry);
 					OutputStreamWriter osw = new OutputStreamWriter(zipOutputStream);
 					heatmap.toCSV(osw);

@@ -108,7 +108,34 @@ public class Heatmap
 	}
 
 	public enum HeatmapType
-	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, NPC_DAMAGE_TAKEN, NPC_DAMAGE_GIVEN, PVP_DAMAGE_GIVEN, PVP_DAMAGE_TAKEN, WORLD_HOPS, LOGIN_LOGOUT, TRADES, UNKNOWN}
+	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, NPC_DAMAGE_TAKEN, NPC_DAMAGE_GIVEN, PVP_DAMAGE_GIVEN, PVP_DAMAGE_TAKEN, WORLD_HOPS, LOGIN_LOGOUT, TRADES;
+
+		/**
+		 * Display name shown in config lists/dropdowns, e.g. "NPC Damage Taken" (NPC/PVP/XP stay in capitals).
+		 * Not used for anything persisted: files, uploads and config storage all use name().
+		 */
+		@Override
+		public String toString()
+		{
+			StringBuilder sb = new StringBuilder();
+			for (String word : name().split("_"))
+			{
+				if (sb.length() > 0)
+				{
+					sb.append(' ');
+				}
+				if (word.equals("NPC") || word.equals("PVP") || word.equals("XP"))
+				{
+					sb.append(word);
+				}
+				else
+				{
+					sb.append(word.charAt(0)).append(word.substring(1).toLowerCase());
+				}
+			}
+			return sb.toString();
+		}
+	}
 	@Getter @Setter
 	private long userID = -1;
 	@Getter @Setter
@@ -119,15 +146,6 @@ public class Heatmap
 	private int currentCombatLevel = -1;
 	@Getter @Setter
 	private String seasonalType;
-
-	/**
-	 * Constructor for HeatmapNew object with no arguments.
-	 */
-	public Heatmap()
-	{
-		this.heatmapType = HeatmapType.UNKNOWN;
-		this.heatmapHashMap = new HashMap<>();
-	}
 
 	/**
 	 * Constructor for HeatmapNew object with userID and accountType.
@@ -266,7 +284,7 @@ public class Heatmap
 		bos.write("userID,heatmapVersion,heatmapType,gameTimeTicks,accountType,currentCombatLevel,seasonalType\n");
 		bos.write(this.getUserID() +
 			"," + getHeatmapVersion() +
-			"," + this.getHeatmapType() +
+			"," + this.getHeatmapType().name() +
 			"," + this.getGameTimeTicks() +
 			"," + this.getAccountType() +
 			"," + this.getCurrentCombatLevel() +
