@@ -391,6 +391,10 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-11-22: Removed the "Write full world map image" config option, since the panel's heatmap menu now has it
 
+2026-11-22: Added an option to show the global heatmaps on the world map overlay
+
+2026-11-22: Switched the world map image downloads to RuneLite's OkHttpClient
+
 TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
 		- This means I'd have to re-include them in toCSV()

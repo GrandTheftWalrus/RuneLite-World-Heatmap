@@ -315,7 +315,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
 		Filepath imageFile = plugin.heatmapFileManager.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
-        plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
+        plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(plugin.okHttpClient, heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
     private void clearHeatmap(Heatmap.HeatmapType heatmapType) {

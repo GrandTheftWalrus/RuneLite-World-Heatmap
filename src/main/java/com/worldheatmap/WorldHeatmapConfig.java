@@ -183,6 +183,17 @@ public interface WorldHeatmapConfig extends Config {
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "overlayUseGlobalHeatmaps",
+		name = "World map: global heatmaps",
+		position = 4,
+		description = "Shows the global heatmaps (everyone's combined data, from osrsworldheatmap.com) on the world map instead of your own. Downloads the selected heatmap (a few MB at most) from github.com/GrandTheftWalrus/gtw-runelite-stuff and caches it. The game scene and minimap overlays keep showing your own data.",
+		section = overlays
+	)
+	default boolean overlayUseGlobalHeatmaps() {
+		return false;
+	}
+
 	@Range(
 		min = 0,
 		max = 255
@@ -190,7 +201,7 @@ public interface WorldHeatmapConfig extends Config {
 	@ConfigItem(
 		keyName = "overlayOpacity",
 		name = "Overlay opacity",
-		position = 4,
+		position = 5,
 		description = "Opacity of the overlay colours (0-255)",
 		section = overlays
 	)
@@ -204,7 +215,7 @@ public interface WorldHeatmapConfig extends Config {
 	@ConfigItem(
 		keyName = "overlaySceneRadius",
 		name = "Game scene radius",
-		position = 5,
+		position = 6,
 		description = "Radius in tiles around the player to draw on the game scene. -1 draws the whole loaded scene.",
 		section = overlays
 	)
@@ -215,7 +226,7 @@ public interface WorldHeatmapConfig extends Config {
 	@ConfigItem(
 		keyName = "overlayUnderObjects",
 		name = "Game scene: draw on floor",
-		position = 6,
+		position = 7,
 		description = "Warning, may lower FPS: Draws the game scene overlay underneath players, NPCs, walls, scenery and ground items, so it looks like it's on the floor. Lowering the game scene radius helps in busy areas.",
 		section = overlays
 	)
@@ -229,7 +240,7 @@ public interface WorldHeatmapConfig extends Config {
 	@ConfigItem(
 		keyName = "overlayMinimapRadius",
 		name = "Minimap radius",
-		position = 7,
+		position = 8,
 		description = "Radius in tiles around the player to draw on the minimap. -1 draws the whole loaded scene.",
 		section = overlays
 	)

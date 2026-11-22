@@ -9,6 +9,12 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.IndexColorModel;
+import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
+import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.Client;
@@ -40,15 +46,24 @@ class HeatmapWorldMapOverlay extends Overlay
 	private final HeatmapOverlayCache cache;
 	private final TooltipManager tooltipManager;
 	private final WorldMapHeatmapList selectorList;
+	private final GlobalHeatmapLoader globalLoader;
+
+	// Images wrapping the loaded global heatmap's region bytes, for the palette they were made with
+	private GlobalHeatmap globalImagesHeatmap;
+	private int globalImagesSensitivity;
+	private int globalImagesAlpha;
+	private Map<Integer, BufferedImage> globalImages = new HashMap<>();
 
 	@Inject
-	HeatmapWorldMapOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache, TooltipManager tooltipManager, WorldMapHeatmapList selectorList)
+	HeatmapWorldMapOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache, TooltipManager tooltipManager,
+		WorldMapHeatmapList selectorList, GlobalHeatmapLoader globalLoader)
 	{
 		this.client = client;
 		this.config = config;
 		this.cache = cache;
 		this.tooltipManager = tooltipManager;
 		this.selectorList = selectorList;
+		this.globalLoader = globalLoader;
 
 		setPosition(OverlayPosition.DYNAMIC);
 		setPriority(Overlay.PRIORITY_LOW);
@@ -87,10 +102,13 @@ class HeatmapWorldMapOverlay extends Overlay
 		final int southTile = position.getY() - heightInTiles / 2;
 		final Area mapClipArea = getWorldMapClipArea(bounds);
 
-		final Map<Integer, BufferedImage> regionImages = cache.getRegionImages();
+		// Global region images' rows run from the south, so they're drawn flipped
+		final boolean global = config.overlayUseGlobalHeatmaps();
+		final GlobalHeatmap globalHeatmap = global ? globalLoader.getHeatmap() : null;
+		final Map<Integer, BufferedImage> regionImages = global ? getGlobalImages(globalHeatmap) : cache.getRegionImages();
 		if (!regionImages.isEmpty())
 		{
-			drawRegions(graphics, regionImages, mapClipArea, bounds, pixelsPerTile, westTile, widthInTiles, southTile, heightInTiles, mapData);
+			drawRegions(graphics, regionImages, global, mapClipArea, bounds, pixelsPerTile, westTile, widthInTiles, southTile, heightInTiles, mapData);
 		}
 
 		// Tile under the mouse, if it's over the visible part of the map
@@ -106,12 +124,19 @@ class HeatmapWorldMapOverlay extends Overlay
 			return null;
 		}
 
-		addValueTooltip(hoveredX, hoveredY);
+		if (global)
+		{
+			addGlobalValueTooltip(globalHeatmap, hoveredX, hoveredY);
+		}
+		else
+		{
+			addValueTooltip(hoveredX, hoveredY);
+		}
 		drawCoordinates(graphics, bounds, hoveredX + ", " + hoveredY);
 		return null;
 	}
 
-	private void drawRegions(Graphics2D graphics, Map<Integer, BufferedImage> regionImages, Area mapClipArea, Rectangle bounds,
+	private void drawRegions(Graphics2D graphics, Map<Integer, BufferedImage> regionImages, boolean flipped, Area mapClipArea, Rectangle bounds,
 		float pixelsPerTile, int westTile, int widthInTiles, int southTile, int heightInTiles, WorldMapData mapData)
 	{
 		final int minRegionX = (westTile - 1) >> 6;
@@ -147,7 +172,14 @@ class HeatmapWorldMapOverlay extends Overlay
 					final int top = Math.round(bounds.y + bounds.height - (baseY + REGION_SIZE - southTile) * pixelsPerTile);
 					final int bottom = Math.round(bounds.y + bounds.height - (baseY - southTile) * pixelsPerTile);
 
-					graphics.drawImage(image, left, top, right - left, bottom - top, null);
+					if (flipped)
+					{
+						graphics.drawImage(image, left, top, right, bottom, 0, REGION_SIZE, REGION_SIZE, 0, null);
+					}
+					else
+					{
+						graphics.drawImage(image, left, top, right - left, bottom - top, null);
+					}
 				}
 			}
 		}
@@ -181,6 +213,77 @@ class HeatmapWorldMapOverlay extends Overlay
 		{
 			tooltipManager.add(new Tooltip(heatmap.getHeatmapType().formatValue(value)));
 		}
+	}
+
+	/**
+	 * Shows the hovered tile's approximate global value. Global data is floor 0 only.
+	 */
+	private void addGlobalValueTooltip(GlobalHeatmap heatmap, int x, int y)
+	{
+		final int level = heatmap == null ? 0 : heatmap.getLevel(x, y);
+		if (level > 0)
+		{
+			final long value = roundToSignificantFigures(heatmap.approximateValue(level), 3);
+			tooltipManager.add(new Tooltip("~" + heatmap.getHeatmapType().formatValue(value) + " (global)"));
+		}
+	}
+
+	private static long roundToSignificantFigures(long value, int figures)
+	{
+		if (value <= 0)
+		{
+			return value;
+		}
+		final int digits = (int) Math.floor(Math.log10(value)) + 1;
+		if (digits <= figures)
+		{
+			return value;
+		}
+		final long scale = (long) Math.pow(10, digits - figures);
+		return Math.round((double) value / scale) * scale;
+	}
+
+	/**
+	 * Images for each of the global heatmap's regions, wrapping its bytes directly with a 256-colour palette
+	 * (level 0 transparent), so they take no extra memory beyond the image objects. Changing the sensitivity or
+	 * opacity only needs a new palette.
+	 */
+	private Map<Integer, BufferedImage> getGlobalImages(GlobalHeatmap heatmap)
+	{
+		if (heatmap == null)
+		{
+			globalImagesHeatmap = null;
+			globalImages = new HashMap<>();
+			return globalImages;
+		}
+
+		final int sensitivity = config.heatmapSensitivity();
+		final int alpha = config.overlayOpacity();
+		if (heatmap == globalImagesHeatmap && sensitivity == globalImagesSensitivity && alpha == globalImagesAlpha)
+		{
+			return globalImages;
+		}
+
+		final int[] palette = new int[256];
+		for (int level = 1; level < 256; level++)
+		{
+			palette[level] = Utils.heatmapColorFromLogRatio(GlobalHeatmap.logRatio(level), sensitivity, alpha).getRGB();
+		}
+		final IndexColorModel colorModel = new IndexColorModel(8, 256, palette, 0, true, -1, DataBuffer.TYPE_BYTE);
+
+		final Map<Integer, BufferedImage> images = new HashMap<>();
+		for (Map.Entry<Integer, byte[]> region : heatmap.getRegions().entrySet())
+		{
+			final DataBufferByte data = new DataBufferByte(region.getValue(), region.getValue().length);
+			final WritableRaster raster = Raster.createInterleavedRaster(data, REGION_SIZE, REGION_SIZE, REGION_SIZE, 1, new int[]{0}, null);
+			images.put(region.getKey(), new BufferedImage(colorModel, raster, false, null));
+		}
+
+		globalImagesHeatmap = heatmap;
+		globalImagesSensitivity = sensitivity;
+		globalImagesAlpha = alpha;
+		globalImages = images;
+		return images;
 	}
 
 	/**

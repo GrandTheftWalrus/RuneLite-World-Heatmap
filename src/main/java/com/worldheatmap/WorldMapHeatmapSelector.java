@@ -33,6 +33,7 @@ class WorldMapHeatmapSelector
 	private final Client client;
 	private final WorldHeatmapConfig config;
 	private final WorldMapHeatmapList list;
+	private final GlobalHeatmapLoader globalLoader;
 
 	// The bottom bar this was built under, to detect the world map being reopened
 	private Widget builtBottom;
@@ -40,11 +41,12 @@ class WorldMapHeatmapSelector
 	private Widget buttonLabel;
 
 	@Inject
-	WorldMapHeatmapSelector(Client client, WorldHeatmapConfig config, WorldMapHeatmapList list)
+	WorldMapHeatmapSelector(Client client, WorldHeatmapConfig config, WorldMapHeatmapList list, GlobalHeatmapLoader globalLoader)
 	{
 		this.client = client;
 		this.config = config;
 		this.list = list;
+		this.globalLoader = globalLoader;
 	}
 
 	void onClientTick()
@@ -181,7 +183,7 @@ class WorldMapHeatmapSelector
 		final int x = display.getRelativeX() + display.getWidth() + GAP;
 		final int available = zoomOut.getRelativeX() - GAP - x;
 
-		final String selected = config.overlayHeatmapType().toString();
+		final String selected = config.overlayHeatmapType().toString() + globalSuffix();
 		String text = PREFIX + selected;
 		int width = textWidth(text) + BUTTON_PADDING;
 		if (width > available)
@@ -224,6 +226,28 @@ class WorldMapHeatmapSelector
 			}
 			// The list is positioned from the button, so close it rather than leave it floating
 			list.close();
+		}
+	}
+
+	/**
+	 * In global mode, says so, or what the global data is doing (loading etc.)
+	 */
+	private String globalSuffix()
+	{
+		if (!config.overlayUseGlobalHeatmaps() || config.overlayHeatmapType() == OverlayHeatmap.NONE)
+		{
+			return "";
+		}
+		switch (globalLoader.getStatus())
+		{
+			case LOADING:
+				return " (Loading...)";
+			case UNAVAILABLE:
+				return " (No global data)";
+			case ERROR:
+				return " (Error)";
+			default:
+				return " (Global)";
 		}
 	}
 

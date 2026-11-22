@@ -111,9 +111,11 @@ class WorldMapHeatmapList extends Overlay implements MouseListener
 	{
 		final List<OverlayHeatmap> choices = new ArrayList<>();
 		final OverlayHeatmap current = config.overlayHeatmapType();
+		// Global data doesn't depend on which heatmaps this player records
+		final boolean global = config.overlayUseGlobalHeatmaps();
 		for (OverlayHeatmap choice : OverlayHeatmap.values())
 		{
-			if (choice == OverlayHeatmap.NONE || choice == current || plugin.isHeatmapEnabled(choice.getHeatmapType()))
+			if (choice == OverlayHeatmap.NONE || choice == current || global || plugin.isHeatmapEnabled(choice.getHeatmapType()))
 			{
 				choices.add(choice);
 			}

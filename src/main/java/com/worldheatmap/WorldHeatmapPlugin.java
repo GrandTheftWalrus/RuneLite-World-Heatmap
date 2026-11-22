@@ -159,6 +159,9 @@ public class WorldHeatmapPlugin extends Plugin {
 	private WorldMapHeatmapList worldMapList;
 
 	@Inject
+	private GlobalHeatmapLoader globalHeatmapLoader;
+
+	@Inject
 	private MouseManager mouseManager;
 
 	@Inject
@@ -288,6 +291,7 @@ public class WorldHeatmapPlugin extends Plugin {
 		mouseManager.unregisterMouseListener(worldMapList);
 		overlayCache.clear();
 		clientThread.invoke(worldMapSelector::hide);
+		clientThread.invoke(globalHeatmapLoader::clear);
     }
 
     @Subscribe
@@ -396,6 +400,7 @@ public class WorldHeatmapPlugin extends Plugin {
 
 	@Subscribe
 	public void onClientTick(ClientTick clientTick) {
+		globalHeatmapLoader.update();
 		worldMapSelector.onClientTick();
 	}
 
@@ -700,10 +705,10 @@ public class WorldHeatmapPlugin extends Plugin {
 
             // Write the image files
             if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_A)) {
-                executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
+                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
             }
             if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_B)) {
-                executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
+                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
             }
         }
     }

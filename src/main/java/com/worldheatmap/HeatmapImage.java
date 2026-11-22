@@ -15,7 +15,6 @@ import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.*;
-import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -27,6 +26,10 @@ import javax.imageio.stream.ImageOutputStream;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.util.Filepath;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * Class which calculates osrs heatmap image data on demand
@@ -94,7 +97,7 @@ public class HeatmapImage implements RenderedImage
 		}
 	}
 
-	protected static void writeHeatmapImage(Heatmap heatmap, Filepath imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
+	protected static void writeHeatmapImage(OkHttpClient okHttpClient, Heatmap heatmap, Filepath imageFileOut, boolean isFullMapImage, boolean isBlue, double heatmapTransparency, int heatmapSensitivity, int speedMemoryTradeoff, @Nullable IIOWriteProgressListener progressListener)
 	{
 		log.info("Saving {} image to disk...", imageFileOut);
 		long startTime = System.nanoTime();
@@ -114,9 +117,10 @@ public class HeatmapImage implements RenderedImage
 
 		String worldMapImageURL = String.format("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/osrs_world_map%s%s.png", isFullMapImage ? "_full" : "", isBlue ? "_blue" : "");
 
-		// Prepare the image reader
-		try (InputStream inputStream = new URL(worldMapImageURL).openStream();
-			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(Objects.requireNonNull(inputStream, "Resource didn't exist: '" + worldMapImageURL + "'")))
+		// Prepare the image reader (the response stays open while the image is read piece by piece)
+		try (Response worldMapResponse = okHttpClient.newCall(new Request.Builder().url(worldMapImageURL).build()).execute();
+			 InputStream inputStream = responseBody(worldMapResponse, worldMapImageURL).byteStream();
+			 ImageInputStream worldMapImageInputStream = ImageIO.createImageInputStream(inputStream))
 		{
 			ImageReader reader = ImageIO.getImageReadersByFormatName("PNG").next();
 			reader.setInput(worldMapImageInputStream, true);
@@ -150,8 +154,13 @@ public class HeatmapImage implements RenderedImage
 				// Write heatmap image
 				RenderedImage heatmapImage;
 				// Get latest offset values from git repo
-				URL offsetsURL = new URL("https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/offsets.csv");
-				Scanner scanner = new Scanner(offsetsURL.openStream());
+				String offsetsURL = "https://raw.githubusercontent.com/GrandTheftWalrus/gtw-runelite-stuff/main/offsets.csv";
+				String offsetsCsv;
+				try (Response offsetsResponse = okHttpClient.newCall(new Request.Builder().url(offsetsURL).build()).execute())
+				{
+					offsetsCsv = responseBody(offsetsResponse, offsetsURL).string();
+				}
+				Scanner scanner = new Scanner(offsetsCsv);
 				scanner.next(); // Skip the headers
 				scanner.useDelimiter(",");
 				int fullMapOffsetX = Integer.parseInt(scanner.next().trim());
@@ -185,6 +194,19 @@ public class HeatmapImage implements RenderedImage
 		{
 			log.error("Exception thrown whilst creating and/or writing image file: ", e);
 		}
+	}
+
+	/**
+	 * @return the response's body, or throws if the request failed
+	 */
+	private static ResponseBody responseBody(Response response, String url) throws IOException
+	{
+		ResponseBody body = response.body();
+		if (!response.isSuccessful() || body == null)
+		{
+			throw new IOException("Request for '" + url + "' failed with HTTP " + response.code());
+		}
+		return body;
 	}
 
 	@Override

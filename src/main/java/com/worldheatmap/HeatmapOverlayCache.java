@@ -80,7 +80,8 @@ class HeatmapOverlayCache
 
 		ticksSinceRefresh++;
 		Heatmap current = plugin.getLoadedHeatmap(config.overlayHeatmapType().getHeatmapType());
-		boolean needsRegionImages = config.showWorldMapOverlay();
+		// In global mode the world map shows the global heatmap instead
+		boolean needsRegionImages = config.showWorldMapOverlay() && !config.overlayUseGlobalHeatmaps();
 		boolean structuralChange = dirty || current != heatmap || needsRegionImages != regionImagesBuilt;
 		boolean dataChanged = current != null &&
 			(current.getTileCount() != lastTileCount || current.getTotalValue() != lastTotalValue);

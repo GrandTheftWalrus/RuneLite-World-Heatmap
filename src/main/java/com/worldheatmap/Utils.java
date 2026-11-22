@@ -165,12 +165,21 @@ public class Utils
 	 */
 	static double heatmapHue(long tileValue, int heatmapSensitivity, long minVal, long maxVal)
 	{
-		double nthRoot = 1 + (heatmapSensitivity - 1.0) / 2;
 		int logBase = 4;
+		double logRatio = (float) ((Math.log(tileValue) / Math.log(logBase)) / (Math.log(maxVal + 1 - minVal) / Math.log(logBase)));
+		return heatmapHueFromLogRatio(logRatio, heatmapSensitivity);
+	}
+
+	/**
+	 * The second half of heatmapHue, from the tile value's log ratio (log(value) / log(max range), nominally [0, 1]).
+	 * The global heatmaps store this ratio directly.
+	 */
+	static double heatmapHueFromLogRatio(double logRatio, int heatmapSensitivity)
+	{
+		double nthRoot = 1 + (heatmapSensitivity - 1.0) / 2;
 		double minHue = 1 / 3.0;
 		double maxHue = 0.0;
-		double currHue = (float) ((Math.log(tileValue) / Math.log(logBase)) / (Math.log(maxVal + 1 - minVal) / Math.log(logBase)));
-		currHue = Math.pow(currHue, 1.0 / nthRoot);
+		double currHue = Math.pow(logRatio, 1.0 / nthRoot);
 		currHue = (float) (minHue + (currHue * (maxHue - minHue))); // Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
 		return currHue;
 	}
@@ -181,7 +190,19 @@ public class Utils
 	 */
 	static Color heatmapColor(long tileValue, int heatmapSensitivity, long minVal, long maxVal, int alpha)
 	{
-		double hue = heatmapHue(tileValue, heatmapSensitivity, minVal, maxVal);
+		return hueToColor(heatmapHue(tileValue, heatmapSensitivity, minVal, maxVal), alpha);
+	}
+
+	/**
+	 * Like heatmapColor, but from a log ratio (see heatmapHueFromLogRatio).
+	 */
+	static Color heatmapColorFromLogRatio(double logRatio, int heatmapSensitivity, int alpha)
+	{
+		return hueToColor(heatmapHueFromLogRatio(logRatio, heatmapSensitivity), alpha);
+	}
+
+	private static Color hueToColor(double hue, int alpha)
+	{
 		if (Double.isNaN(hue))
 		{
 			hue = 1 / 3.0;
