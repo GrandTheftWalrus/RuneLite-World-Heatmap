@@ -815,8 +815,8 @@ public class WorldHeatmapPlugin extends Plugin {
         heatmapTypeSupplierMap.put(Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING, config::isHeatmapBobTheCatSightingEnabled);
         heatmapTypeSupplierMap.put(Heatmap.HeatmapType.NPC_DAMAGE_TAKEN, config::isHeatmapNPCDamageTakenEnabled);
         heatmapTypeSupplierMap.put(Heatmap.HeatmapType.NPC_DAMAGE_GIVEN, config::isHeatmapNPCDamageGivenEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PVP_DAMAGE_TAKEN, config::isHeatmapPVPDamageGivenEnabled);
-		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PVP_DAMAGE_GIVEN, config::isHeatmapPVPDamageTakenEnabled);
+		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PVP_DAMAGE_TAKEN, config::isHeatmapPVPDamageTakenEnabled);
+		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.PVP_DAMAGE_GIVEN, config::isHeatmapPVPDamageGivenEnabled);
 		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.WORLD_HOPS, config::isHeatmapWorldHopsEnabled);
 		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.LOGIN_LOGOUT, config::isHeatmapLoginLogoutEnabled);
 		heatmapTypeSupplierMap.put(Heatmap.HeatmapType.TRADES, config::isHeatmapTradesEnabled);

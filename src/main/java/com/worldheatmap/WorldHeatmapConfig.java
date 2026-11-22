@@ -271,7 +271,7 @@ public interface WorldHeatmapConfig extends Config {
 
     @ConfigItem(
             keyName = "isHeatmapNPCDamageTakenEnabled",
-            name = "NPC_DAMAGE_GIVEN",
+            name = "NPC_DAMAGE_TAKEN",
             position = 12,
             description = "Records the total damage you've taken from NPCs on each tile.",
             section = heatmapsOnOff
