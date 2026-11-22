@@ -108,7 +108,43 @@ public class Heatmap
 	}
 
 	public enum HeatmapType
-	{TYPE_A, TYPE_B, XP_GAINED, TELEPORT_PATHS, TELEPORTED_TO, TELEPORTED_FROM, LOOT_VALUE, PLACES_SPOKEN_AT, RANDOM_EVENT_SPAWNS, DEATHS, NPC_DEATHS, BOB_THE_CAT_SIGHTING, NPC_DAMAGE_TAKEN, NPC_DAMAGE_GIVEN, PVP_DAMAGE_GIVEN, PVP_DAMAGE_TAKEN, WORLD_HOPS, LOGIN_LOGOUT, TRADES;
+	{
+		TYPE_A("steps"),
+		TYPE_B("ticks"),
+		XP_GAINED("xp"),
+		TELEPORT_PATHS("teles"),
+		TELEPORTED_TO("teles"),
+		TELEPORTED_FROM("teles"),
+		LOOT_VALUE("gp"),
+		PLACES_SPOKEN_AT("msgs"),
+		RANDOM_EVENT_SPAWNS("spawns"),
+		DEATHS("deaths"),
+		NPC_DEATHS("deaths"),
+		BOB_THE_CAT_SIGHTING("cats"),
+		NPC_DAMAGE_TAKEN("dmg"),
+		NPC_DAMAGE_GIVEN("dmg"),
+		PVP_DAMAGE_GIVEN("dmg"),
+		PVP_DAMAGE_TAKEN("dmg"),
+		WORLD_HOPS("hops"),
+		LOGIN_LOGOUT("logins"),
+		TRADES("trades");
+
+		// Plural unit of a tile's value, e.g. "steps"
+		private final String unit;
+
+		HeatmapType(String unit)
+		{
+			this.unit = unit;
+		}
+
+		/**
+		 * Formats a tile value with its unit, e.g. "1,234 steps" or "1 step".
+		 */
+		public String formatValue(long value)
+		{
+			String u = (value == 1 && unit.endsWith("s")) ? unit.substring(0, unit.length() - 1) : unit;
+			return java.text.NumberFormat.getIntegerInstance().format(value) + " " + u;
+		}
 
 		/**
 		 * Display name shown in config lists/dropdowns, e.g. "NPC Damage Taken" (NPC/PVP/XP stay in capitals).

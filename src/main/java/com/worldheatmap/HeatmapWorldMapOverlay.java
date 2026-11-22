@@ -1,6 +1,8 @@
 package com.worldheatmap;
 
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -18,25 +20,33 @@ import net.runelite.api.worldmap.WorldMapData;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.components.ComponentConstants;
+import net.runelite.client.ui.overlay.tooltip.Tooltip;
+import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 /**
- * Draws the whole heatmap on the world map, using the per-region images from HeatmapOverlayCache.
+ * Draws the whole heatmap on the world map, using the per-region images from HeatmapOverlayCache, plus a tooltip
+ * with the hovered tile's value and a box with the hovered tile's coordinates.
  * World map clipping adapted from skretzo's Invalid Movement plugin (BSD-2-Clause).
  */
 class HeatmapWorldMapOverlay extends Overlay
 {
 	private static final int REGION_SIZE = HeatmapOverlayCache.REGION_SIZE;
+	private static final int COORDS_MARGIN = 4;
+	private static final int COORDS_PADDING = 4;
 
 	private final Client client;
 	private final WorldHeatmapConfig config;
 	private final HeatmapOverlayCache cache;
+	private final TooltipManager tooltipManager;
 
 	@Inject
-	HeatmapWorldMapOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache)
+	HeatmapWorldMapOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache, TooltipManager tooltipManager)
 	{
 		this.client = client;
 		this.config = config;
 		this.cache = cache;
+		this.tooltipManager = tooltipManager;
 
 		setPosition(OverlayPosition.DYNAMIC);
 		setPriority(Overlay.PRIORITY_LOW);
@@ -47,8 +57,7 @@ class HeatmapWorldMapOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		final Map<Integer, BufferedImage> regionImages = cache.getRegionImages();
-		if (!config.showWorldMapOverlay() || regionImages.isEmpty())
+		if (!config.showWorldMapOverlay())
 		{
 			return null;
 		}
@@ -74,7 +83,35 @@ class HeatmapWorldMapOverlay extends Overlay
 		final int heightInTiles = (int) Math.ceil(bounds.getHeight() / pixelsPerTile);
 		final int westTile = position.getX() - widthInTiles / 2;
 		final int southTile = position.getY() - heightInTiles / 2;
+		final Area mapClipArea = getWorldMapClipArea(bounds);
 
+		final Map<Integer, BufferedImage> regionImages = cache.getRegionImages();
+		if (!regionImages.isEmpty())
+		{
+			drawRegions(graphics, regionImages, mapClipArea, bounds, pixelsPerTile, westTile, widthInTiles, southTile, heightInTiles, mapData);
+		}
+
+		// Tile under the mouse, if it's over the visible part of the map
+		final Point mouse = client.getMouseCanvasPosition();
+		if (mouse == null || !mapClipArea.contains(mouse.getX(), mouse.getY()))
+		{
+			return null;
+		}
+		final int hoveredX = westTile + (int) Math.floor((mouse.getX() - bounds.x) / pixelsPerTile);
+		final int hoveredY = southTile + (int) Math.floor((bounds.y + bounds.height - mouse.getY()) / pixelsPerTile);
+		if (!mapData.surfaceContainsPosition(hoveredX, hoveredY))
+		{
+			return null;
+		}
+
+		addValueTooltip(hoveredX, hoveredY);
+		drawCoordinates(graphics, bounds, hoveredX + ", " + hoveredY);
+		return null;
+	}
+
+	private void drawRegions(Graphics2D graphics, Map<Integer, BufferedImage> regionImages, Area mapClipArea, Rectangle bounds,
+		float pixelsPerTile, int westTile, int widthInTiles, int southTile, int heightInTiles, WorldMapData mapData)
+	{
 		final int minRegionX = (westTile - 1) >> 6;
 		final int maxRegionX = (westTile + widthInTiles + 1) >> 6;
 		final int minRegionY = (southTile - 1) >> 6;
@@ -82,7 +119,7 @@ class HeatmapWorldMapOverlay extends Overlay
 
 		final Shape oldClip = graphics.getClip();
 		final Object oldInterpolation = graphics.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
-		graphics.setClip(getWorldMapClipArea(bounds));
+		graphics.setClip(mapClipArea);
 		graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 		try
 		{
@@ -120,7 +157,56 @@ class HeatmapWorldMapOverlay extends Overlay
 				graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterpolation);
 			}
 		}
-		return null;
+	}
+
+	/**
+	 * Shows the hovered tile's heatmap value, summed across planes like the drawn colours.
+	 */
+	private void addValueTooltip(int x, int y)
+	{
+		final Heatmap heatmap = cache.getHeatmap();
+		if (heatmap == null)
+		{
+			return;
+		}
+
+		long value = 0;
+		for (int plane = 0; plane < 4; plane++)
+		{
+			value += heatmap.get(x, y, plane);
+		}
+		if (value > 0)
+		{
+			tooltipManager.add(new Tooltip(heatmap.getHeatmapType().formatValue(value)));
+		}
+	}
+
+	/**
+	 * Draws a small box with the hovered coordinates in the bottom-left corner of the map, moved up above the
+	 * overview map if that's open and in the way.
+	 */
+	private void drawCoordinates(Graphics2D graphics, Rectangle bounds, String text)
+	{
+		final FontMetrics metrics = graphics.getFontMetrics();
+		final int width = metrics.stringWidth(text) + 2 * COORDS_PADDING;
+		final int height = metrics.getHeight() + 2 * COORDS_PADDING;
+		final Rectangle box = new Rectangle(bounds.x + COORDS_MARGIN, bounds.y + bounds.height - height - COORDS_MARGIN, width, height);
+
+		final Widget overview = client.getWidget(InterfaceID.Worldmap.OVERVIEW_CONTAINER);
+		if (overview != null && !overview.isHidden() && overview.getBounds().intersects(box))
+		{
+			box.y = overview.getBounds().y - height - COORDS_MARGIN;
+		}
+
+		graphics.setColor(ComponentConstants.STANDARD_BACKGROUND_COLOR);
+		graphics.fill(box);
+
+		final int textX = box.x + COORDS_PADDING;
+		final int textY = box.y + COORDS_PADDING + metrics.getAscent();
+		graphics.setColor(Color.BLACK);
+		graphics.drawString(text, textX + 1, textY + 1);
+		graphics.setColor(Color.WHITE);
+		graphics.drawString(text, textX, textY);
 	}
 
 	/**

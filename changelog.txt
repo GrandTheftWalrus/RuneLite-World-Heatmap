@@ -379,6 +379,10 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-11-22: Replaced the per-heatmap on/off checkboxes with a single "Enabled heatmaps" list in the config
 
+2026-11-22: Added a tooltip showing the hovered tile's value on the world map overlay
+
+2026-11-22: Added a box showing the hovered tile's coordinates on the world map overlay
+
 TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
 		- This means I'd have to re-include them in toCSV()
