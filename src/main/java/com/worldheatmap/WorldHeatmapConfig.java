@@ -68,17 +68,18 @@ public interface WorldHeatmapConfig extends Config {
 
     @Range(
             min = 0,
-            max = 1
+            max = 100
     )
+    @Units(Units.PERCENT)
     @ConfigItem(
-            keyName = "HeatmapAlpha",
-            name = "Heatmap opacity",
+            keyName = "imageOpacity",
+            name = "Image opacity",
             position = 4,
-            description = "The opacity of the heatmap colours drawn over the world map image",
+            description = "How strongly the heatmap colours cover the world map in written images. Lower lets more of the map's detail show through. (The in-game overlays have their own opacity setting.)",
             section = settings
     )
-    default double heatmapAlpha() {
-        return 1.0;
+    default int imageOpacity() {
+        return 100;
     }
 
     @Range(
@@ -89,7 +90,7 @@ public interface WorldHeatmapConfig extends Config {
             keyName = "heatmapSensitivity",
             name = "Heatmap curve sensitivity",
             position = 5,
-            description = "Increasing this makes the heatmap's colour gradient more sensitive to step counts.",
+            description = "Increasing this makes the heatmap's colour gradient more sensitive to low values. Applies to both written images and the overlays.",
             section = settings
     )
     default int heatmapSensitivity() {
@@ -196,17 +197,18 @@ public interface WorldHeatmapConfig extends Config {
 
 	@Range(
 		min = 0,
-		max = 255
+		max = 100
 	)
+	@Units(Units.PERCENT)
 	@ConfigItem(
-		keyName = "overlayOpacity",
+		keyName = "overlayOpacityPercent",
 		name = "Overlay opacity",
 		position = 5,
-		description = "Opacity of the overlay colours (0-255)",
+		description = "How opaque the heatmap colours are on the game scene, minimap and world map overlays. (Written images have their own opacity setting.)",
 		section = overlays
 	)
 	default int overlayOpacity() {
-		return 100;
+		return 40;
 	}
 
 	@Range(

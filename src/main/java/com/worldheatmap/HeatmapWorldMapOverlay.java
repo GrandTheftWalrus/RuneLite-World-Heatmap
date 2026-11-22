@@ -258,7 +258,7 @@ class HeatmapWorldMapOverlay extends Overlay
 		}
 
 		final int sensitivity = config.heatmapSensitivity();
-		final int alpha = config.overlayOpacity();
+		final int alpha = Utils.overlayAlpha(config.overlayOpacity());
 		if (heatmap == globalImagesHeatmap && sensitivity == globalImagesSensitivity && alpha == globalImagesAlpha)
 		{
 			return globalImages;

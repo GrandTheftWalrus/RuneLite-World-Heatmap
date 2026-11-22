@@ -185,6 +185,14 @@ public class Utils
 	}
 
 	/**
+	 * Converts the overlay opacity setting (a percentage) to a 0-255 alpha.
+	 */
+	static int overlayAlpha(int opacityPercent)
+	{
+		return Math.max(0, Math.min(255, Math.round(opacityPercent * 2.55f)));
+	}
+
+	/**
 	 * Returns the fully saturated heatmap colour for a tile value, with the given alpha.
 	 * Unlike heatmapHue, the hue is clamped to the gradient so degenerate ranges (e.g. min == max) still draw.
 	 */

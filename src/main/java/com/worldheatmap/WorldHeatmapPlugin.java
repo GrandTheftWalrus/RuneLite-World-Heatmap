@@ -231,6 +231,7 @@ public class WorldHeatmapPlugin extends Plugin {
     @Override
     protected void startUp() throws IOException {
 		migrateHeatmapToggles();
+		migrateOpacitySettings();
 		enabledHeatmapTypes = EnumSet.noneOf(Heatmap.HeatmapType.class);
 		enabledHeatmapTypes.addAll(config.enabledHeatmaps());
         panel = new WorldHeatmapPanel(this);
@@ -711,10 +712,10 @@ public class WorldHeatmapPlugin extends Plugin {
 
             // Write the image files
             if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_A)) {
-                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
+                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.imageOpacity() / 100.0, config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
             }
             if (isHeatmapEnabled(Heatmap.HeatmapType.TYPE_B)) {
-                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
+                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.imageOpacity() / 100.0, config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
             }
         }
     }
@@ -895,6 +896,28 @@ public class WorldHeatmapPlugin extends Plugin {
      * Keys that were never set were at their default of enabled. The old keys are deleted afterwards so that resetting
      * the new setting later doesn't re-run this.
      */
+    /**
+     * One-time carry-over of the old image opacity setting (0-1, "HeatmapAlpha") to the percentage "imageOpacity".
+     * Also removes the unreleased 0-255 "overlayOpacity" setting, replaced by "overlayOpacityPercent".
+     */
+    private void migrateOpacitySettings() {
+        String oldImageOpacity = configManager.getConfiguration(WorldHeatmapConfig.GROUP, "HeatmapAlpha");
+        if (oldImageOpacity != null) {
+            if (configManager.getConfiguration(WorldHeatmapConfig.GROUP, "imageOpacity") == null) {
+                try {
+                    double alpha = Math.max(0, Math.min(1, Double.parseDouble(oldImageOpacity)));
+                    configManager.setConfiguration(WorldHeatmapConfig.GROUP, "imageOpacity", (int) Math.round(alpha * 100));
+                } catch (NumberFormatException e) {
+                    log.warn("Couldn't carry over old image opacity setting '{}'", oldImageOpacity);
+                }
+            }
+            configManager.unsetConfiguration(WorldHeatmapConfig.GROUP, "HeatmapAlpha");
+        }
+        if (configManager.getConfiguration(WorldHeatmapConfig.GROUP, "overlayOpacity") != null) {
+            configManager.unsetConfiguration(WorldHeatmapConfig.GROUP, "overlayOpacity");
+        }
+    }
+
     private void migrateHeatmapToggles() {
         if (configManager.getConfiguration(WorldHeatmapConfig.GROUP, "enabledHeatmaps") != null) {
             return;

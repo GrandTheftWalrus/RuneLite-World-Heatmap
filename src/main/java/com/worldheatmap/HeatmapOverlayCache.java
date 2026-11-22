@@ -80,7 +80,7 @@ class HeatmapOverlayCache
 	TileColours getTileColours()
 	{
 		final int sensitivity = config.heatmapSensitivity();
-		final int alpha = config.overlayOpacity();
+		final int alpha = Utils.overlayAlpha(config.overlayOpacity());
 
 		if (config.overlayUseGlobalHeatmaps())
 		{
@@ -231,7 +231,7 @@ class HeatmapOverlayCache
 		}
 
 		int sensitivity = config.heatmapSensitivity();
-		int alpha = config.overlayOpacity();
+		int alpha = Utils.overlayAlpha(config.overlayOpacity());
 		Map<Integer, BufferedImage> images = new HashMap<>();
 		for (Map.Entry<Integer, long[]> region : regionSums.entrySet())
 		{
