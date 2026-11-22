@@ -344,4 +344,97 @@ public interface WorldHeatmapConfig extends Config {
 	)
 	default boolean isHeatmapTradesEnabled() { return true;	}
 
+	@ConfigSection(
+		name = "Overlays",
+		description = "Live heatmap overlays on the game scene, minimap and world map",
+		position = 2
+	)
+	String overlays = "overlays";
+
+	@ConfigItem(
+		keyName = "overlayHeatmapType",
+		name = "Overlay heatmap",
+		position = 0,
+		description = "Which heatmap the overlays display. The heatmap must also be enabled under 'Per-Heatmap On/Off'.",
+		section = overlays
+	)
+	default Heatmap.HeatmapType overlayHeatmapType() {
+		return Heatmap.HeatmapType.TYPE_A;
+	}
+
+	@ConfigItem(
+		keyName = "showSceneOverlay",
+		name = "Show on game scene",
+		position = 1,
+		description = "Tints tiles in the game scene with their heatmap colour",
+		section = overlays
+	)
+	default boolean showSceneOverlay() {
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showMinimapOverlay",
+		name = "Show on minimap",
+		position = 2,
+		description = "Draws heatmap colours on the minimap",
+		section = overlays
+	)
+	default boolean showMinimapOverlay() {
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showWorldMapOverlay",
+		name = "Show on world map",
+		position = 3,
+		description = "Draws the whole heatmap on the world map",
+		section = overlays
+	)
+	default boolean showWorldMapOverlay() {
+		return false;
+	}
+
+	@Range(
+		min = 0,
+		max = 255
+	)
+	@ConfigItem(
+		keyName = "overlayOpacity",
+		name = "Overlay opacity",
+		position = 4,
+		description = "Opacity of the overlay colours (0-255)",
+		section = overlays
+	)
+	default int overlayOpacity() {
+		return 100;
+	}
+
+	@Range(
+		min = -1
+	)
+	@ConfigItem(
+		keyName = "overlaySceneRadius",
+		name = "Game scene radius",
+		position = 5,
+		description = "Radius in tiles around the player to draw on the game scene. -1 draws the whole loaded scene.",
+		section = overlays
+	)
+	default int overlaySceneRadius() {
+		return -1;
+	}
+
+	@Range(
+		min = -1
+	)
+	@ConfigItem(
+		keyName = "overlayMinimapRadius",
+		name = "Minimap radius",
+		position = 6,
+		description = "Radius in tiles around the player to draw on the minimap. -1 draws the whole loaded scene.",
+		section = overlays
+	)
+	default int overlayMinimapRadius() {
+		return -1;
+	}
 }

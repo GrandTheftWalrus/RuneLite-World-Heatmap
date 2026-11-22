@@ -415,7 +415,7 @@ public class HeatmapImage implements RenderedImage
 			// Else continue
 
 			// Calculate color
-			double currHue = calculateHue(tileValue, heatmapSensitivity, heatmapMinVal, heatmapMaxVal);
+			double currHue = Utils.heatmapHue(tileValue, heatmapSensitivity, heatmapMinVal, heatmapMaxVal);
 			// Reassign the new RGB values to the corresponding 9 pixels (each tile covers 3x3 image pixels)
 			for (int x_offset = 0; x_offset < 4; x_offset++)
 			{
@@ -444,18 +444,6 @@ public class HeatmapImage implements RenderedImage
 				}
 			}
 		}
-	}
-
-	private double calculateHue(long tileValue, int heatmapSensitivity, long minVal, long maxVal)
-	{
-		double nthRoot = 1 + (heatmapSensitivity - 1.0) / 2;
-		int logBase = 4;
-		double minHue = 1 / 3.0;
-		double maxHue = 0.0;
-		double currHue = (float) ((Math.log(tileValue) / Math.log(logBase)) / (Math.log(maxVal + 1 - minVal) / Math.log(logBase)));
-		currHue = Math.pow(currHue, 1.0 / nthRoot);
-		currHue = (float) (minHue + (currHue * (maxHue - minHue))); // Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
-		return currHue;
 	}
 
 	private int compareNaturalReadingOrder(int x1, int y1, int x2, int y2)

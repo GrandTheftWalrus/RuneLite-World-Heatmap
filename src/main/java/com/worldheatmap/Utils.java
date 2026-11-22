@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -151,6 +152,43 @@ public class Utils
 	 */
 	private static float lerp(int p0, int p1, float t) {
 		return p0 + (p1 - p0) * t;
+	}
+
+	/**
+	 * Maps a tile value to a hue on the heatmap gradient (green at the minimum, through yellow, to red at the maximum).
+	 *
+	 * @param tileValue          The tile's value
+	 * @param heatmapSensitivity Curve sensitivity; higher values make the gradient more sensitive to low counts
+	 * @param minVal             The heatmap's minimum tile value
+	 * @param maxVal             The heatmap's maximum tile value
+	 * @return The hue, nominally in [0, 1/3]
+	 */
+	static double heatmapHue(long tileValue, int heatmapSensitivity, long minVal, long maxVal)
+	{
+		double nthRoot = 1 + (heatmapSensitivity - 1.0) / 2;
+		int logBase = 4;
+		double minHue = 1 / 3.0;
+		double maxHue = 0.0;
+		double currHue = (float) ((Math.log(tileValue) / Math.log(logBase)) / (Math.log(maxVal + 1 - minVal) / Math.log(logBase)));
+		currHue = Math.pow(currHue, 1.0 / nthRoot);
+		currHue = (float) (minHue + (currHue * (maxHue - minHue))); // Assign a hue based on normalized step value (values [0, 1] are mapped linearly to hues of [0, 0.333] aka green then yellow, then red)
+		return currHue;
+	}
+
+	/**
+	 * Returns the fully saturated heatmap colour for a tile value, with the given alpha.
+	 * Unlike heatmapHue, the hue is clamped to the gradient so degenerate ranges (e.g. min == max) still draw.
+	 */
+	static Color heatmapColor(long tileValue, int heatmapSensitivity, long minVal, long maxVal, int alpha)
+	{
+		double hue = heatmapHue(tileValue, heatmapSensitivity, minVal, maxVal);
+		if (Double.isNaN(hue))
+		{
+			hue = 1 / 3.0;
+		}
+		hue = Math.max(0, Math.min(1 / 3.0, hue));
+		int rgb = Color.HSBtoRGB((float) hue, 1, 1) & 0xFFFFFF;
+		return new Color((alpha << 24) | rgb, true);
 	}
 
 	public static boolean isInOverworld(Point point) {

@@ -38,6 +38,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.api.Varbits;
 import net.runelite.http.api.worlds.World;
 
@@ -135,6 +136,21 @@ public class WorldHeatmapPlugin extends Plugin {
     private ClientToolbar clientToolbar;
 
 	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private HeatmapOverlayCache overlayCache;
+
+	@Inject
+	private HeatmapSceneOverlay sceneOverlay;
+
+	@Inject
+	private HeatmapMinimapOverlay minimapOverlay;
+
+	@Inject
+	private HeatmapWorldMapOverlay worldMapOverlay;
+
+	@Inject
 	private WorldService worldService;
 
 	@Inject
@@ -209,6 +225,9 @@ public class WorldHeatmapPlugin extends Plugin {
                 .build();
         clientToolbar.addNavigation(toolbarButton);
         panel.setEnabledHeatmapButtons(false);
+		overlayManager.add(sceneOverlay);
+		overlayManager.add(minimapOverlay);
+		overlayManager.add(worldMapOverlay);
 		clientThread.invoke(this::displayUpdateMessage);
 
 		if (client.getGameState() == GameState.LOGGED_IN) {
@@ -246,6 +265,10 @@ public class WorldHeatmapPlugin extends Plugin {
 			executor.execute(() -> heatmaps = new HashMap<>());
         }
         clientToolbar.removeNavigation(toolbarButton);
+		overlayManager.remove(sceneOverlay);
+		overlayManager.remove(minimapOverlay);
+		overlayManager.remove(worldMapOverlay);
+		overlayCache.clear();
     }
 
     @Subscribe
@@ -362,6 +385,9 @@ public class WorldHeatmapPlugin extends Plugin {
 			updateSeasonalType();
 			executor.execute(this::loadHeatmaps);
 		}
+		// Runs before the loaded check below so the overlays drop stale data while heatmaps are (re)loading
+		overlayCache.onGameTick();
+
 		// The following code requires the heatmap files to have been loaded
 		if (!loading.isDone() || heatmaps == null || heatmaps.isEmpty()) {
 			return;
@@ -748,6 +774,17 @@ public class WorldHeatmapPlugin extends Plugin {
         }
     }
 
+    /**
+     * Returns the given heatmap if loading has finished and it is loaded, otherwise null.
+     */
+    Heatmap getLoadedHeatmap(Heatmap.HeatmapType type) {
+        Map<Heatmap.HeatmapType, Heatmap> loadedHeatmaps = heatmaps;
+        if (!loading.isDone() || loadedHeatmaps == null) {
+            return null;
+        }
+        return loadedHeatmaps.get(type);
+    }
+
     Collection<Heatmap> getEnabledHeatmaps() {
         return heatmaps.values().stream().filter(heatmap -> isHeatmapEnabled(heatmap.getHeatmapType())).collect(Collectors.toList());
     }
@@ -811,6 +848,10 @@ public class WorldHeatmapPlugin extends Plugin {
 		configNameToHeatmapType.put("isHeatmapWorldHopsEnabled", Heatmap.HeatmapType.WORLD_HOPS);
 		configNameToHeatmapType.put("isHeatmapLoginLogoutEnabled", Heatmap.HeatmapType.LOGIN_LOGOUT);
 		configNameToHeatmapType.put("isHeatmapTradesEnabled", Heatmap.HeatmapType.TRADES);
+
+        if (event.getKey().startsWith("overlay") || event.getKey().startsWith("show") || event.getKey().equals("heatmapSensitivity")) {
+            overlayCache.invalidate();
+        }
 
         Heatmap.HeatmapType toggledHeatmapType = configNameToHeatmapType.get(event.getKey());
         if (toggledHeatmapType != null) {
