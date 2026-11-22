@@ -6,15 +6,17 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.Rectangle;
-import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.DecorativeObject;
 import net.runelite.api.GameObject;
 import net.runelite.api.ItemLayer;
+import net.runelite.api.Model;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.Renderable;
@@ -33,8 +35,8 @@ import net.runelite.client.ui.overlay.OverlayPosition;
  * Scene iteration adapted from skretzo's Invalid Movement plugin (BSD-2-Clause).
  * <p>
  * Overlays always draw on top of the rendered scene, so to make the tiles look like they're on the floor,
- * they're drawn into an offscreen buffer and the screen shapes of actors/objects are erased from it before
- * it's composited. The floor is the lowest surface, so anything overlapping a floor tile on screen is in front of it.
+ * they're drawn into an offscreen buffer and the screen silhouettes of actors/objects (their projected model
+ * triangles) are erased from it before it's composited. The floor is the lowest surface, so anything overlapping a floor tile on screen is in front of it.
  */
 class HeatmapSceneOverlay extends Overlay
 {
@@ -48,6 +50,10 @@ class HeatmapSceneOverlay extends Overlay
 	private final HeatmapOverlayCache cache;
 
 	private BufferedImage buffer;
+	private int[] bufferPixels;
+	// Reused per model for projected vertex positions
+	private int[] projectedX = new int[0];
+	private int[] projectedY = new int[0];
 
 	@Inject
 	HeatmapSceneOverlay(Client client, WorldHeatmapConfig config, HeatmapOverlayCache cache)
@@ -99,18 +105,10 @@ class HeatmapSceneOverlay extends Overlay
 		}
 		final Occupancy occupancy = new Occupancy(polys);
 
-		final List<Shape> occluders = new ArrayList<>();
-		collectObjectOccluders(worldView, occupancy, occluders);
-
-		if (occluders.isEmpty())
-		{
-			drawTiles(graphics, polys, colours);
-			return null;
-		}
-
 		if (buffer == null || buffer.getWidth() != canvas.width || buffer.getHeight() != canvas.height)
 		{
 			buffer = new BufferedImage(canvas.width, canvas.height, BufferedImage.TYPE_INT_ARGB);
+			bufferPixels = ((DataBufferInt) buffer.getRaster().getDataBuffer()).getData();
 		}
 
 		final Graphics2D g = buffer.createGraphics();
@@ -121,17 +119,13 @@ class HeatmapSceneOverlay extends Overlay
 			g.fill(dirty);
 			g.setComposite(AlphaComposite.SrcOver);
 			drawTiles(g, polys, colours);
-
-			g.setComposite(AlphaComposite.Clear);
-			for (Shape occluder : occluders)
-			{
-				g.fill(occluder);
-			}
 		}
 		finally
 		{
 			g.dispose();
 		}
+
+		eraseOccluders(worldView, occupancy, dirty);
 
 		graphics.drawImage(buffer.getSubimage(dirty.x, dirty.y, dirty.width, dirty.height), dirty.x, dirty.y, null);
 		return null;
@@ -196,12 +190,13 @@ class HeatmapSceneOverlay extends Overlay
 	}
 
 	/**
-	 * Adds the screen shapes of walls, scenery, wall decorations and ground items on the current plane.
-	 * Players and NPCs are included too, since the client adds them to the scene as GameObjects each frame.
+	 * Erases the screen silhouettes of walls, scenery, wall decorations and ground items on the current plane from the
+	 * tile buffer. Players and NPCs are included too, since the client adds them to the scene as GameObjects each frame.
 	 * Floor decorations (GroundObjects) are left out since they lie flat on the floor.
-	 * Hulls are relatively expensive, so each object's rough screen bounds are checked against the heatmap tiles first.
+	 * Positions/orientations follow RuneLite's ModelOutlineRenderer. Projecting models is relatively expensive, so each
+	 * object's rough screen bounds are checked against the heatmap tiles first.
 	 */
-	private void collectObjectOccluders(WorldView worldView, Occupancy occupancy, List<Shape> occluders)
+	private void eraseOccluders(WorldView worldView, Occupancy occupancy, Rectangle clip)
 	{
 		final Tile[][] tiles = worldView.getScene().getTiles()[worldView.getPlane()];
 		for (Tile[] column : tiles)
@@ -223,9 +218,10 @@ class HeatmapSceneOverlay extends Overlay
 						{
 							continue;
 						}
-						if (mayOverlap(object, object.sizeX(), object.sizeY(), modelHeight(object.getRenderable()), occupancy))
+						final Renderable renderable = object.getRenderable();
+						if (mayOverlap(object, object.sizeX(), object.sizeY(), modelHeight(renderable), occupancy))
 						{
-							addIfOverlapping(object.getConvexHull(), occupancy, occluders);
+							eraseRenderable(worldView, renderable, object.getX(), object.getY(), object.getZ() - animationHeightOffset(renderable), object.getModelOrientation(), occupancy, clip);
 						}
 					}
 				}
@@ -233,15 +229,17 @@ class HeatmapSceneOverlay extends Overlay
 				final WallObject wall = tile.getWallObject();
 				if (wall != null && mayOverlap(wall, 1, 1, Math.max(modelHeight(wall.getRenderable1()), modelHeight(wall.getRenderable2())), occupancy))
 				{
-					addIfOverlapping(wall.getConvexHull(), occupancy, occluders);
-					addIfOverlapping(wall.getConvexHull2(), occupancy, occluders);
+					eraseRenderable(worldView, wall.getRenderable1(), wall.getX(), wall.getY(), wall.getZ() - animationHeightOffset(wall.getRenderable1()), 0, occupancy, clip);
+					eraseRenderable(worldView, wall.getRenderable2(), wall.getX(), wall.getY(), wall.getZ() - animationHeightOffset(wall.getRenderable2()), 0, occupancy, clip);
 				}
 
 				final DecorativeObject decoration = tile.getDecorativeObject();
 				if (decoration != null && mayOverlap(decoration, 1, 1, Math.max(modelHeight(decoration.getRenderable()), modelHeight(decoration.getRenderable2())), occupancy))
 				{
-					addIfOverlapping(decoration.getConvexHull(), occupancy, occluders);
-					addIfOverlapping(decoration.getConvexHull2(), occupancy, occluders);
+					eraseRenderable(worldView, decoration.getRenderable(), decoration.getX() + decoration.getXOffset(), decoration.getY() + decoration.getYOffset(),
+						decoration.getZ() - animationHeightOffset(decoration.getRenderable()), 0, occupancy, clip);
+					eraseRenderable(worldView, decoration.getRenderable2(), decoration.getX() + decoration.getXOffset2(), decoration.getY() + decoration.getYOffset2(),
+						decoration.getZ() - animationHeightOffset(decoration.getRenderable2()), 0, occupancy, clip);
 				}
 
 				final ItemLayer items = tile.getItemLayer();
@@ -250,9 +248,156 @@ class HeatmapSceneOverlay extends Overlay
 					int height = items.getHeight() + modelHeight(items.getBottom()) + modelHeight(items.getMiddle()) + modelHeight(items.getTop());
 					if (mayOverlap(items, 1, 1, height, occupancy))
 					{
-						addIfOverlapping(items.getClickbox(), occupancy, occluders);
+						final int z = items.getZ() - items.getHeight();
+						eraseRenderable(worldView, items.getBottom(), items.getX(), items.getY(), z, 0, occupancy, clip);
+						eraseRenderable(worldView, items.getMiddle(), items.getX(), items.getY(), z, 0, occupancy, clip);
+						eraseRenderable(worldView, items.getTop(), items.getX(), items.getY(), z, 0, occupancy, clip);
 					}
 				}
+			}
+		}
+	}
+
+	private static int animationHeightOffset(Renderable renderable)
+	{
+		return renderable == null ? 0 : renderable.getAnimationHeightOffset();
+	}
+
+	/**
+	 * Projects a renderable's model and clears the pixels of its visible faces from the tile buffer.
+	 * Faces are skipped the same way RuneLite's ModelOutlineRenderer skips them: behind the camera, (nearly) fully
+	 * transparent, or back-facing.
+	 */
+	private void eraseRenderable(WorldView worldView, Renderable renderable, int x, int y, int z, int orientation, Occupancy occupancy, Rectangle clip)
+	{
+		if (renderable == null)
+		{
+			return;
+		}
+		final Model model = renderable instanceof Model ? (Model) renderable : renderable.getModel();
+		if (model == null)
+		{
+			return;
+		}
+
+		final int vertexCount = model.getVerticesCount();
+		if (projectedX.length < vertexCount)
+		{
+			projectedX = new int[vertexCount];
+			projectedY = new int[vertexCount];
+		}
+		// Note the Y/Z swap: model Y is height, matching ModelOutlineRenderer's call
+		Perspective.modelToCanvas(client, worldView, vertexCount, x, y, z, orientation,
+			model.getVerticesX(), model.getVerticesZ(), model.getVerticesY(), projectedX, projectedY);
+
+		// Skip the faces entirely if the projected model doesn't reach any heatmap tile
+		int minX = Integer.MAX_VALUE;
+		int minY = Integer.MAX_VALUE;
+		int maxX = Integer.MIN_VALUE;
+		int maxY = Integer.MIN_VALUE;
+		for (int i = 0; i < vertexCount; i++)
+		{
+			if (projectedY[i] == Integer.MIN_VALUE)
+			{
+				continue;
+			}
+			minX = Math.min(minX, projectedX[i]);
+			maxX = Math.max(maxX, projectedX[i]);
+			minY = Math.min(minY, projectedY[i]);
+			maxY = Math.max(maxY, projectedY[i]);
+		}
+		if (minX > maxX || !occupancy.intersects(new Rectangle(minX, minY, maxX - minX, maxY - minY)))
+		{
+			return;
+		}
+
+		final int faceCount = model.getFaceCount();
+		final int[] indices1 = model.getFaceIndices1();
+		final int[] indices2 = model.getFaceIndices2();
+		final int[] indices3 = model.getFaceIndices3();
+		final byte[] transparencies = model.getFaceTransparencies();
+		for (int f = 0; f < faceCount; f++)
+		{
+			final int a = indices1[f];
+			final int b = indices2[f];
+			final int c = indices3[f];
+			if (projectedY[a] == Integer.MIN_VALUE || projectedY[b] == Integer.MIN_VALUE || projectedY[c] == Integer.MIN_VALUE)
+			{
+				continue;
+			}
+			if (transparencies != null && (transparencies[f] & 0xff) >= 254)
+			{
+				continue;
+			}
+			final int x1 = projectedX[a];
+			final int y1 = projectedY[a];
+			final int x2 = projectedX[b];
+			final int y2 = projectedY[b];
+			final int x3 = projectedX[c];
+			final int y3 = projectedY[c];
+			// Back-facing
+			if ((y2 - y1) * (x3 - x2) - (x2 - x1) * (y3 - y2) <= 0)
+			{
+				continue;
+			}
+			clearTriangle(clip, x1, y1, x2, y2, x3, y3);
+		}
+	}
+
+	/**
+	 * Clears (makes transparent) the buffer pixels covered by a triangle, within clip. Rounds outwards, so it may
+	 * clear up to a pixel extra around the edges, which is fine for hiding the floor behind a model.
+	 */
+	private void clearTriangle(Rectangle clip, int x1, int y1, int x2, int y2, int x3, int y3)
+	{
+		// Sort the vertices by y
+		int t;
+		if (y1 > y2)
+		{
+			t = x1; x1 = x2; x2 = t;
+			t = y1; y1 = y2; y2 = t;
+		}
+		if (y1 > y3)
+		{
+			t = x1; x1 = x3; x3 = t;
+			t = y1; y1 = y3; y3 = t;
+		}
+		if (y2 > y3)
+		{
+			t = x2; x2 = x3; x3 = t;
+			t = y2; y2 = y3; y3 = t;
+		}
+
+		final int clipBottom = clip.y + clip.height - 1;
+		final int clipRight = clip.x + clip.width - 1;
+		if (y3 < clip.y || y1 > clipBottom || y1 == y3)
+		{
+			return;
+		}
+
+		final int stride = buffer.getWidth();
+		final int yStart = Math.max(y1, clip.y);
+		final int yEnd = Math.min(y3, clipBottom);
+		for (int y = yStart; y <= yEnd; y++)
+		{
+			// Long edge (1 to 3) and whichever short edge spans this row
+			final double xLong = x1 + (double) (x3 - x1) * (y - y1) / (y3 - y1);
+			final double xShort;
+			if (y < y2)
+			{
+				xShort = x1 + (double) (x2 - x1) * (y - y1) / (y2 - y1);
+			}
+			else
+			{
+				xShort = y3 == y2 ? x2 : x2 + (double) (x3 - x2) * (y - y2) / (y3 - y2);
+			}
+
+			final int left = Math.max(clip.x, (int) Math.floor(Math.min(xLong, xShort)));
+			final int right = Math.min(clipRight, (int) Math.ceil(Math.max(xLong, xShort)));
+			if (left <= right)
+			{
+				final int row = y * stride;
+				Arrays.fill(bufferPixels, row + left, row + right + 1, 0);
 			}
 		}
 	}
@@ -304,14 +449,6 @@ class HeatmapSceneOverlay extends Overlay
 		}
 		// If no corner projects (e.g. partly behind the camera), fall back to computing the real shape
 		return bounds == null || occupancy.intersects(bounds);
-	}
-
-	private static void addIfOverlapping(Shape shape, Occupancy occupancy, List<Shape> occluders)
-	{
-		if (shape != null && occupancy.intersects(shape.getBounds()))
-		{
-			occluders.add(shape);
-		}
 	}
 
 	/**

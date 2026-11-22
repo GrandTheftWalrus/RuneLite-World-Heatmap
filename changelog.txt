@@ -385,6 +385,8 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-11-22: Added a heatmap selector to the world map, next to the location selector, and turned on the world map overlay by default
 
+2026-11-22: Made the game scene "draw on floor" cutouts follow the actual model shapes instead of their convex hulls
+
 TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
 		- This means I'd have to re-include them in toCSV()

@@ -227,7 +227,7 @@ public interface WorldHeatmapConfig extends Config {
 		keyName = "overlayUnderObjects",
 		name = "Game scene: draw on floor",
 		position = 6,
-		description = "Draws the game scene overlay underneath players, NPCs, walls, scenery and ground items, so it looks like it's on the floor. Warning: can be expensive in busy areas; lower the game scene radius if it hurts your FPS.",
+		description = "Warning, may lower FPS: Draws the game scene overlay underneath players, NPCs, walls, scenery and ground items, so it looks like it's on the floor. Lowering the game scene radius helps in busy areas.",
 		section = overlays
 	)
 	default boolean overlayUnderObjects() {
