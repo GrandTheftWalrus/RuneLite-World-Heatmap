@@ -10,11 +10,13 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
 import net.runelite.api.widgets.WidgetSizeMode;
 import net.runelite.api.widgets.WidgetType;
+import net.runelite.client.config.ConfigManager;
 
 /**
  * A heatmap selector button in the world map's bottom bar, to the right of the location selector. It's made of
  * dynamic widgets copied from the location selector's own pieces so it matches the game's style. Clicking it opens
  * WorldMapHeatmapList, which sets the overlayHeatmapType config, so it stays in sync with the config panel.
+ * Next to it is a globe icon that toggles global heatmaps (the overlayUseGlobalHeatmaps config).
  * Must only be used on the client thread.
  * <p>
  * The bar's layout comes from the world map's clientscripts (the location selector is centred and sized to the widest
@@ -29,8 +31,12 @@ class WorldMapHeatmapSelector
 	private static final int BUTTON_PADDING = 52;
 	private static final int MIN_BUTTON_WIDTH = 80;
 	private static final String PREFIX = "Heatmap: ";
+	private static final int GLOBE_SIZE = 16;
+	// The globe is dimmed while global heatmaps are off (0 = opaque, 255 = invisible)
+	private static final int GLOBE_OFF_OPACITY = 150;
 
 	private final Client client;
+	private final ConfigManager configManager;
 	private final WorldHeatmapConfig config;
 	private final WorldMapHeatmapList list;
 	private final GlobalHeatmapLoader globalLoader;
@@ -39,11 +45,14 @@ class WorldMapHeatmapSelector
 	private Widget builtBottom;
 	private Widget button;
 	private Widget buttonLabel;
+	private Widget globeButton;
+	private Widget globeIcon;
 
 	@Inject
-	WorldMapHeatmapSelector(Client client, WorldHeatmapConfig config, WorldMapHeatmapList list, GlobalHeatmapLoader globalLoader)
+	WorldMapHeatmapSelector(Client client, ConfigManager configManager, WorldHeatmapConfig config, WorldMapHeatmapList list, GlobalHeatmapLoader globalLoader)
 	{
 		this.client = client;
+		this.configManager = configManager;
 		this.config = config;
 		this.list = list;
 		this.globalLoader = globalLoader;
@@ -76,6 +85,10 @@ class WorldMapHeatmapSelector
 		if (button != null && !button.isSelfHidden())
 		{
 			button.setHidden(true);
+		}
+		if (globeButton != null && !globeButton.isSelfHidden())
+		{
+			globeButton.setHidden(true);
 		}
 		list.close();
 	}
@@ -147,6 +160,26 @@ class WorldMapHeatmapSelector
 			buttonLabel.setTextShadowed(true);
 		}
 
+		globeButton = bottom.createChild(-1, WidgetType.LAYER);
+		globeButton.setOriginalY(display.getOriginalY());
+		globeButton.setOriginalHeight(display.getOriginalHeight());
+		globeButton.setYPositionMode(display.getYPositionMode());
+		globeButton.setHeightMode(display.getHeightMode());
+		globeButton.setXPositionMode(WidgetPositionMode.ABSOLUTE_LEFT);
+		globeButton.setWidthMode(WidgetSizeMode.ABSOLUTE);
+		globeButton.setOriginalWidth(GLOBE_SIZE);
+		globeButton.setHasListener(true);
+		globeButton.setName("<col=ff9040>Global heatmaps</col>");
+		globeButton.setOnOpListener((JavaScriptCallback) ev -> configManager.setConfiguration(
+			WorldHeatmapConfig.GROUP, "overlayUseGlobalHeatmaps", !config.overlayUseGlobalHeatmaps()));
+
+		globeIcon = globeButton.createChild(-1, WidgetType.GRAPHIC);
+		globeIcon.setSpriteId(WorldHeatmapSprites.GLOBE.getSpriteId());
+		globeIcon.setOriginalWidth(GLOBE_SIZE);
+		globeIcon.setOriginalHeight(GLOBE_SIZE);
+		globeIcon.setXPositionMode(WidgetPositionMode.ABSOLUTE_CENTER);
+		globeIcon.setYPositionMode(WidgetPositionMode.ABSOLUTE_CENTER);
+
 		builtBottom = bottom;
 		return true;
 	}
@@ -182,14 +215,30 @@ class WorldMapHeatmapSelector
 	{
 		final int x = display.getRelativeX() + display.getWidth() + GAP;
 		final int available = zoomOut.getRelativeX() - GAP - x;
+		final int globeSpace = GAP + GLOBE_SIZE;
 
-		final String selected = config.overlayHeatmapType().toString() + globalSuffix();
-		String text = PREFIX + selected;
-		int width = textWidth(text) + BUTTON_PADDING;
-		if (width > available)
+		// In order of preference: full text with the globe, short text with the globe, then without the globe
+		// (in which case the label says when global heatmaps are on)
+		final String selected = config.overlayHeatmapType().toString();
+		String text = null;
+		int width = 0;
+		boolean showGlobe = false;
+		for (int attempt = 0; attempt < 4 && text == null; attempt++)
 		{
-			// Drop the prefix before giving up
-			text = selected;
+			showGlobe = attempt < 2;
+			final String candidate = (attempt % 2 == 0 ? PREFIX : "") + selected + globalSuffix(showGlobe);
+			final int candidateWidth = textWidth(candidate) + BUTTON_PADDING;
+			if (candidateWidth + (showGlobe ? globeSpace : 0) <= available)
+			{
+				text = candidate;
+				width = candidateWidth;
+			}
+		}
+		if (text == null)
+		{
+			// Squeeze the short text into whatever space there is
+			showGlobe = false;
+			text = selected + globalSuffix(false);
 			width = Math.min(textWidth(text) + BUTTON_PADDING, available);
 		}
 
@@ -197,6 +246,11 @@ class WorldMapHeatmapSelector
 		if (button.isSelfHidden() == fits)
 		{
 			button.setHidden(!fits);
+		}
+		showGlobe &= fits;
+		if (globeButton.isSelfHidden() == showGlobe)
+		{
+			globeButton.setHidden(!showGlobe);
 		}
 		if (!fits)
 		{
@@ -227,12 +281,39 @@ class WorldMapHeatmapSelector
 			// The list is positioned from the button, so close it rather than leave it floating
 			list.close();
 		}
+
+		if (showGlobe)
+		{
+			layoutGlobe(x + width + GAP);
+		}
+	}
+
+	private void layoutGlobe(int x)
+	{
+		final boolean global = config.overlayUseGlobalHeatmaps();
+		final int opacity = global ? 0 : GLOBE_OFF_OPACITY;
+		if (globeIcon.getOpacity() != opacity)
+		{
+			globeIcon.setOpacity(opacity);
+		}
+		final String action = global ? "Turn off" : "Turn on";
+		final String[] actions = globeButton.getActions();
+		if (actions == null || actions.length == 0 || !action.equals(actions[0]))
+		{
+			globeButton.setAction(0, action);
+		}
+		if (globeButton.getOriginalX() != x)
+		{
+			globeButton.setOriginalX(x);
+			globeButton.revalidate();
+			globeIcon.revalidate();
+		}
 	}
 
 	/**
-	 * In global mode, says so, or what the global data is doing (loading etc.)
+	 * In global mode, what the global data is doing (loading etc.), or just that it's global if the globe isn't shown
 	 */
-	private String globalSuffix()
+	private String globalSuffix(boolean globeShown)
 	{
 		if (!config.overlayUseGlobalHeatmaps() || config.overlayHeatmapType() == OverlayHeatmap.NONE)
 		{
@@ -247,7 +328,7 @@ class WorldMapHeatmapSelector
 			case ERROR:
 				return " (Error)";
 			default:
-				return " (Global)";
+				return globeShown ? "" : " (Global)";
 		}
 	}
 

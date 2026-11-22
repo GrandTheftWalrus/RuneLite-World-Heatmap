@@ -397,6 +397,10 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-11-22: Made the global heatmaps option apply to the game scene and minimap overlays too
 
+2026-11-22: Added a globe button next to the world map's heatmap selector to toggle global heatmaps
+
+2026-11-22: Renamed the "draw on floor" option to "draw behind entities"
+
 TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
 		- This means I'd have to re-include them in toCSV()

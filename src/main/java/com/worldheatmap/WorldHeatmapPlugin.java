@@ -39,6 +39,7 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.input.MouseManager;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.api.Varbits;
 import net.runelite.http.api.worlds.World;
 
@@ -162,6 +163,9 @@ public class WorldHeatmapPlugin extends Plugin {
 	private GlobalHeatmapLoader globalHeatmapLoader;
 
 	@Inject
+	private SpriteManager spriteManager;
+
+	@Inject
 	private MouseManager mouseManager;
 
 	@Inject
@@ -242,6 +246,7 @@ public class WorldHeatmapPlugin extends Plugin {
                 .build();
         clientToolbar.addNavigation(toolbarButton);
         panel.setEnabledHeatmapButtons(false);
+		spriteManager.addSpriteOverrides(WorldHeatmapSprites.values());
 		overlayManager.add(sceneOverlay);
 		overlayManager.add(minimapOverlay);
 		overlayManager.add(worldMapOverlay);
@@ -284,6 +289,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			executor.execute(() -> heatmaps = new HashMap<>());
         }
         clientToolbar.removeNavigation(toolbarButton);
+		spriteManager.removeSpriteOverrides(WorldHeatmapSprites.values());
 		overlayManager.remove(sceneOverlay);
 		overlayManager.remove(minimapOverlay);
 		overlayManager.remove(worldMapOverlay);
