@@ -17,6 +17,7 @@ import javax.swing.*;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.gameval.NpcID;
 import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InterfaceID;
@@ -70,38 +71,45 @@ public class WorldHeatmapPlugin extends Plugin {
     private NavigationButton toolbarButton;
     protected WorldHeatmapPanel panel;
 	private Instant timeLastDied;
-    private final ArrayList<Integer> randomEventNPCIDs = new ArrayList<>(Arrays.asList(NpcID.BEE_KEEPER_6747,
-            NpcID.CAPT_ARNAV,
-            NpcID.DRUNKEN_DWARF,
-            NpcID.FLIPPA_6744,
-            NpcID.GILES,
-            NpcID.GILES_5441,
-            NpcID.MILES,
-            NpcID.MILES_5440,
-            NpcID.NILES,
-            NpcID.NILES_5439,
-            NpcID.PILLORY_GUARD,
-            NpcID.POSTIE_PETE_6738,
-            NpcID.RICK_TURPENTINE,
-            NpcID.RICK_TURPENTINE_376,
-            NpcID.SERGEANT_DAMIEN_6743,
-            NpcID.FREAKY_FORESTER_6748,
-            NpcID.FROG_5429,
-            NpcID.GENIE,
-            NpcID.GENIE_327,
-            NpcID.DR_JEKYLL,
-            NpcID.DR_JEKYLL_314,
-            NpcID.EVIL_BOB,
-            NpcID.EVIL_BOB_6754,
-            NpcID.LEO_6746,
-            NpcID.MYSTERIOUS_OLD_MAN_6751,
-            NpcID.MYSTERIOUS_OLD_MAN_6750,
-            NpcID.MYSTERIOUS_OLD_MAN_6752,
-            NpcID.MYSTERIOUS_OLD_MAN_6753,
-            NpcID.QUIZ_MASTER_6755,
-            NpcID.DUNCE_6749,
-            NpcID.SANDWICH_LADY,
-            NpcID.STRANGE_PLANT));
+    private final ArrayList<Integer> randomEventNPCIDs = new ArrayList<>(Arrays.asList(NpcID.GATHERING_EVENT_BEES_BEEKEEPER,
+            NpcID.MACRO_COMBILOCK_PIRATE,
+            NpcID.MACRO_DWARF,
+            NpcID.PINBALL_INVITATION,
+            NpcID.MACRO_GILES,
+            NpcID.MACRO_GILES_UNDERWATER,
+            NpcID.MACRO_MILES,
+            NpcID.MACRO_MILES_UNDERWATER,
+            NpcID.MACRO_NILES,
+            NpcID.MACRO_NILES_UNDERWATER,
+            NpcID.MACRO_PILLORY_GUARD,
+            NpcID.POSTIE_PETE,
+            NpcID.MACRO_HIGHWAYMAN,
+            NpcID.MACRO_HIGHWAYMAN_UNDERWATER,
+            NpcID.MACRO_DRILLDEMON,
+            NpcID.MACRO_FORESTER_INVITATION,
+            NpcID.MACRO_FROG_CRIER,
+			NpcID.MACRO_PIRATE,
+            NpcID.MACRO_GENI,
+            NpcID.MACRO_GENI_UNDERWATER,
+            NpcID.MACRO_JEKYLL,
+            NpcID.MACRO_JEKYLL_UNDERWATER,
+            NpcID.MACRO_EVIL_BOB_OUTSIDE,
+            NpcID.MACRO_EVIL_BOB_ISLAND,
+            NpcID.MACRO_EVIL_BOB_PRISON,
+			NpcID.MACRO_BEEKEEPER_INVITATION,
+			NpcID.MACRO_FORESTER_INVITATION,
+            NpcID.MACRO_GRAVEDIGGER_INVITATION,
+            NpcID.MACRO_CUBENPC,
+            NpcID.MACRO_MYSTERIOUS_OLD_MAN,
+            NpcID.MACRO_MYSTERIOUS_OLD_MAN_UNDERWATER,
+            NpcID.MACRO_MAZE_INVITATION,
+            NpcID.MACRO_MIME_INVITATION,
+            NpcID.MACRO_COUNTCHECK_SURFACE,
+            NpcID.MACRO_COUNTCHECK_UNDERWATER,
+            NpcID.PATTERN_INVITATION,
+            NpcID.MACRO_SANDWICH_LADY_NPC,
+            NpcID.MACRO_TRIFFIDSEED,
+			NpcID.MACRO_MAGNESON_INVITATION));
     Map<Integer, Instant> timeLastSeenBobTheCatPerWorld = new HashMap<>();
     @Inject
     ItemManager itemManager;
@@ -580,9 +588,9 @@ public class WorldHeatmapPlugin extends Plugin {
         }
 
         // BOB_THE_CAT_SIGHTING
-        if (config.isHeatmapBobTheCatSightingEnabled() && npcSpawned.getNpc().getId() == NpcID.BOB_8034) {
+        if (config.isHeatmapBobTheCatSightingEnabled() && npcSpawned.getNpc().getId() == NpcID.DEATH_GROWNCAT_BLACK_VIS) {
             // Only count Bob the Cat sightings once per hour per world
-            if (timeLastSeenBobTheCatPerWorld.get(client.getWorld()) == null || Instant.now().isAfter(timeLastSeenBobTheCatPerWorld.get(client.getWorld()).plusSeconds(3600))) {
+            if (timeLastSeenBobTheCatPerWorld.get(client.getWorld()) == null || Instant.now().isAfter(timeLastSeenBobTheCatPerWorld.get(client.getWorld()).plusSeconds(60))) {
                 if (heatmaps.get(Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING) != null) {
 					WorldPoint loc = npcSpawned.getNpc().getWorldLocation();
                     heatmaps.get(Heatmap.HeatmapType.BOB_THE_CAT_SIGHTING).increment(loc.getX(), loc.getY(), loc.getPlane());
