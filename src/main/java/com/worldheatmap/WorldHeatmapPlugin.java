@@ -52,7 +52,7 @@ import okhttp3.OkHttpClient;
 @Slf4j
 @PluginDescriptor(
         name = "World Heatmap",
-        internalName = "worldheatmap",
+        internalName = "world-heatmap",
         legacyDataDirectory = "worldheatmap"
 )
 public class WorldHeatmapPlugin extends Plugin {
