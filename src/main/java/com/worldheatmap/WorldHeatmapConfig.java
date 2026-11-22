@@ -424,13 +424,24 @@ public interface WorldHeatmapConfig extends Config {
 		return -1;
 	}
 
+	@ConfigItem(
+		keyName = "overlayUnderObjects",
+		name = "Game scene: draw on floor",
+		position = 6,
+		description = "Draws the game scene overlay underneath players, NPCs, walls, scenery and ground items, so it looks like it's on the floor. Warning: can be expensive in busy areas; lower the game scene radius if it hurts your FPS.",
+		section = overlays
+	)
+	default boolean overlayUnderObjects() {
+		return true;
+	}
+
 	@Range(
 		min = -1
 	)
 	@ConfigItem(
 		keyName = "overlayMinimapRadius",
 		name = "Minimap radius",
-		position = 6,
+		position = 7,
 		description = "Radius in tiles around the player to draw on the minimap. -1 draws the whole loaded scene.",
 		section = overlays
 	)
