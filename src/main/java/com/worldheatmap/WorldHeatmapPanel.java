@@ -1,12 +1,17 @@
 package com.worldheatmap;
 
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -22,14 +27,15 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     private JLabel totalMemoryUsageLabel;
 
-    Map<Heatmap.HeatmapType, JPanel> heatmapPanels = new HashMap<>();
-    Map<Heatmap.HeatmapType, JLabel> heatmapTotalValueLabels = new HashMap<>();
-	Map<Heatmap.HeatmapType, JLabel> heatmapTileCountLabels = new HashMap<>();
-    Map<Heatmap.HeatmapType, JLabel> heatmapPanelLabels = new HashMap<>();
-    Map<Heatmap.HeatmapType, JButton> writeHeatmapImageButtons = new HashMap<>();
-    Map<Heatmap.HeatmapType, JButton> clearHeatmapButtons = new HashMap<>();
+    // One compact row per enabled heatmap: name on the left, total (or image write status) on the right
+    private final Map<Heatmap.HeatmapType, JPanel> heatmapRows = new HashMap<>();
+    private final Map<Heatmap.HeatmapType, JLabel> heatmapValueLabels = new HashMap<>();
+    // Heatmaps whose row is currently showing an image write status instead of their total
+    private final Set<Heatmap.HeatmapType> statusShown = new HashSet<>();
 	Map<Heatmap.HeatmapType, Integer> memoryUsageEstimates = new HashMap<>();
 	protected long timeOfLastMemoryEstimate = -1;
+    // Whether writing images and restarting heatmaps is allowed (off while loading or writing an image)
+    private boolean actionsEnabled = true;
 
     public WorldHeatmapPanel(WorldHeatmapPlugin plugin) {
         this.plugin = plugin;
@@ -38,8 +44,10 @@ public class WorldHeatmapPanel extends PluginPanel {
 
     protected void rebuild() {
         removeAll();
+        heatmapRows.clear();
+        heatmapValueLabels.clear();
+        statusShown.clear();
         Font buttonFont = new Font("Runescape", Font.BOLD, 18);
-        Font sectionLabelFont = new Font("Runescape", Font.BOLD, 18);
 
         //Main Panel
         int vGap = 5;
@@ -81,76 +89,94 @@ public class WorldHeatmapPanel extends PluginPanel {
         JButton visitGlobalHeatmapButton = getGlobalHeatmapButton(buttonFont);
         mainPanel.add(visitGlobalHeatmapButton);
 
-        // Create the panels/buttons for each loaded Heatmap type
+        // Tips, since the row menus aren't obvious
+        JLabel tipsLabel = new JLabel("<html>Click a heatmap to write its image, restart it, or show it on the overlays."
+            + "<br>Hover over one for its tile count and age.</html>");
+        tipsLabel.setFont(FontManager.getRunescapeFont());
+        tipsLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        tipsLabel.setBorder(new EmptyBorder(vGap, hGap, 0, hGap));
+        add(tipsLabel);
+
+        // Heatmap rows
+        JPanel rowsPanel = new JPanel(new GridLayout(0, 1, 0, 1));
+        rowsPanel.setBorder(new EmptyBorder(vGap, 0, vGap, 0));
+        rowsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         for (Heatmap.HeatmapType heatmapType : Heatmap.HeatmapType.values()) {
-            // Do not create panels for disabled heatmaps
+            // Do not create rows for disabled heatmaps
             if (!plugin.isHeatmapEnabled(heatmapType)) {
                 continue;
             }
-            //Panel
-            JPanel heatmapPanel = new JPanel(new GridLayout(0, 1, hGap, vGap));
-            heatmapPanel.setBorder(new EmptyBorder(vGap, hGap, vGap, hGap));
-            heatmapPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-            heatmapPanels.put(heatmapType, heatmapPanel);
-
-            //Label
-            JLabel heatmapLabel = new JLabel(heatmapType.name().replace("_", " "));
-            heatmapPanelLabels.put(heatmapType, heatmapLabel);
-            heatmapLabel.setFont(sectionLabelFont);
-            heatmapLabel.setForeground(Color.WHITE);
-            heatmapLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            if (plugin.heatmaps.get(heatmapType) != null){
-                heatmapLabel.setToolTipText("Estimated memory usage: " + String.format("%.2f", plugin.heatmaps.get(heatmapType).estimateSize() / 1024. / 1024) + "MB");
-            }
-            else {
-                heatmapLabel.setToolTipText("Estimated memory usage: 0MB");
-            }
-
-            heatmapPanel.add(heatmapLabel);
-
-            //'Write Heatmap Image' button
-            JButton writeHeatmapImageButton = new JButton("Write Heatmap Image");
-            writeHeatmapImageButton.setFont(buttonFont);
-            writeHeatmapImageButton.addActionListener(e -> writeHeatmapImage(heatmapType, plugin.config.isWriteFullImageEnabled()));
-            writeHeatmapImageButtons.put(heatmapType, writeHeatmapImageButton);
-            heatmapPanel.add(writeHeatmapImageButton);
-
-            //'Restart Heatmap' button
-            JButton clearHeatmapButton = getClearHeatmapButton(heatmapType, buttonFont, heatmapPanel);
-            clearHeatmapButtons.put(heatmapType, clearHeatmapButton);
-            heatmapPanel.add(clearHeatmapButton);
-
-            // Total value and Tile count labels panel
-			JPanel labelsPanel = new JPanel(new GridLayout(1, 2, hGap, vGap));
-			labelsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-			// Total value label
-			String totalToolTipText = "Total value of all tiles in the heatmap";
-			JLabel heatmapTotalValueLabel = new JLabel("Total: 0");
-			heatmapTotalValueLabel.setHorizontalAlignment(SwingConstants.CENTER);
-			heatmapTotalValueLabel.setToolTipText(totalToolTipText);
-			heatmapTotalValueLabels.put(heatmapType, heatmapTotalValueLabel);
-			labelsPanel.add(heatmapTotalValueLabel);
-
-			// Tile count label
-			String countToolTipText = "Count of tiles in the heatmap";
-			JLabel heatmapTileCountLabel = new JLabel("Count: 0");
-			heatmapTileCountLabel.setHorizontalAlignment(SwingConstants.CENTER);
-			heatmapTileCountLabel.setToolTipText(countToolTipText);
-			heatmapTileCountLabels.put(heatmapType, heatmapTileCountLabel);
-			labelsPanel.add(heatmapTileCountLabel);
-
-			heatmapPanel.add(labelsPanel);
-
-            add(heatmapPanel);
+            rowsPanel.add(createHeatmapRow(heatmapType));
         }
+        add(rowsPanel);
+
+        updateCounts();
     }
 
-    private JButton getClearHeatmapButton(Heatmap.HeatmapType heatmapType, Font buttonFont, JPanel heatmapPanel) {
-        JButton clearHeatmapButton = new JButton("Restart Heatmap");
-        clearHeatmapButton.setFont(buttonFont);
-        clearHeatmapButton.addActionListener(e -> {
-            final int result = JOptionPane.showOptionDialog(heatmapPanel,
+    private JPanel createHeatmapRow(Heatmap.HeatmapType heatmapType) {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setBorder(new EmptyBorder(4, 6, 4, 6));
+        row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        // Name in the centre so it's the part that gets truncated if the row is too narrow
+        JLabel nameLabel = new JLabel(heatmapType.toString());
+        nameLabel.setForeground(Color.WHITE);
+        row.add(nameLabel, BorderLayout.CENTER);
+
+        JLabel valueLabel = new JLabel(heatmapType.formatValue(0));
+        valueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        row.add(valueLabel, BorderLayout.EAST);
+
+        row.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                row.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                // Left or right click opens the menu
+                createHeatmapMenu(heatmapType, row).show(row, e.getX(), e.getY());
+            }
+        });
+
+        heatmapRows.put(heatmapType, row);
+        heatmapValueLabels.put(heatmapType, valueLabel);
+        return row;
+    }
+
+    private JPopupMenu createHeatmapMenu(Heatmap.HeatmapType heatmapType, JPanel row) {
+        JPopupMenu menu = new JPopupMenu();
+        boolean loaded = plugin.heatmaps.get(heatmapType) != null;
+
+        JMenuItem writeImage = new JMenuItem("Write image");
+        writeImage.setEnabled(actionsEnabled && loaded);
+        writeImage.addActionListener(e -> writeHeatmapImage(heatmapType, false));
+        menu.add(writeImage);
+
+        // Includes underground/non-overworld areas, which takes much longer
+        JMenuItem writeFullImage = new JMenuItem("Write full map image (slow)");
+        writeFullImage.setEnabled(actionsEnabled && loaded);
+        writeFullImage.addActionListener(e -> writeHeatmapImage(heatmapType, true));
+        menu.add(writeFullImage);
+
+        JCheckBoxMenuItem showOnOverlays = new JCheckBoxMenuItem("Show on overlays");
+        showOnOverlays.setSelected(plugin.config.overlayHeatmapType().getHeatmapType() == heatmapType);
+        showOnOverlays.addActionListener(e -> plugin.configManager.setConfiguration(WorldHeatmapConfig.GROUP, "overlayHeatmapType",
+            showOnOverlays.isSelected() ? OverlayHeatmap.of(heatmapType) : OverlayHeatmap.NONE));
+        menu.add(showOnOverlays);
+
+        menu.addSeparator();
+
+        JMenuItem restart = new JMenuItem("Restart...");
+        restart.setEnabled(actionsEnabled && loaded);
+        restart.addActionListener(e -> {
+            final int result = JOptionPane.showOptionDialog(row,
                     "<html>Art thou sure you want to restart your " + heatmapType.name() + " heatmap? The data will be lost.</html>",
                     "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
                     null, new String[]{"Yes", "No"}, "No");
@@ -159,7 +185,9 @@ public class WorldHeatmapPanel extends PluginPanel {
                 clearHeatmap(heatmapType);
             }
         });
-        return clearHeatmapButton;
+        menu.add(restart);
+
+        return menu;
     }
 
     private JButton getOpenHeatmapFolderButton(Font buttonFont) {
@@ -199,25 +227,43 @@ public class WorldHeatmapPanel extends PluginPanel {
         updateUI();
     }
 
+    /**
+     * Updates each row's total and tooltip (tile count, memory usage and age).
+     */
     protected void updateCounts() {
-        for (Heatmap.HeatmapType heatmapType : plugin.heatmaps.keySet()) {
-            if (heatmapTotalValueLabels.get(heatmapType) != null) {
-                heatmapTotalValueLabels.get(heatmapType).setText("Total: " + plugin.heatmaps.get(heatmapType).getTotalValue());
+        for (Map.Entry<Heatmap.HeatmapType, JLabel> entry : heatmapValueLabels.entrySet()) {
+            Heatmap.HeatmapType heatmapType = entry.getKey();
+            Heatmap heatmap = plugin.heatmaps.get(heatmapType);
+            if (!statusShown.contains(heatmapType)) {
+                entry.getValue().setText(heatmapType.formatValue(heatmap == null ? 0 : heatmap.getTotalValue()));
             }
-			if (heatmapTileCountLabels.get(heatmapType) != null) {
-				heatmapTileCountLabels.get(heatmapType).setText("Count: " + plugin.heatmaps.get(heatmapType).getTileCount());
-			}
+
+            JPanel row = heatmapRows.get(heatmapType);
+            if (row == null) {
+                continue;
+            }
+            if (heatmap == null) {
+                row.setToolTipText("Not loaded");
+            }
+            else {
+                int gameTimeSeconds = (int) (heatmap.getGameTimeTicks() * 0.6);
+                String gameTimeFormatted = String.format("%02d:%02d:%02d", gameTimeSeconds / 3600, (gameTimeSeconds % 3600) / 60, gameTimeSeconds % 60);
+                Integer memoryEstimate = memoryUsageEstimates.get(heatmapType);
+                row.setToolTipText("<html>" + String.format("%,d", heatmap.getTileCount()) + " tiles"
+                    + "<br>Estimated memory usage: " + (memoryEstimate == null ? "?" : String.format("%.2f", memoryEstimate / 1024. / 1024)) + "MB"
+                    + "<br>Heatmap age: " + gameTimeFormatted
+                    + "<br>Click for options</html>");
+            }
         }
         updateUI();
     }
 
 	/**
-	 * Update the memory usage label and the tooltip of each heatmap panel label
+	 * Update the total memory usage label, and the per-heatmap estimates shown in the row tooltips.
+	 * Only re-estimates once a minute, since it has to go through every tile.
 	 */
     protected void updateMemoryUsageLabels() {
-		// Only update the memory usage label every minute
-		// because it is a relatively expensive operation
-		if (System.currentTimeMillis() - timeOfLastMemoryEstimate < 60_000 || timeOfLastMemoryEstimate == -1) {
+		if (timeOfLastMemoryEstimate == -1 || System.currentTimeMillis() - timeOfLastMemoryEstimate >= 60_000) {
 			timeOfLastMemoryEstimate = System.currentTimeMillis();
 			int totalEstimatedMemoryUsage = 0;
 			for (Heatmap heatmap : plugin.heatmaps.values()) {
@@ -226,33 +272,45 @@ public class WorldHeatmapPanel extends PluginPanel {
 				totalEstimatedMemoryUsage += estimatedMemoryUsage;
 			}
 			totalMemoryUsageLabel.setText("Estimated Memory Usage: " + String.format("%.2f", totalEstimatedMemoryUsage / 1024. / 1024) +  "MB");
+			updateUI();
 		}
+    }
 
-		// Update the tooltips of the heatmap panel labels
-		for (Map.Entry<Heatmap.HeatmapType, JLabel> entry : heatmapPanelLabels.entrySet()) {
-			JLabel label = entry.getValue();
-			Heatmap.HeatmapType heatmapType = entry.getKey();
-			Heatmap heatmap = plugin.heatmaps.get(heatmapType);
-			if (label == null || heatmapType == null) {
-				continue;
-			}
-			if (heatmap == null) {
-				label.setToolTipText("Estimated memory usage: 0MB (heatmap not loaded)");
-			}
-			else {
-				int gameTimeSeconds = (int)(heatmap.getGameTimeTicks() * 0.6);
-				String gameTimeFormatted = String.format("%02d:%02d:%02d", gameTimeSeconds / 3600, (gameTimeSeconds % 3600) / 60, gameTimeSeconds % 60);
-				label.setToolTipText("Estimated memory usage: " + String.format("%.2f", memoryUsageEstimates.get(heatmapType) / 1024. / 1024) + "MB"
-					+ "\n"
-					+ "Heatmap age: " + gameTimeFormatted);
-			}
-		}
+    /**
+     * Shows an image write status (e.g. "Writing... 45%") in place of a heatmap's total. Safe to call from any thread.
+     */
+    void setImageWriteStatus(Heatmap.HeatmapType heatmapType, String status, Color colour) {
+        SwingUtilities.invokeLater(() -> {
+            JLabel label = heatmapValueLabels.get(heatmapType);
+            if (label == null) {
+                return;
+            }
+            statusShown.add(heatmapType);
+            label.setText(status);
+            label.setForeground(colour);
+        });
+    }
 
-        updateUI();
+    /**
+     * Goes back to showing a heatmap's total after setImageWriteStatus. Safe to call from any thread.
+     */
+    void clearImageWriteStatus(Heatmap.HeatmapType heatmapType) {
+        SwingUtilities.invokeLater(() -> {
+            JLabel label = heatmapValueLabels.get(heatmapType);
+            if (label == null) {
+                return;
+            }
+            statusShown.remove(heatmapType);
+            label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            updateCounts();
+        });
     }
 
     private void writeHeatmapImage(Heatmap.HeatmapType heatmapType, boolean isFullMapImage) {
 		Heatmap heatmap = plugin.heatmaps.get(heatmapType);
+		if (heatmap == null) {
+			return;
+		}
         // Save all heatmap data
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
@@ -278,15 +336,11 @@ public class WorldHeatmapPanel extends PluginPanel {
 		LinkBrowser.open(plugin.pluginDirectory.toString());
 	}
 
+    /**
+     * Enables/disables writing images and restarting heatmaps from the row menus (e.g. while loading or writing an image).
+     */
     void setEnabledHeatmapButtons(boolean onOff) {
-        // Disable write heatmap image buttons
-        for (JButton writeButton : writeHeatmapImageButtons.values()) {
-            writeButton.setEnabled(onOff);
-        }
-        // Disable clear heatmap buttons
-        for (JButton clearButton : clearHeatmapButtons.values()) {
-            clearButton.setEnabled(onOff);
-        }
+        actionsEnabled = onOff;
     }
 
 }

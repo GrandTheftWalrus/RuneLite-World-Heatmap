@@ -387,6 +387,10 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-11-22: Made the game scene "draw on floor" cutouts follow the actual model shapes instead of their convex hulls
 
+2026-11-22: Redesigned the panel to show one compact row per heatmap, with a click menu to write images, restart, or show on overlays
+
+2026-11-22: Removed the "Write full world map image" config option, since the panel's heatmap menu now has it
+
 TODO: Yuge memory-saving idea:
 	- only heatmap metadata is loaded from disk on startup (e.g. num tiles, total value)
 		- This means I'd have to re-include them in toCSV()

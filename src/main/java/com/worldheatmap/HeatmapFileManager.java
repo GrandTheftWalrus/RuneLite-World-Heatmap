@@ -211,7 +211,7 @@ public class HeatmapFileManager
 
 			// Write new, fixed TELEPORTED_FROM image
 			Filepath teleportedFromImageFile = getNewImageFile(accountHash, Heatmap.HeatmapType.TELEPORTED_FROM, seasonalType);
-			plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM), teleportedFromImageFile, config.isWriteFullImageEnabled(), config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, Heatmap.HeatmapType.TELEPORTED_FROM)));
+			plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TELEPORTED_FROM), teleportedFromImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, Heatmap.HeatmapType.TELEPORTED_FROM)));
 
 			// If enabled, trigger heatmap data upload to server.
 			// Theoretically this could fix most of the public data.

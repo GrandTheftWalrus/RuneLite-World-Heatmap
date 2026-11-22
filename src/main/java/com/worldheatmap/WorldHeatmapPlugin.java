@@ -1002,9 +1002,11 @@ public class WorldHeatmapPlugin extends Plugin {
     }
 
 
+	/**
+	 * Shows an image write's progress in the heatmap's panel row.
+	 */
 	static class HeatmapProgressListener implements IIOWriteProgressListener {
         private final WorldHeatmapPlugin worldHeatmapPlugin;
-        Color originalColor;
         Heatmap.HeatmapType heatmapType;
 
         WorldHeatmapPanel panel;
@@ -1014,33 +1016,23 @@ public class WorldHeatmapPlugin extends Plugin {
             this.worldHeatmapPlugin = worldHeatmapPlugin;
             this.heatmapType = heatmapType;
             this.panel = worldHeatmapPlugin.panel;
-            if (panel.writeHeatmapImageButtons.get(heatmapType) != null) {
-                originalColor = panel.writeHeatmapImageButtons.get(heatmapType).getForeground();
-            }
         }
 
         @Override
         public void imageStarted(ImageWriter source, int imageIndex) {
             panel.setEnabledHeatmapButtons(false);
-            panel.writeHeatmapImageButtons.get(heatmapType).setText("Writing... 0%");
+            panel.setImageWriteStatus(heatmapType, "Writing... 0%", Color.YELLOW);
         }
 
         @Override
         public void imageProgress(ImageWriter source, float percentageDone) {
-            panel.writeHeatmapImageButtons.get(heatmapType).setText(String.format("Writing... %.2f%%", percentageDone));
+            panel.setImageWriteStatus(heatmapType, String.format("Writing... %.0f%%", percentageDone), Color.YELLOW);
         }
 
         @Override
         public void imageComplete(ImageWriter source) {
-            panel.setEnabledHeatmapButtons(true); // Had to do this early so that the color change would be visible
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.GREEN);
-            panel.writeHeatmapImageButtons.get(heatmapType).setText("Done");
-            worldHeatmapPlugin.executor.schedule(() -> {
-                SwingUtilities.invokeLater(() -> {
-                    panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
-                    panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
-                });
-            }, 2L, TimeUnit.SECONDS);
+            panel.setEnabledHeatmapButtons(true);
+            showResultBriefly("Done", Color.GREEN);
         }
 
         @Override
@@ -1057,15 +1049,13 @@ public class WorldHeatmapPlugin extends Plugin {
 
         @Override
         public void writeAborted(ImageWriter source) {
-            panel.setEnabledHeatmapButtons(true); // Had to do this early so that the color change would be visible
-            panel.writeHeatmapImageButtons.get(heatmapType).setForeground(Color.RED);
-            panel.writeHeatmapImageButtons.get(heatmapType).setText("Error");
-            worldHeatmapPlugin.executor.schedule(() -> {
-                SwingUtilities.invokeLater(() -> {
-                    panel.writeHeatmapImageButtons.get(heatmapType).setText("Write Heatmap Image");
-                    panel.writeHeatmapImageButtons.get(heatmapType).setForeground(originalColor);
-                });
-            }, 2L, TimeUnit.SECONDS);
+            panel.setEnabledHeatmapButtons(true);
+            showResultBriefly("Error", Color.RED);
+        }
+
+        private void showResultBriefly(String result, Color colour) {
+            panel.setImageWriteStatus(heatmapType, result, colour);
+            worldHeatmapPlugin.executor.schedule(() -> panel.clearImageWriteStatus(heatmapType), 2L, TimeUnit.SECONDS);
         }
     }
 }

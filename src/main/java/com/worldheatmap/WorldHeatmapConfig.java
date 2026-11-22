@@ -72,7 +72,7 @@ public interface WorldHeatmapConfig extends Config {
     )
     @ConfigItem(
             keyName = "HeatmapAlpha",
-            name = "Heatmap colour alpha",
+            name = "Heatmap opacity",
             position = 4,
             description = "The opacity of the heatmap colours drawn over the world map image",
             section = settings
@@ -110,21 +110,10 @@ public interface WorldHeatmapConfig extends Config {
         return 4;
     }
 
-    @ConfigItem(
-            keyName = "writeFullMapImage",
-            name = "Write full world map image (SLOW)",
-            position = 7,
-            description = "Warning: This takes much longer than writing just the overworld image. If checked, this will write the full world map image (including underground/non-overworld areas). Does not apply to image autosaves.",
-            section = settings
-    )
-    default boolean isWriteFullImageEnabled() {
-        return false;
-    }
-
 	@ConfigItem(
 			keyName = "isBlueMapEnabled",
 			name = "Blue map",
-			position = 8,
+			position = 7,
 			description = "If enabled, the world map will be coloured blue instead of grayscale.",
 			section = settings
 	)
@@ -135,7 +124,7 @@ public interface WorldHeatmapConfig extends Config {
 	@ConfigItem(
 		keyName = "enabledHeatmaps",
 		name = "Enabled heatmaps",
-		position = 9,
+		position = 8,
 		description = "Which heatmaps are recorded. Ctrl-click to toggle one, Shift-click to select a range. A plain click selects only that heatmap. Changes apply when you click away from the list; disabled heatmaps are saved and unloaded.",
 		section = settings
 	)
