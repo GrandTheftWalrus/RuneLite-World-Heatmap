@@ -369,6 +369,12 @@ NOTE: Will need to include a warning and an opt-in checkbox for global heatmap d
 
 2026-11-22: Updated NpcIDs to new random event IDs
 
+2026-11-22: Added optional heatmap overlays for the game scene, minimap, and world map
+
+2026-11-22: Fixed PVP_DAMAGE_TAKEN and PVP_DAMAGE_GIVEN using each other's on/off config
+
+2026-11-22: Fixed NPC_DAMAGE_TAKEN being labelled NPC_DAMAGE_GIVEN in the config
+
 TODO: LOOT_VALUE is kinda useless because it's dependent on both the amount of loot dropped by each NPCs, and the frequency at which people kill them.
 	Not sure if it's possible, but an AVERAGE_LOOT_VALUE would be much more informative. However, I suppose that would be information that is already available on the wiki.
 	Maybe this would not actually be interesting at all. The stationary distribution would just show solid blobs of color.
@@ -383,7 +389,3 @@ TODO: Yuge memory-saving idea:
 	- on image write and data upload, the file will be reloaded too
 
 TODO: Make an auto-image button for each heatmap type instead of only having the option for both Type A and Type B
-
-TODO stretch goal: Have the heatmaps displayable in the in-game world map similarly to how Shortest Path displays them.
-
-TODO: stretch goal: Have the heatmaps visible on the ground in-game
