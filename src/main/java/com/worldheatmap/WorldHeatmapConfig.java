@@ -231,7 +231,7 @@ public interface WorldHeatmapConfig extends Config {
 		section = overlays
 	)
 	default boolean overlayUnderObjects() {
-		return true;
+		return false;
 	}
 
 	@Range(
