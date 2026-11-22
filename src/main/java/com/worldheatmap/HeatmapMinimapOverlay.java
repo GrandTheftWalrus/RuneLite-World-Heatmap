@@ -61,8 +61,8 @@ class HeatmapMinimapOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		Heatmap heatmap = cache.getHeatmap();
-		if (!config.showMinimapOverlay() || heatmap == null || client.getLocalPlayer() == null)
+		final HeatmapOverlayCache.TileColours tileColours = config.showMinimapOverlay() ? cache.getTileColours() : null;
+		if (tileColours == null || client.getLocalPlayer() == null)
 		{
 			return null;
 		}
@@ -77,7 +77,7 @@ class HeatmapMinimapOverlay extends Overlay
 		graphics.setClip(minimapClipArea);
 		try
 		{
-			renderMinimap(graphics, heatmap);
+			renderMinimap(graphics, tileColours);
 		}
 		finally
 		{
@@ -86,7 +86,7 @@ class HeatmapMinimapOverlay extends Overlay
 		return null;
 	}
 
-	private void renderMinimap(Graphics2D graphics, Heatmap heatmap)
+	private void renderMinimap(Graphics2D graphics, HeatmapOverlayCache.TileColours tileColours)
 	{
 		final LocalPoint playerLocation = client.getLocalPlayer().getLocalLocation();
 		final int playerX = playerLocation.getSceneX();
@@ -102,11 +102,6 @@ class HeatmapMinimapOverlay extends Overlay
 		final int startY = Math.max(playerY - radius, 0);
 		final int endY = Math.min(playerY + radius, tiles[0].length);
 
-		final int sensitivity = config.heatmapSensitivity();
-		final int alpha = config.overlayOpacity();
-		final long minVal = cache.getMinVal();
-		final long maxVal = cache.getMaxVal();
-
 		for (int x = startX; x < endX; x++)
 		{
 			for (int y = startY; y < endY; y++)
@@ -118,8 +113,8 @@ class HeatmapMinimapOverlay extends Overlay
 				}
 
 				final WorldPoint wp = tile.getWorldLocation();
-				final long value = heatmap.get(wp.getX(), wp.getY(), wp.getPlane());
-				if (value <= 0)
+				final Color colour = tileColours.get(wp.getX(), wp.getY(), wp.getPlane());
+				if (colour == null)
 				{
 					continue;
 				}
@@ -130,7 +125,7 @@ class HeatmapMinimapOverlay extends Overlay
 					continue;
 				}
 
-				drawSquare(graphics, posOnMinimap, Utils.heatmapColor(value, sensitivity, minVal, maxVal, alpha));
+				drawSquare(graphics, posOnMinimap, colour);
 			}
 		}
 	}

@@ -1,5 +1,6 @@
 package com.worldheatmap;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
@@ -26,6 +27,12 @@ class HeatmapOverlayCache
 
 	private final WorldHeatmapPlugin plugin;
 	private final WorldHeatmapConfig config;
+	private final GlobalHeatmapLoader globalLoader;
+
+	// Global heatmap tile colours by level, for the palette settings they were made with
+	private Color[] globalPalette;
+	private int globalPaletteSensitivity;
+	private int globalPaletteAlpha;
 
 	@Getter
 	private Heatmap heatmap;
@@ -43,15 +50,83 @@ class HeatmapOverlayCache
 	private int ticksSinceRefresh;
 
 	@Inject
-	HeatmapOverlayCache(WorldHeatmapPlugin plugin, WorldHeatmapConfig config)
+	HeatmapOverlayCache(WorldHeatmapPlugin plugin, WorldHeatmapConfig config, GlobalHeatmapLoader globalLoader)
 	{
 		this.plugin = plugin;
 		this.config = config;
+		this.globalLoader = globalLoader;
 	}
 
 	/**
 	 * Forces a rebuild on the next tick, e.g. after an overlay config change.
 	 */
+	/**
+	 * Colours for the game scene and minimap overlays' tiles, for one frame.
+	 */
+	interface TileColours
+	{
+		/**
+		 * @return the tile's colour, or null if it has no data
+		 */
+		Color get(int x, int y, int plane);
+	}
+
+	/**
+	 * Gets the tile colours for this frame: from the global heatmap (floor 0 only) in global mode, otherwise from the
+	 * player's own. Reads the config once here rather than per tile. Client thread only.
+	 *
+	 * @return the colours, or null if there's no data to show
+	 */
+	TileColours getTileColours()
+	{
+		final int sensitivity = config.heatmapSensitivity();
+		final int alpha = config.overlayOpacity();
+
+		if (config.overlayUseGlobalHeatmaps())
+		{
+			final GlobalHeatmap global = globalLoader.getHeatmap();
+			if (global == null)
+			{
+				return null;
+			}
+			final Color[] palette = getGlobalPalette(sensitivity, alpha);
+			return (x, y, plane) ->
+			{
+				final int level = plane == 0 ? global.getLevel(x, y) : 0;
+				return level == 0 ? null : palette[level];
+			};
+		}
+
+		final Heatmap local = heatmap;
+		if (local == null)
+		{
+			return null;
+		}
+		final long min = minVal;
+		final long max = maxVal;
+		return (x, y, plane) ->
+		{
+			final long value = local.get(x, y, plane);
+			return value <= 0 ? null : Utils.heatmapColor(value, sensitivity, min, max, alpha);
+		};
+	}
+
+	private Color[] getGlobalPalette(int sensitivity, int alpha)
+	{
+		if (globalPalette == null || sensitivity != globalPaletteSensitivity || alpha != globalPaletteAlpha)
+		{
+			final Color[] palette = new Color[256];
+			for (int level = 1; level < 256; level++)
+			{
+				palette[level] = Utils.heatmapColorFromLogRatio(GlobalHeatmap.logRatio(level), sensitivity, alpha);
+			}
+			globalPalette = palette;
+			globalPaletteSensitivity = sensitivity;
+			globalPaletteAlpha = alpha;
+		}
+		return globalPalette;
+	}
+
 	void invalidate()
 	{
 		dirty = true;

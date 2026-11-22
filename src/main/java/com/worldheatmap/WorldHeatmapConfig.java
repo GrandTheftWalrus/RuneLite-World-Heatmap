@@ -185,9 +185,9 @@ public interface WorldHeatmapConfig extends Config {
 
 	@ConfigItem(
 		keyName = "overlayUseGlobalHeatmaps",
-		name = "World map: global heatmaps",
+		name = "Use global heatmaps",
 		position = 4,
-		description = "Shows the global heatmaps (everyone's combined data, from osrsworldheatmap.com) on the world map instead of your own. Downloads the selected heatmap (a few MB at most) from github.com/GrandTheftWalrus/gtw-runelite-stuff and caches it. The game scene and minimap overlays keep showing your own data.",
+		description = "Shows the global heatmaps (everyone's combined data, from osrsworldheatmap.com) on the overlays instead of your own. Downloads the selected heatmap (a few MB at most) from github.com/GrandTheftWalrus/gtw-runelite-stuff and caches it. Global data only covers the ground floor.",
 		section = overlays
 	)
 	default boolean overlayUseGlobalHeatmaps() {

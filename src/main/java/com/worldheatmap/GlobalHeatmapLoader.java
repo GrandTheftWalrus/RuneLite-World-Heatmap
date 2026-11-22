@@ -7,8 +7,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.zip.GZIPInputStream;
@@ -22,7 +24,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Downloads, caches and loads the global heatmap for the world map overlay. Only one is held in memory at a time.
+ * Downloads, caches and loads the global heatmap for the overlays. Only one is held in memory at a time.
  * <p>
  * Files are cached in the plugin directory and revalidated (by ETag) once per client session per heatmap, so they're
  * only downloaded again when they change. If the server can't be reached, the cached copy is used.
@@ -51,8 +53,9 @@ class GlobalHeatmapLoader
 	private final OkHttpClient okHttpClient;
 	private final ScheduledExecutorService executor;
 
-	// Heatmaps already checked with the server this session
-	private final Set<Heatmap.HeatmapType> revalidated = Collections.synchronizedSet(new HashSet<>());
+	// File names already checked with the server this session, and ones the server doesn't have
+	private final Set<String> revalidated = Collections.synchronizedSet(new HashSet<>());
+	private final Set<String> unavailable = Collections.synchronizedSet(new HashSet<>());
 
 	private Heatmap.HeatmapType requestedType;
 	// Incremented on every new request, so a slow load for a previous request is discarded
@@ -74,7 +77,8 @@ class GlobalHeatmapLoader
 	 */
 	void update()
 	{
-		final Heatmap.HeatmapType wanted = config.showWorldMapOverlay() && config.overlayUseGlobalHeatmaps()
+		final boolean anyOverlay = config.showWorldMapOverlay() || config.showSceneOverlay() || config.showMinimapOverlay();
+		final Heatmap.HeatmapType wanted = anyOverlay && config.overlayUseGlobalHeatmaps()
 			? config.overlayHeatmapType().getHeatmapType() : null;
 		if (wanted == requestedType)
 		{
@@ -115,61 +119,77 @@ class GlobalHeatmapLoader
 	}
 
 	/**
-	 * The file name the global data for a heatmap type is published under.
+	 * The file names the global data for a heatmap type may be published under, in order of preference.
 	 */
-	private static String fileName(Heatmap.HeatmapType type)
+	private static List<String> fileNames(Heatmap.HeatmapType type)
 	{
 		switch (type)
 		{
-			// The global data predates splitting damage into NPC and PVP, and uses the old type names
+			// Older global data predates splitting damage into NPC and PVP, under the old type names
 			case NPC_DAMAGE_TAKEN:
-				return "DAMAGE_TAKEN.whmg.gz";
+				return Arrays.asList("NPC_DAMAGE_TAKEN.whmg.gz", "DAMAGE_TAKEN.whmg.gz");
 			case NPC_DAMAGE_GIVEN:
-				return "DAMAGE_GIVEN.whmg.gz";
+				return Arrays.asList("NPC_DAMAGE_GIVEN.whmg.gz", "DAMAGE_GIVEN.whmg.gz");
 			default:
-				return type.name() + ".whmg.gz";
+				return Collections.singletonList(type.name() + ".whmg.gz");
 		}
 	}
 
+	/**
+	 * Loads the first of the type's file names that the server has (or, if it can't be reached, that's cached).
+	 */
 	private void load(Heatmap.HeatmapType type, int requestGeneration)
 	{
-		final String name = fileName(type);
 		final Filepath dir = plugin.pluginDirectory.join("Global Heatmaps");
-		final Filepath file = dir.joinSegment(name);
-		final Filepath etagFile = dir.joinSegment(name + ".etag");
+		boolean failed = false;
 
-		try
+		for (String name : fileNames(type))
 		{
-			if (!revalidated.contains(type))
+			if (unavailable.contains(name))
 			{
-				final Status downloadStatus = download(BASE_URL + name, dir, file, etagFile);
-				if (downloadStatus == Status.UNAVAILABLE)
+				continue;
+			}
+			final Filepath file = dir.joinSegment(name);
+			final Filepath etagFile = dir.joinSegment(name + ".etag");
+
+			try
+			{
+				if (!revalidated.contains(name))
 				{
-					finish(requestGeneration, null, Status.UNAVAILABLE);
+					if (download(BASE_URL + name, dir, file, etagFile) == Status.UNAVAILABLE)
+					{
+						// Not (or no longer) published, so don't fall back to a stale cached copy either
+						unavailable.add(name);
+						file.deleteIfExists();
+						etagFile.deleteIfExists();
+						continue;
+					}
+					revalidated.add(name);
+				}
+
+				if (!file.exists())
+				{
+					failed = true;
+					continue;
+				}
+
+				try (InputStream fileIn = file.openInputStream();
+					 DataInputStream in = new DataInputStream(new BufferedInputStream(new GZIPInputStream(fileIn, 64 * 1024))))
+				{
+					final GlobalHeatmap loaded = GlobalHeatmap.read(in, type);
+					log.debug("Loaded global {} heatmap from {}: {} regions, max {}", type, name, loaded.getRegions().size(), loaded.getMaxValue());
+					finish(requestGeneration, loaded, Status.READY);
 					return;
 				}
-				revalidated.add(type);
 			}
-
-			if (!file.exists())
+			catch (IOException | RuntimeException e)
 			{
-				finish(requestGeneration, null, Status.ERROR);
-				return;
-			}
-
-			try (InputStream fileIn = file.openInputStream();
-				 DataInputStream in = new DataInputStream(new BufferedInputStream(new GZIPInputStream(fileIn, 64 * 1024))))
-			{
-				final GlobalHeatmap loaded = GlobalHeatmap.read(in, type);
-				log.debug("Loaded global {} heatmap: {} regions, max {}", type, loaded.getRegions().size(), loaded.getMaxValue());
-				finish(requestGeneration, loaded, Status.READY);
+				log.warn("Failed to load global {} heatmap from {}", type, name, e);
+				failed = true;
 			}
 		}
-		catch (IOException | RuntimeException e)
-		{
-			log.warn("Failed to load global {} heatmap", type, e);
-			finish(requestGeneration, null, Status.ERROR);
-		}
+
+		finish(requestGeneration, null, failed ? Status.ERROR : Status.UNAVAILABLE);
 	}
 
 	private void finish(int requestGeneration, GlobalHeatmap loaded, Status newStatus)

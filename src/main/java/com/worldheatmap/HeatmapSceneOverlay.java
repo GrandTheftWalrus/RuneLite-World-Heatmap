@@ -70,8 +70,8 @@ class HeatmapSceneOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		Heatmap heatmap = cache.getHeatmap();
-		if (!config.showSceneOverlay() || heatmap == null || client.getLocalPlayer() == null)
+		final HeatmapOverlayCache.TileColours tileColours = config.showSceneOverlay() ? cache.getTileColours() : null;
+		if (tileColours == null || client.getLocalPlayer() == null)
 		{
 			return null;
 		}
@@ -79,7 +79,7 @@ class HeatmapSceneOverlay extends Overlay
 		final WorldView worldView = client.getTopLevelWorldView();
 		final List<Polygon> polys = new ArrayList<>();
 		final List<Color> colours = new ArrayList<>();
-		collectTiles(worldView, heatmap, polys, colours);
+		collectTiles(worldView, tileColours, polys, colours);
 		if (polys.isEmpty())
 		{
 			return null;
@@ -131,7 +131,7 @@ class HeatmapSceneOverlay extends Overlay
 		return null;
 	}
 
-	private void collectTiles(WorldView worldView, Heatmap heatmap, List<Polygon> polys, List<Color> colours)
+	private void collectTiles(WorldView worldView, HeatmapOverlayCache.TileColours tileColours, List<Polygon> polys, List<Color> colours)
 	{
 		final LocalPoint playerLocation = client.getLocalPlayer().getLocalLocation();
 		final int playerX = playerLocation.getSceneX();
@@ -146,11 +146,6 @@ class HeatmapSceneOverlay extends Overlay
 		final int startY = Math.max(playerY - radius, 0);
 		final int endY = Math.min(playerY + radius, tiles[0].length);
 
-		final int sensitivity = config.heatmapSensitivity();
-		final int alpha = config.overlayOpacity();
-		final long minVal = cache.getMinVal();
-		final long maxVal = cache.getMaxVal();
-
 		for (int x = startX; x < endX; x++)
 		{
 			for (int y = startY; y < endY; y++)
@@ -162,8 +157,8 @@ class HeatmapSceneOverlay extends Overlay
 				}
 
 				final WorldPoint wp = tile.getWorldLocation();
-				final long value = heatmap.get(wp.getX(), wp.getY(), wp.getPlane());
-				if (value <= 0)
+				final Color colour = tileColours.get(wp.getX(), wp.getY(), wp.getPlane());
+				if (colour == null)
 				{
 					continue;
 				}
@@ -175,7 +170,7 @@ class HeatmapSceneOverlay extends Overlay
 				}
 
 				polys.add(poly);
-				colours.add(Utils.heatmapColor(value, sensitivity, minVal, maxVal, alpha));
+				colours.add(colour);
 			}
 		}
 	}
