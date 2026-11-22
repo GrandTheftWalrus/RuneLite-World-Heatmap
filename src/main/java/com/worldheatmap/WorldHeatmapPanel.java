@@ -10,6 +10,7 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.util.LinkBrowser;
@@ -73,8 +74,8 @@ public class WorldHeatmapPanel extends PluginPanel {
         totalMemoryUsageLabel.setHorizontalAlignment(SwingConstants.CENTER);
         mainPanel.add(totalMemoryUsageLabel);
 
-        //'Open Heatmaps Folder' button
-        JButton openHeatmapFolderButton = getOpenHeatmapFolderButton(buttonFont);
+        //'Copy Heatmaps Folder Path' button
+        JButton openHeatmapFolderButton = getCopyHeatmapFolderPathButton(buttonFont);
         mainPanel.add(openHeatmapFolderButton);
 
         //'Visit Global Heatmap Website' button
@@ -162,17 +163,28 @@ public class WorldHeatmapPanel extends PluginPanel {
         return clearHeatmapButton;
     }
 
-    private JButton getOpenHeatmapFolderButton(Font buttonFont) {
-        JButton openHeatmapFolderButton = new JButton("Open Heatmaps Folder");
-        openHeatmapFolderButton.setFont(buttonFont);
-        openHeatmapFolderButton.addActionListener(e -> {
+    /**
+     * Plugin hub plugins can't open local folders, so this copies the folder's path to the clipboard instead.
+     */
+    private JButton getCopyHeatmapFolderPathButton(Font buttonFont) {
+        JButton copyPathButton = new JButton("Copy Heatmaps Folder Path");
+        copyPathButton.setFont(buttonFont);
+        copyPathButton.setToolTipText(plugin.pluginDirectory == null ? null : plugin.pluginDirectory.toString());
+        copyPathButton.addActionListener(e -> {
             try {
-                openHeatmapsFolder();
+                plugin.pluginDirectory.createDirectories();
             } catch (IOException exception) {
-                log.error("Error: Exception thrown whilst opening worldheatmap folder: {}", exception.getMessage());
+                log.error("Error: Exception thrown whilst creating worldheatmap folder: {}", exception.getMessage());
             }
+            String path = plugin.pluginDirectory.toString();
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(path), null);
+            copyPathButton.setToolTipText(path);
+            copyPathButton.setText("Copied!");
+            Timer timer = new Timer(2000, ev -> copyPathButton.setText("Copy Heatmaps Folder Path"));
+            timer.setRepeats(false);
+            timer.start();
         });
-        return openHeatmapFolderButton;
+        return copyPathButton;
     }
 
     /**
@@ -257,7 +269,7 @@ public class WorldHeatmapPanel extends PluginPanel {
         plugin.executor.execute(plugin::saveHeatmapsFile);
         // Write the specified heatmap image
 		Filepath imageFile = plugin.heatmapFileManager.getNewImageFile(plugin.currentLocalAccountHash, heatmapType, heatmap.getSeasonalType());
-        plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
+        plugin.executor.execute(() -> HeatmapImage.writeHeatmapImage(plugin.okHttpClient, heatmap, imageFile, isFullMapImage, plugin.config.isBlueMapEnabled(), plugin.config.heatmapAlpha(), plugin.config.heatmapSensitivity(), plugin.config.speedMemoryTradeoff(), new WorldHeatmapPlugin.HeatmapProgressListener(plugin, heatmapType)));
     }
 
     private void clearHeatmap(Heatmap.HeatmapType heatmapType) {
@@ -272,11 +284,6 @@ public class WorldHeatmapPanel extends PluginPanel {
         // Start a new .heatmaps data file, so the pre-clearing data is not lost
 		plugin.executor.execute(plugin::saveNewHeatmapsFile);
     }
-
-    private void openHeatmapsFolder() throws IOException {
-        plugin.pluginDirectory.createDirectories();
-		LinkBrowser.open(plugin.pluginDirectory.toString());
-	}
 
     void setEnabledHeatmapButtons(boolean onOff) {
         // Disable write heatmap image buttons

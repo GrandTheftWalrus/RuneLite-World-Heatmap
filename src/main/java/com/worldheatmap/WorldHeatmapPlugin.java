@@ -650,10 +650,10 @@ public class WorldHeatmapPlugin extends Plugin {
 
             // Write the image files
             if (config.isHeatmapTypeAEnabled()) {
-                executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
+                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_A), typeAImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_A)));
             }
             if (config.isHeatmapTypeBEnabled()) {
-                executor.execute(() -> HeatmapImage.writeHeatmapImage(heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
+                executor.execute(() -> HeatmapImage.writeHeatmapImage(okHttpClient, heatmaps.get(Heatmap.HeatmapType.TYPE_B), typeBImageFile, false, config.isBlueMapEnabled(), config.heatmapAlpha(), config.heatmapSensitivity(), config.speedMemoryTradeoff(), new HeatmapProgressListener(this, Heatmap.HeatmapType.TYPE_B)));
             }
         }
     }
