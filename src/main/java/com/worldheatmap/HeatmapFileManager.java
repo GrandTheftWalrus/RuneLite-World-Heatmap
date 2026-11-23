@@ -2,7 +2,6 @@ package com.worldheatmap;
 
 import java.awt.Color;
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -441,9 +440,9 @@ public class HeatmapFileManager
 	 * @param heatmapsFile The .heatmaps file
 	 * @param types        The heatmap types to load
 	 * @return HashMap of HeatmapNew objects
-	 * @throws FileNotFoundException If the file does not exist
+	 * @throws IOException If the file does not exist
 	 */
-	HashMap<Heatmap.HeatmapType, Heatmap> readHeatmapsFromFile(Filepath heatmapsFile, Collection<Heatmap.HeatmapType> types) throws FileNotFoundException {
+	HashMap<Heatmap.HeatmapType, Heatmap> readHeatmapsFromFile(Filepath heatmapsFile, Collection<Heatmap.HeatmapType> types) throws IOException {
 		return readHeatmapsFromFile(heatmapsFile, types, true);
 	}
 
@@ -454,11 +453,11 @@ public class HeatmapFileManager
 	 * @param types        The heatmap types to load
 	 * @param verbose      Whether to log the heatmap types loaded
 	 * @return HashMap of HeatmapNew objects
-	 * @throws FileNotFoundException If the file does not exist
+	 * @throws IOException If the file does not exist
 	 */
-	HashMap<Heatmap.HeatmapType, Heatmap> readHeatmapsFromFile(Filepath heatmapsFile, Collection<Heatmap.HeatmapType> types, boolean verbose) throws FileNotFoundException {
+	HashMap<Heatmap.HeatmapType, Heatmap> readHeatmapsFromFile(Filepath heatmapsFile, Collection<Heatmap.HeatmapType> types, boolean verbose) throws IOException {
 		if (!heatmapsFile.exists()) {
-			throw new FileNotFoundException(heatmapsFile.toString());
+			throw new IOException(heatmapsFile.toString());
 		}
 
 		Set<String> wantedEntryNames = new HashSet<>();
@@ -572,7 +571,7 @@ public class HeatmapFileManager
 				}
 			}
 		}
-		catch (FileNotFoundException e) {
+		catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 		return latestVersion;

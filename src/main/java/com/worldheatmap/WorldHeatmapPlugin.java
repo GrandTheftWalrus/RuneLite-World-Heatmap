@@ -3,7 +3,6 @@ package com.worldheatmap;
 import com.google.inject.Provides;
 
 import java.awt.*;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -171,7 +170,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			try {
 				heatmaps = heatmapFileManager.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
 			}
-			catch (FileNotFoundException e) {
+			catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 			for (Heatmap heatmap : heatmaps.values()){
@@ -837,7 +836,7 @@ public class WorldHeatmapPlugin extends Plugin {
                     heatmap.setAccountType(currentPlayerAccountType);
                     heatmap.setCurrentCombatLevel(currentPlayerCombatLevel);
 					heatmap.setSeasonalType(currentSeasonalType);
-                } catch (FileNotFoundException e) {
+                } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }
