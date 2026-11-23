@@ -6,9 +6,13 @@ Data can be exported as CSVs for analysis in other programs.
 ![TYPE_A](https://github.com/user-attachments/assets/7c234858-00ad-4973-8885-8781e5759509)
 ![TELEPORT_PATHS](https://github.com/user-attachments/assets/80fa3310-fa59-4a48-a20e-e866fd5b97b3)
 ![NPC_DEATHS](https://github.com/user-attachments/assets/5e1a8fc4-5f93-40f6-b5b9-3a2af11e719a)
-![Heatmap Config](https://github.com/user-attachments/assets/50ee358e-08f5-46ea-89b8-939f06d9e048)
 
-Types of trackable data:
+## Personal and global heatmap data can now be visualized in-game
+
+<img width="2259" height="1195" alt="image" src="https://github.com/user-attachments/assets/8c975836-98b8-4f9a-a43b-8741c90a59fa" />
+<img width="554" height="378" alt="image" src="https://github.com/user-attachments/assets/7aeaeb74-8d73-408d-801c-083a74741f3c" />
+
+## Types of trackable data
 
 - TYPE_A (increments a tile when you walk over it)
 - TYPE_B (increments a tile for each tick you're standing on it)
@@ -25,14 +29,15 @@ Types of trackable data:
 - DAMAGE_TAKEN
 - DAMAGE_GIVEN
 
+## How to export as CSV
+
 The data can be analyzed more fancily with other tools such as R, or Quicken 2003 (not included) by extracting the data as CSV files:
 (to do this, copy and rename the .heatmaps file to a .zip and look inside it)
-![image](https://user-images.githubusercontent.com/70998757/193536404-1aad969d-e2fb-4ab1-af27-3c38be4ac90d.png)
 
-## How to export as CSV
+![image](https://user-images.githubusercontent.com/70998757/193536404-1aad969d-e2fb-4ab1-af27-3c38be4ac90d.png)
 
 1. The .heatmap files are actually just zip files containing CSVs. You might need to rename the file extension to .zip for them to behave with zip programs.
 
-## Important note
+## Note
 
 The memory constraints of RuneLite plugins make it difficult to handle such large PNG images as this plugin does, so they are read, modified, and written one piece at a time. If the plugin is crashing for you when you write an image, try lowering the "speed-memory tradeoff" config setting until it works.
