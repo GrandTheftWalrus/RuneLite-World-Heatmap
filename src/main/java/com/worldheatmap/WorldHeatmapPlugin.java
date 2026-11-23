@@ -3,7 +3,6 @@ package com.worldheatmap;
 import com.google.inject.Provides;
 
 import java.awt.*;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -205,7 +204,7 @@ public class WorldHeatmapPlugin extends Plugin {
 			try {
 				heatmaps = heatmapFileManager.readHeatmapsFromFile(latestHeatmapsFile, getEnabledHeatmapTypes());
 			}
-			catch (FileNotFoundException e) {
+			catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 			for (Heatmap heatmap : heatmaps.values()){
@@ -982,7 +981,7 @@ public class WorldHeatmapPlugin extends Plugin {
             if (heatmapsFile != null && heatmapsFile.exists()) {
                 try {
                     heatmap = heatmapFileManager.readHeatmapsFromFile(heatmapsFile, Collections.singletonList(heatmapType)).get(heatmapType);
-                } catch (FileNotFoundException e) {
+                } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }
